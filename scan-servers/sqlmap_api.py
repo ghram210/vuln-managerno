@@ -366,12 +366,11 @@ def run_sqlmap(req: ScanRequest):
     # against the same host can restore previous heuristics, crawl
     # results, and confirmed injection points.
     # sqlmap auto-creates a per-target subfolder inside --output-dir and
-    # stores session.sqlite there, so a stable per-host root is enough
-    # to give us session persistence across runs (no --session-file flag
-    # needed; it was removed in modern sqlmap versions).
-    host = parsed.hostname or "default"
-    host_dir = os.path.join(SESSIONS_ROOT, _safe_host_dir(host))
-    os.makedirs(host_dir, exist_ok=True)
+    # stores session.sqlite there. Using SESSIONS_ROOT directly as
+    # --output-dir ensures that sqlmap creates/uses
+    # SESSIONS_ROOT/<hostname>/session.sqlite, giving us stable
+    # session persistence across runs.
+    os.makedirs(SESSIONS_ROOT, exist_ok=True)
 
     # User-requested baseline profile.
     common = [
@@ -391,7 +390,7 @@ def run_sqlmap(req: ScanRequest):
         # Persistent session so repeat scans actually progress instead
         # of restarting from scratch every time. sqlmap stores
         # session.sqlite under <output-dir>/<target> automatically.
-        "--output-dir", host_dir,
+        "--output-dir", SESSIONS_ROOT,
         "-v", "2",
         "--keep-alive",
         "--timeout=30",
@@ -438,12 +437,21 @@ def run_sqlmap(req: ScanRequest):
     # Merge user-supplied extra options without letting them override
     # any of the protected flags above.
     if options:
-        protected_bases = {_base_flag(o) for o in cmd}
+        # Pre-process PROTECTED_FLAGS to handle both --flag and --flag=value forms
+        protected_bases = set()
+        for f in PROTECTED_FLAGS:
+            protected_bases.add(f)
+            if f.startswith("--"):
+                protected_bases.add(f.split("=")[0])
+
+        current_cmd_bases = {_base_flag(o) for o in cmd}
+
         for o in options.split():
             if not ((o.startswith("--") or o.startswith("-")) and len(o) < 60):
                 continue
             base = _base_flag(o)
-            if base in PROTECTED_FLAGS or base in protected_bases:
+            if base in protected_bases or base in current_cmd_bases:
+                print(f"[SQLMAP-API] dropping protected/duplicate option: {o}", flush=True)
                 continue
             cmd.append(o)
 
@@ -496,6 +504,9 @@ def run_sqlmap(req: ScanRequest):
     output = _augment_findings_summary(output)
     if pre_flight_warning:
         output = pre_flight_warning + "\n" + output
+
+    host = parsed.hostname or "default"
+    host_dir = os.path.join(SESSIONS_ROOT, _safe_host_dir(host))
 
     return {
         "tool": "sqlmap",
