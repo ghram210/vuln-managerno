@@ -1,0 +1,5 @@
+[FFUF-SRV] INFO:     Started server process [38403]
+[FFUF-SRV] INFO:     Waiting for application startup.
+[FFUF-SRV] INFO:     Application startup complete.
+[FFUF-SRV] INFO:     Uvicorn running on http://0.0.0.0:8004 (Press CTRL+C to quit)
+[FFUF-SRV] INFO:     127.0.0.1:33328 - "GET /health HTTP/1.1" 200 OK

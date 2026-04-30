@@ -47,6 +47,9 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+<<<<<<< HEAD
 __pycache__/
 *.pyc
 logs/*.log
+=======
+>>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538

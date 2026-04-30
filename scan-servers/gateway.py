@@ -146,6 +146,7 @@ def count_findings(tool: str, output: str) -> int:
         ]
         # Soft signals — evidence beyond "HTTP 200 == ok":
         #   * heuristic / parameter "might be injectable"
+<<<<<<< HEAD
         #   * DBMS error fingerprints leaking in the response
         # Note: We excluded generic response-diff/content-length patterns
         # here to reduce noise in the total count, as they often trigger
@@ -153,6 +154,19 @@ def count_findings(tool: str, output: str) -> int:
         soft_patterns = [
             r"heuristic\s*\(basic\)\s*test\s*shows.*?injectable",
             r"parameter\s+'[^']+'\s+might\s+be\s+injectable",
+=======
+        #   * response-diff / title-diff differences between payloads
+        #   * content-length anomalies
+        #   * DBMS error fingerprints leaking in the response
+        soft_patterns = [
+            r"heuristic\s*\(basic\)\s*test\s*shows.*?injectable",
+            r"parameter\s+'[^']+'\s+might\s+be\s+injectable",
+            r"different\s+(?:page|response|title)s?\b",
+            r"target\s+url\s+content\s+is\s+different",
+            r"different\s+content\s*-?\s*length",
+            r"length\s+difference\s+detected",
+            r"\bcontent\s+length\s+differs?\b",
+>>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538
             r"you have an error in your sql syntax",
             r"warning.*?\bmysql_",
             r"unclosed\s+quotation\s+mark",
@@ -165,6 +179,7 @@ def count_findings(tool: str, output: str) -> int:
         ]
         total = 0
         for p in strong_patterns:
+<<<<<<< HEAD
             # Count every occurrence of a strong finding.
             total += len(re.findall(p, output, re.IGNORECASE | re.MULTILINE))
         
@@ -173,6 +188,11 @@ def count_findings(tool: str, output: str) -> int:
         for p in soft_patterns:
             if re.search(p, output, re.IGNORECASE | re.MULTILINE):
                 total += 1
+=======
+            total += len(re.findall(p, output, re.IGNORECASE | re.MULTILINE))
+        for p in soft_patterns:
+            total += len(re.findall(p, output, re.IGNORECASE | re.MULTILINE))
+>>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538
         return total
 
     if tool == "FFUF":
