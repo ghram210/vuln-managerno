@@ -1,0 +1,5 @@
+[NIKTO-SRV] INFO:     Started server process [38393]
+[NIKTO-SRV] INFO:     Waiting for application startup.
+[NIKTO-SRV] INFO:     Application startup complete.
+[NIKTO-SRV] INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
+[NIKTO-SRV] INFO:     127.0.0.1:42740 - "GET /health HTTP/1.1" 200 OK
