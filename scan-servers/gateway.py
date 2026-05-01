@@ -98,60 +98,65 @@ class ScanRequest(BaseModel):
     cookie: str = ""
 
 
-def count_findings(tool: str, output: str) -> int:
+def count_findings_detailed(tool: str, output: str) -> tuple[int, dict[str, int]]:
     """
-    Pull the finding count from a tool's formatted output. Each tool now emits
-    a dedicated header line; we read that first. If the formatted header isn't
-    present (e.g. a raw passthrough), fall back to the original heuristic.
+    Returns (total_count, severity_map)
     """
+    sev_map = {
+        "critical_count": 0,
+        "high_count": 0,
+        "medium_count": 0,
+        "low_count": 0
+    }
     if not output:
-        return 0
+        return 0, sev_map
     tool = tool.upper()
 
     if tool == "NMAP":
-        return len(re.findall(r'\d+/tcp\s+open', output, re.IGNORECASE))
+        count = len(re.findall(r'\d+/tcp\s+open', output, re.IGNORECASE))
+        sev_map["low_count"] = count
+        return count, sev_map
 
     if tool == "NIKTO":
         # New formatted output: "Unique findings: N  (deduplicated from ...)"
+        count = 0
         m = re.search(r'Unique findings:\s*(\d+)', output)
         if m:
-            return int(m.group(1))
-        # Legacy nikto raw "X item(s) reported"
-        m = re.search(r'(\d+)\s+item\(s\)\s+reported', output, re.IGNORECASE)
-        if m:
-            return int(m.group(1))
-        # Last-resort fallback for raw "+ " lines
-        meta_prefixes = (
-            "+ Target ", "+ Start Time", "+ End Time", "+ Server:",
-            "+ Host:", "+ Site Link", "+ Root page",
-            "+ /robots.txt", "+ No CGI", "+ Scan terminated",
-            "+ 1 host(s) tested",
-        )
-        count = 0
-        for line in output.splitlines():
-            if line.startswith("+ ") and not line.startswith(meta_prefixes):
-                if "sent cookie:" in line.lower():
-                    continue
-                count += 1
-        return count
+            count = int(m.group(1))
+        else:
+            # Legacy nikto raw "X item(s) reported"
+            m = re.search(r'(\d+)\s+item\(s\)\s+reported', output, re.IGNORECASE)
+            if m:
+                count = int(m.group(1))
+            else:
+                # Last-resort fallback for raw "+ " lines
+                meta_prefixes = (
+                    "+ Target ", "+ Start Time", "+ End Time", "+ Server:",
+                    "+ Host:", "+ Site Link", "+ Root page",
+                    "+ /robots.txt", "+ No CGI", "+ Scan terminated",
+                    "+ 1 host(s) tested",
+                )
+                for line in output.splitlines():
+                    if line.startswith("+ ") and not line.startswith(meta_prefixes):
+                        if "sent cookie:" in line.lower():
+                            continue
+                        count += 1
+        sev_map["medium_count"] = count
+        return count, sev_map
 
     if tool == "SQLMAP":
-        # Strong signals — sqlmap formally confirmed an injection.
-        strong_patterns = [
-            r"parameter\s+'[^']+'\s+is\s+vulnerable",
-            r"appears to be '[^']+' injectable",
-            r"is vulnerable\.",
-            r"^Parameter:\s",
-            r"sqlmap identified the following injection point",
-        ]
-        # Soft signals — evidence beyond "HTTP 200 == ok":
-        #   * heuristic / parameter "might be injectable"
-        #   * DBMS error fingerprints leaking in the response
-        # Note: We excluded generic response-diff/content-length patterns
-        # here to reduce noise in the total count, as they often trigger
-        # on dynamic pages without being vulnerabilities.
+        # Count unique parameters in the "Parameter: <name> (<type>)" blocks
+        # this is the most reliable way to count confirmed vulnerabilities.
+        params_confirmed = re.findall(r"^Parameter:\s+([^\s(]+)", output, re.IGNORECASE | re.MULTILINE)
+        critical = len(set(params_confirmed))
+
+        # Fallback if the full summary wasn't reached but vulnerabilities were found
+        if critical == 0:
+            params_vulnerable = re.findall(r"parameter\s+'([^']+)'\s+is\s+vulnerable", output, re.IGNORECASE)
+            critical = len(set(params_vulnerable))
+
         soft_patterns = [
-            r"heuristic\s*\(basic\)\s*test\s*shows.*?injectable",
+            r"heuristic\s*\(basic\)\s*test\s*shows\s+that\s+.*?\s+might\s+be\s+injectable",
             r"parameter\s+'[^']+'\s+might\s+be\s+injectable",
             r"you have an error in your sql syntax",
             r"warning.*?\bmysql_",
@@ -163,30 +168,34 @@ def count_findings(tool: str, output: str) -> int:
             r"\bsqlstate\[",
             r"pdoexception",
         ]
-        total = 0
-        for p in strong_patterns:
-            # Count every occurrence of a strong finding.
-            total += len(re.findall(p, output, re.IGNORECASE | re.MULTILINE))
-
-        # For soft patterns, count unique types of evidence found to avoid
-        # overcounting repetitive logs on dynamic pages.
+        medium = 0
         for p in soft_patterns:
             if re.search(p, output, re.IGNORECASE | re.MULTILINE):
-                total += 1
-        return total
+                medium += 1
+
+        sev_map["critical_count"] = critical
+        sev_map["medium_count"] = medium
+        return critical + medium, sev_map
 
     if tool == "FFUF":
         # New formatted output: "Real findings: N  (filtered out ...)"
+        count = 0
         m = re.search(r'Real findings:\s*(\d+)', output)
         if m:
-            return int(m.group(1))
-        # Legacy
-        m = re.search(r'Total findings:\s*(\d+)', output)
-        if m:
-            return int(m.group(1))
-        return len(re.findall(r'Size:\d+', output))
+            count = int(m.group(1))
+        else:
+            # Legacy
+            m = re.search(r'Total findings:\s*(\d+)', output)
+            if m:
+                count = int(m.group(1))
+            else:
+                count = len(re.findall(r'Size:\d+', output))
+        sev_map["low_count"] = count
+        return count, sev_map
 
-    return output.lower().count("finding") + output.lower().count("vulnerable")
+    base_count = output.lower().count("finding") + output.lower().count("vulnerable")
+    sev_map["medium_count"] = base_count
+    return base_count, sev_map
 
 
 async def update_scan_in_supabase(scan_id: str, data: dict):
@@ -296,13 +305,14 @@ async def run_scan_background(
         except (asyncio.TimeoutError, asyncio.CancelledError):
             pass
 
-    findings = count_findings(tool, raw_output)
+    findings, severity_map = count_findings_detailed(tool, raw_output)
 
     update_payload = {
         "status": final_status,
         "raw_output": raw_output,
         "completed_at": datetime.now(timezone.utc).isoformat(),
         "total_findings": findings,
+        **severity_map,
     }
 
     # Intelligence pipeline: extract fingerprints -> match local NVD/Exploit-DB

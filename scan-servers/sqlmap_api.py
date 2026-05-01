@@ -390,7 +390,6 @@ def run_sqlmap(req: ScanRequest):
         "--text-only",
         "--titles",
         "--parse-errors",
-        "--smart",
         # Persistent session so repeat scans actually progress instead
         # of restarting from scratch every time. sqlmap stores
         # session.sqlite under <output-dir>/<target> automatically.
