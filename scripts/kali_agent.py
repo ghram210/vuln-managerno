@@ -295,7 +295,6 @@ def run_sqlmap(target: str) -> dict:
         "--crawl=2",
         "--timeout=10",
         "--output-dir=/tmp/sqlmap_output",
-        "--flush-session",
     ]
     stdout, stderr, rc = run_command(cmd, timeout=300)
     raw = (stdout + "\n" + stderr).strip()

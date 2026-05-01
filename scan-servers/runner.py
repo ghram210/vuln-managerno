@@ -153,6 +153,9 @@ def run_streaming(
 
                     if PROGRESS_PATTERN.search(raw_line):
                         last_progress = raw_line
+                        # Don't skip progress lines, print them so the user
+                        # sees tool activity in the terminal log.
+                        print(f"[{label}] {raw_line}", flush=True)
                         continue
 
                     collected_lines.append(raw_line)
