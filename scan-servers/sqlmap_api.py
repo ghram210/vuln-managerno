@@ -37,7 +37,6 @@ PROTECTED_FLAGS = {
     "-v", "--keep-alive", "--random-agent", "--tamper",
     "--text-only", "--titles", "--parse-errors",
     "--smart", "--forms", "--crawl", "--dbs",
-    "--flush-session", "--fresh-queries",
     # We always inject `--cookie` ourselves from the dedicated `cookie`
     # field, so silently drop a `--cookie=` someone tucked into options
     # to avoid sqlmap getting two of them.
@@ -373,7 +372,12 @@ def run_sqlmap(req: ScanRequest):
     os.makedirs(SESSIONS_ROOT, exist_ok=True)
 
     # User-requested baseline profile.
-    common = [
+    stdbuf_path = shutil.which("stdbuf")
+    common = []
+    if stdbuf_path:
+        common.extend([stdbuf_path, "-oL", "-eL"])
+
+    common.extend([
         sqlmap_path,
         "-u", url,
         "--batch",
@@ -415,9 +419,8 @@ def run_sqlmap(req: ScanRequest):
     # "one path yes, the other no".
     cmd.append("--dbs")
     cmd.extend(["--forms", "--crawl=2"])
-    if not has_query:
-        # No parameter on the entry URL → also follow same-host links.
-        cmd.append("--crawl-exclude=logout|signout|delete")
+    # Always exclude logout/reset/delete links to avoid losing the session.
+    cmd.append("--crawl-exclude=logout|signout|delete|reset|change-password")
 
     # Authenticated session support — same effect as accepting the
     # "use server cookie" prompt in the interactive workflow. When a
