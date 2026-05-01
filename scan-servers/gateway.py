@@ -146,17 +146,12 @@ def count_findings(tool: str, output: str) -> int:
         ]
         # Soft signals — evidence beyond "HTTP 200 == ok":
         #   * heuristic / parameter "might be injectable"
-        #   * response-diff / title-diff differences between payloads
-        #   * content-length anomalies
         #   * DBMS error fingerprints leaking in the response
+        # NOTE: generic 'response-diff' and 'content-length' patterns are
+        # excluded here to minimize false-positive noise in scan results.
         soft_patterns = [
             r"heuristic\s*\(basic\)\s*test\s*shows.*?injectable",
             r"parameter\s+'[^']+'\s+might\s+be\s+injectable",
-            r"different\s+(?:page|response|title)s?\b",
-            r"target\s+url\s+content\s+is\s+different",
-            r"different\s+content\s*-?\s*length",
-            r"length\s+difference\s+detected",
-            r"\bcontent\s+length\s+differs?\b",
             r"you have an error in your sql syntax",
             r"warning.*?\bmysql_",
             r"unclosed\s+quotation\s+mark",

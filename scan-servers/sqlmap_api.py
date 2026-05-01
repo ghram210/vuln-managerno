@@ -374,7 +374,10 @@ def run_sqlmap(req: ScanRequest):
     os.makedirs(host_dir, exist_ok=True)
 
     # User-requested baseline profile.
+    # Wrapping with stdbuf -oL -eL ensures real-time log streaming by
+    # bypassing standard output/error buffering.
     common = [
+        "stdbuf", "-oL", "-eL",
         sqlmap_path,
         "-u", url,
         "--batch",
