@@ -68,18 +68,18 @@ const VulnDashboard = () => {
     },
   });
 
-  const { data: byStatus } = useQuery({
-    queryKey: ["vuln-by-status"],
+  const { data: topAssets } = useQuery({
+    queryKey: ["vuln-top-assets"],
     queryFn: async () => {
-      const { data } = await supabase.from("vuln_by_status").select("*").order("sort_order");
+      const { data } = await supabase.from("vuln_top_assets").select("*");
       return data || [];
     },
   });
 
-  const { data: byExploit } = useQuery({
-    queryKey: ["vuln-by-exploit"],
+  const { data: byTool } = useQuery({
+    queryKey: ["vuln-by-tool"],
     queryFn: async () => {
-      const { data } = await supabase.from("vuln_by_exploit").select("*").order("sort_order");
+      const { data } = await supabase.from("vuln_by_tool").select("*");
       return data || [];
     },
   });
@@ -200,7 +200,10 @@ const VulnDashboard = () => {
           </div>
 
           {/* Rating Overview */}
-          <h3 className="text-base font-semibold mb-3">Vulnerability Rating Overview</h3>
+          <h3 className="text-base font-semibold mb-1">Vulnerability Rating Overview</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            نظرة عامة على خطورة الثغرات الأمنية المكتشفة بناءً على معيار CVSS v3.
+          </p>
           <div className="grid grid-cols-4 gap-4 mb-8">
             {filteredRatings.map((r) => {
               const color = severityColors[r.label] || r.color;
@@ -276,8 +279,8 @@ const VulnDashboard = () => {
 
           {/* Bar Charts Row */}
           <div className="grid grid-cols-2 gap-4 mb-8">
-            <BarSection title="By Status" data={byStatus || []} colorMap={statusColors} />
-            <BarSection title="By Exploit Status" data={byExploit || []} colorMap={exploitColors} />
+            <BarSection title="أكثر 5 أصول معرضة للخطر" data={topAssets || []} />
+            <BarSection title="الثغرات حسب أداة الاكتشاف" data={byTool || []} />
           </div>
 
           {/* Remediation Compliance */}

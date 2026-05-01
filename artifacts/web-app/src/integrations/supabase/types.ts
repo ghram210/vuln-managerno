@@ -556,7 +556,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      cve_catalog: {
+        Row: {
+          cve_id: string
+          cvss_v3_score: number | null
+          cvss_v3_severity: string | null
+          published_date: string | null
+          description: string | null
+        }
+        Relationships: []
+      }
+      vuln_top_assets: {
+        Row: {
+          color: string
+          id: string
+          label: string
+          sort_order: number
+          value: number
+        }
+        Relationships: []
+      }
+      vuln_by_tool: {
+        Row: {
+          color: string
+          id: string
+          label: string
+          sort_order: number
+          value: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
