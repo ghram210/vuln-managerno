@@ -122,66 +122,6 @@ export type Database = {
         }
         Relationships: []
       }
-      remediation_closed: {
-        Row: {
-          color: string
-          id: string
-          in_compliance: number
-          not_in_compliance: number
-          rating: string
-          sort_order: number
-          time_frame: string
-        }
-        Insert: {
-          color?: string
-          id?: string
-          in_compliance?: number
-          not_in_compliance?: number
-          rating: string
-          sort_order?: number
-          time_frame: string
-        }
-        Update: {
-          color?: string
-          id?: string
-          in_compliance?: number
-          not_in_compliance?: number
-          rating?: string
-          sort_order?: number
-          time_frame?: string
-        }
-        Relationships: []
-      }
-      remediation_open: {
-        Row: {
-          color: string
-          id: string
-          in_compliance: number
-          not_in_compliance: number
-          rating: string
-          sort_order: number
-          time_frame: string
-        }
-        Insert: {
-          color?: string
-          id?: string
-          in_compliance?: number
-          not_in_compliance?: number
-          rating: string
-          sort_order?: number
-          time_frame: string
-        }
-        Update: {
-          color?: string
-          id?: string
-          in_compliance?: number
-          not_in_compliance?: number
-          rating?: string
-          sort_order?: number
-          time_frame?: string
-        }
-        Relationships: []
-      }
       review_status: {
         Row: {
           category: string
@@ -416,33 +356,6 @@ export type Database = {
         }
         Relationships: []
       }
-      vuln_rating_overview: {
-        Row: {
-          color: string
-          id: string
-          label: string
-          percentage: number
-          sort_order: number
-          value: number
-        }
-        Insert: {
-          color?: string
-          id?: string
-          label: string
-          percentage?: number
-          sort_order?: number
-          value?: number
-        }
-        Update: {
-          color?: string
-          id?: string
-          label?: string
-          percentage?: number
-          sort_order?: number
-          value?: number
-        }
-        Relationships: []
-      }
       vuln_risk_score: {
         Row: {
           color: string
@@ -583,6 +496,41 @@ export type Database = {
           label: string
           sort_order: number
           value: number
+        }
+        Relationships: []
+      }
+      vuln_rating_overview: {
+        Row: {
+          color: string
+          id: string
+          label: string
+          percentage: number
+          sort_order: number
+          value: number
+        }
+        Relationships: []
+      }
+      remediation_open: {
+        Row: {
+          color: string
+          id: string
+          in_compliance: number
+          not_in_compliance: number
+          rating: string
+          sort_order: number
+          time_frame: string
+        }
+        Relationships: []
+      }
+      remediation_closed: {
+        Row: {
+          color: string
+          id: string
+          in_compliance: number
+          not_in_compliance: number
+          rating: string
+          sort_order: number
+          time_frame: string
         }
         Relationships: []
       }
