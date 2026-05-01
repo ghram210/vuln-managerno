@@ -126,10 +126,11 @@ export type Database = {
         Row: {
           color: string
           id: string
-          in_compliance: number
-          not_in_compliance: number
+          in_comp_count: number
+          total_count: number
           rating: string
           sort_order: number
+          target: string | null
           time_frame: string
         }
         Insert: {
@@ -139,6 +140,7 @@ export type Database = {
           not_in_compliance?: number
           rating: string
           sort_order?: number
+          target?: string | null
           time_frame: string
         }
         Update: {
@@ -148,6 +150,7 @@ export type Database = {
           not_in_compliance?: number
           rating?: string
           sort_order?: number
+          target?: string | null
           time_frame?: string
         }
         Relationships: []
@@ -436,16 +439,19 @@ export type Database = {
           count: number
           day: number
           id: string
+          target: string | null
         }
         Insert: {
           count?: number
           day?: number
           id?: string
+          target?: string | null
         }
         Update: {
           count?: number
           day?: number
           id?: string
+          target?: string | null
         }
         Relationships: []
       }
@@ -482,6 +488,7 @@ export type Database = {
           id: string
           label: string
           sort_order: number
+          target: string | null
           value: number
         }
         Insert: {
@@ -489,6 +496,7 @@ export type Database = {
           id?: string
           label: string
           sort_order?: number
+          target?: string | null
           value?: number
         }
         Update: {
@@ -496,6 +504,7 @@ export type Database = {
           id?: string
           label?: string
           sort_order?: number
+          target?: string | null
           value?: number
         }
         Relationships: []
@@ -637,8 +646,8 @@ export type Database = {
         Row: {
           color: string
           id: string
-          in_compliance: number | null
-          not_in_compliance: number | null
+          in_comp_count: number | null
+          total_count: number | null
           rating: string
           sort_order: number
           target: string | null
