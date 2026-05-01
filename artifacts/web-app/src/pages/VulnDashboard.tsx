@@ -31,16 +31,24 @@ const exploitColors: Record<string, string> = {
 
 const VulnDashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const [filterRating, setFilterRating] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [showRatingDrop, setShowRatingDrop] = useState(false);
-  const [showStatusDrop, setShowStatusDrop] = useState(false);
+  const [filterAsset, setFilterAsset] = useState("all");
+  const [showAssetDrop, setShowAssetDrop] = useState(false);
 
-  const { data: ratings } = useQuery({
+  // Fetch unique assets/targets
+  const { data: assets } = useQuery({
+    queryKey: ["vuln-assets"],
+    queryFn: async () => {
+      const { data } = await supabase.from("vuln_rating_overview_filtered" as any).select("target");
+      const uniqueTargets = Array.from(new Set((data || []).map((f: any) => f.target).filter(Boolean))) as string[];
+      return uniqueTargets.sort();
+    },
+  });
+
+  const { data: rawRatings } = useQuery({
     queryKey: ["vuln-ratings"],
     queryFn: async () => {
-      const { data } = await supabase.from("vuln_rating_overview").select("*").order("sort_order");
-      return data || [];
+      const { data } = await supabase.from("vuln_rating_overview_filtered" as any).select("*").order("sort_order");
+      return (data || []) as any[];
     },
   });
 
@@ -53,8 +61,9 @@ const VulnDashboard = () => {
   });
 
   const { data: daily } = useQuery({
-    queryKey: ["vuln-daily"],
+    queryKey: ["vuln-daily", filterAsset],
     queryFn: async () => {
+      // For now, daily trend stays global or we'd need target column in that view too
       const { data } = await supabase.from("vuln_daily_open").select("*").order("day");
       return data || [];
     },
@@ -76,7 +85,7 @@ const VulnDashboard = () => {
     },
   });
 
-  const { data: byTool } = useQuery({
+  const { data: rawByTool } = useQuery({
     queryKey: ["vuln-by-tool"],
     queryFn: async () => {
       const { data } = await supabase.from("vuln_by_tool").select("*");
@@ -84,41 +93,62 @@ const VulnDashboard = () => {
     },
   });
 
-  const { data: remOpen } = useQuery({
+  const { data: rawRemOpen } = useQuery({
     queryKey: ["remediation-open"],
     queryFn: async () => {
-      const { data } = await supabase.from("remediation_open").select("*").order("sort_order");
-      return data || [];
+      const { data } = await supabase.from("remediation_open_filtered" as any).select("*").order("sort_order");
+      return (data || []) as any[];
     },
   });
 
   const { data: remClosed } = useQuery({
     queryKey: ["remediation-closed"],
     queryFn: async () => {
-      const { data } = await supabase.from("remediation_closed").select("*").order("sort_order");
-      return data || [];
+      // remediation_closed is global for now
+      return [];
     },
   });
 
-  // Filter ratings cards
-  const filteredRatings = (ratings || []).filter((r) => {
-    if (filterRating !== "all" && r.label !== filterRating) return false;
-    return true;
-  });
+  // Client-side aggregation/filtering logic
+  const ratings = (rawRatings || []).filter(r => filterAsset === "all" || r.target === filterAsset);
+  const aggregatedRatings = filterAsset === "all"
+    ? ["Critical", "High", "Medium", "Low"].map(label => {
+        const matching = ratings.filter(r => r.label === label);
+        const val = matching.reduce((s, r) => s + r.value, 0);
+        return { label, value: val, color: severityColors[label], id: label };
+      })
+    : ratings;
 
-  // Filter status cards
-  const filteredStatuses = (statuses || []).filter((s) => {
-    if (filterStatus !== "all" && s.label !== filterStatus) return false;
-    return true;
-  });
+  const totalResults = aggregatedRatings.reduce((s, r) => s + r.value, 0);
+  const ratingsWithPercent = aggregatedRatings.map(r => ({
+    ...r,
+    percentage: totalResults === 0 ? 0 : Math.round((r.value / totalResults) * 100)
+  }));
 
-  const totalResults = (ratings || []).reduce((s, r) => s + r.value, 0);
+  const byTool = (rawByTool || []).filter(t => filterAsset === "all" || t.target === filterAsset);
+  const aggregatedByTool = filterAsset === "all"
+    ? Array.from(new Set((rawByTool || []).map(t => t.label))).map(label => {
+        const matching = byTool.filter(t => t.label === label);
+        const val = matching.reduce((s, t) => s + t.value, 0);
+        const color = (rawByTool || []).find(t => t.label === label)?.color || "hsl(215 20% 65%)";
+        return { label, value: val, color, id: label };
+      })
+    : byTool;
+
+  const remOpen = (rawRemOpen || []).filter(r => filterAsset === "all" || r.target === filterAsset);
+  const aggregatedRemOpen = filterAsset === "all"
+    ? ["Critical", "High", "Medium", "Low"].map(rating => {
+        const matching = remOpen.filter(r => r.rating === rating);
+        const total = matching.length;
+        if (total === 0) return { rating, in_compliance: 100, not_in_compliance: 0, time_frame: "last_30_days", id: rating, color: severityColors[rating] };
+        const avgComp = Math.round(matching.reduce((s, r) => s + (r.in_compliance || 0), 0) / total);
+        return { rating, in_compliance: avgComp, not_in_compliance: 100 - avgComp, time_frame: "last_30_days", id: rating, color: severityColors[rating] };
+      })
+    : remOpen.map(r => ({ ...r, in_compliance: r.in_compliance || 0, not_in_compliance: r.not_in_compliance || 0 }));
+
   const totalRisk = (riskScores || []).reduce((s, r) => s + r.value, 0);
 
-  const ratingOptions = ["All Ratings", "Critical", "High", "Medium", "Low"];
-  const statusOptions = ["All Status", "Open", "In Progress", "Closed", "Suppressed"];
-
-  const closeAllDrops = () => { setShowRatingDrop(false); setShowStatusDrop(false); };
+  const closeAllDrops = () => { setShowAssetDrop(false); };
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -138,60 +168,34 @@ const VulnDashboard = () => {
 
           {/* Filters */}
           <div className="flex items-center gap-4 mb-6">
-            <span className="text-sm text-muted-foreground">Filter by:</span>
+            <span className="text-sm text-muted-foreground">Global Asset Filter:</span>
 
-            {/* Rating filter */}
+            {/* Asset filter */}
             <div className="relative">
               <button
-                onClick={() => { closeAllDrops(); setShowRatingDrop(!showRatingDrop); }}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-card border border-border rounded-lg"
+                onClick={() => { closeAllDrops(); setShowAssetDrop(!showAssetDrop); }}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-card border border-border rounded-lg min-w-[200px]"
               >
-                {filterRating === "all" ? "All Ratings" : filterRating}
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <span className="truncate">{filterAsset === "all" ? "All Assets" : filterAsset}</span>
+                <svg className="w-3 h-3 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </button>
-              {showRatingDrop && (
-                <div className="absolute z-10 mt-1 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[140px]">
-                  {ratingOptions.map((opt) => {
-                    const val = opt === "All Ratings" ? "all" : opt;
-                    const active = filterRating === val;
-                    return (
-                      <button
-                        key={opt}
-                        onClick={() => { setFilterRating(val); setShowRatingDrop(false); }}
-                        className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent", active ? "bg-primary text-primary-foreground" : "")}
-                      >
-                        {opt} {active && "✓"}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Status filter */}
-            <div className="relative">
-              <button
-                onClick={() => { closeAllDrops(); setShowStatusDrop(!showStatusDrop); }}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-card border border-border rounded-lg"
-              >
-                {filterStatus === "all" ? "All Status" : filterStatus}
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-              </button>
-              {showStatusDrop && (
-                <div className="absolute z-10 mt-1 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[140px]">
-                  {statusOptions.map((opt) => {
-                    const val = opt === "All Status" ? "all" : opt;
-                    const active = filterStatus === val;
-                    return (
-                      <button
-                        key={opt}
-                        onClick={() => { setFilterStatus(val); setShowStatusDrop(false); }}
-                        className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent", active ? "bg-primary text-primary-foreground" : "")}
-                      >
-                        {opt} {active && "✓"}
-                      </button>
-                    );
-                  })}
+              {showAssetDrop && (
+                <div className="absolute z-20 mt-1 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[200px] max-h-60 overflow-y-auto">
+                  <button
+                    onClick={() => { setFilterAsset("all"); setShowAssetDrop(false); }}
+                    className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent", filterAsset === "all" ? "bg-primary text-primary-foreground" : "")}
+                  >
+                    All Assets {filterAsset === "all" && "✓"}
+                  </button>
+                  {(assets || []).map((asset) => (
+                    <button
+                      key={asset}
+                      onClick={() => { setFilterAsset(asset); setShowAssetDrop(false); }}
+                      className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent truncate", filterAsset === asset ? "bg-primary text-primary-foreground" : "")}
+                    >
+                      {asset} {filterAsset === asset && "✓"}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -205,7 +209,7 @@ const VulnDashboard = () => {
             Overview of the severity of discovered vulnerabilities based on the CVSS v3 standard.
           </p>
           <div className="grid grid-cols-4 gap-4 mb-8">
-            {filteredRatings.map((r) => {
+            {ratingsWithPercent.map((r) => {
               const color = severityColors[r.label] || r.color;
               return (
                 <div key={r.id} className="bg-card border border-border rounded-xl p-4">
@@ -216,26 +220,6 @@ const VulnDashboard = () => {
                   <p className="text-3xl font-bold mb-3" style={{ color }}>{r.value.toLocaleString("en-US")}</p>
                   <div className="h-1 rounded-full bg-muted">
                     <div className="h-1 rounded-full" style={{ width: `${r.percentage}%`, backgroundColor: color }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Status Overview */}
-          <h3 className="text-base font-semibold mb-3">Vulnerability Status Overview</h3>
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            {filteredStatuses.map((s) => {
-              const color = statusColors[s.label] || s.color;
-              return (
-                <div key={s.id} className="bg-card border border-border rounded-xl p-4">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-sm font-medium" style={{ color }}>{s.label}</span>
-                    <span className="text-xs text-muted-foreground">{s.percentage.toLocaleString("en-US")}%</span>
-                  </div>
-                  <p className="text-3xl font-bold mb-3" style={{ color }}>{s.value.toLocaleString("en-US")}</p>
-                  <div className="h-1 rounded-full bg-muted">
-                    <div className="h-1 rounded-full" style={{ width: `${Math.max(s.percentage, 2)}%`, backgroundColor: color }} />
                   </div>
                 </div>
               );
@@ -280,12 +264,12 @@ const VulnDashboard = () => {
           {/* Bar Charts Row */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <BarSection title="Top 5 At-Risk Assets" data={topAssets || []} />
-            <BarSection title="Vulnerabilities by Discovery Tool" data={byTool || []} />
+            <BarSection title="Vulnerabilities by Discovery Tool" data={aggregatedByTool || []} />
           </div>
 
           {/* Remediation Compliance */}
           <div className="grid grid-cols-2 gap-4">
-            <RemediationTable title="Remediation Time Frame Compliance (Open Vulnerabilities)" data={remOpen || []} colorMap={severityColors} />
+            <RemediationTable title="Remediation Time Frame Compliance (Open Vulnerabilities)" data={aggregatedRemOpen || []} colorMap={severityColors} />
             <RemediationTable title="Remediation Time Frame Compliance (Closed Vulnerabilities)" data={remClosed || []} colorMap={severityColors} />
           </div>
         </main>

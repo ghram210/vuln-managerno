@@ -122,6 +122,66 @@ export type Database = {
         }
         Relationships: []
       }
+      remediation_closed: {
+        Row: {
+          color: string
+          id: string
+          in_compliance: number
+          not_in_compliance: number
+          rating: string
+          sort_order: number
+          time_frame: string
+        }
+        Insert: {
+          color?: string
+          id?: string
+          in_compliance?: number
+          not_in_compliance?: number
+          rating: string
+          sort_order?: number
+          time_frame: string
+        }
+        Update: {
+          color?: string
+          id?: string
+          in_compliance?: number
+          not_in_compliance?: number
+          rating?: string
+          sort_order?: number
+          time_frame?: string
+        }
+        Relationships: []
+      }
+      remediation_open: {
+        Row: {
+          color: string
+          id: string
+          in_compliance: number
+          not_in_compliance: number
+          rating: string
+          sort_order: number
+          time_frame: string
+        }
+        Insert: {
+          color?: string
+          id?: string
+          in_compliance?: number
+          not_in_compliance?: number
+          rating: string
+          sort_order?: number
+          time_frame: string
+        }
+        Update: {
+          color?: string
+          id?: string
+          in_compliance?: number
+          not_in_compliance?: number
+          rating?: string
+          sort_order?: number
+          time_frame?: string
+        }
+        Relationships: []
+      }
       review_status: {
         Row: {
           category: string
@@ -140,6 +200,39 @@ export type Database = {
           id?: string
           not_reviewed?: number
           reviewed?: number
+        }
+        Relationships: []
+      }
+      scan_findings: {
+        Row: {
+          created_at: string
+          id: string
+          scan_id: string
+          severity: string
+          status: string
+          target: string
+          title: string
+          tool: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          scan_id: string
+          severity: string
+          status: string
+          target: string
+          title: string
+          tool: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scan_id?: string
+          severity?: string
+          status?: string
+          target?: string
+          title?: string
+          tool?: string
         }
         Relationships: []
       }
@@ -214,8 +307,8 @@ export type Database = {
           id?: string
           ip_address: string
           last_scan?: string
-          open_ports: string
-          os: string
+          open_ports?: string
+          os?: string
           risk?: string
         }
         Update: {
@@ -346,13 +439,40 @@ export type Database = {
         }
         Insert: {
           count?: number
-          day: number
+          day?: number
           id?: string
         }
         Update: {
           count?: number
           day?: number
           id?: string
+        }
+        Relationships: []
+      }
+      vuln_rating_overview: {
+        Row: {
+          color: string
+          id: string
+          label: string
+          percentage: number
+          sort_order: number
+          value: number
+        }
+        Insert: {
+          color?: string
+          id?: string
+          label: string
+          percentage?: number
+          sort_order?: number
+          value?: number
+        }
+        Update: {
+          color?: string
+          id?: string
+          label?: string
+          percentage?: number
+          sort_order?: number
+          value?: number
         }
         Relationships: []
       }
@@ -495,41 +615,33 @@ export type Database = {
           id: string
           label: string
           sort_order: number
+          target: string | null
           value: number
         }
         Relationships: []
       }
-      vuln_rating_overview: {
+      // Re-define these here for frontend usage without conflicts
+      vuln_rating_overview_filtered: {
         Row: {
           color: string
           id: string
           label: string
-          percentage: number
+          percentage: number | null
           sort_order: number
+          target: string | null
           value: number
         }
         Relationships: []
       }
-      remediation_open: {
+      remediation_open_filtered: {
         Row: {
           color: string
           id: string
-          in_compliance: number
-          not_in_compliance: number
+          in_compliance: number | null
+          not_in_compliance: number | null
           rating: string
           sort_order: number
-          time_frame: string
-        }
-        Relationships: []
-      }
-      remediation_closed: {
-        Row: {
-          color: string
-          id: string
-          in_compliance: number
-          not_in_compliance: number
-          rating: string
-          sort_order: number
+          target: string | null
           time_frame: string
         }
         Relationships: []
