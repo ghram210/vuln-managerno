@@ -1,11 +1,20 @@
 -- =============================================================
--- Dashboard Updates: Bug fixes and new analytics views
+-- Dashboard Updates: Bug fixes and new analytics views (English Version)
 -- =============================================================
 
 BEGIN;
 
 -- -------------------------------------------------------------
--- 1. Fix: Vulnerability Rating Overview (Overcounting bug)
+-- 1. Safely drop views to be updated (CASCADE handles dependencies)
+-- -------------------------------------------------------------
+DROP VIEW IF EXISTS public.vuln_top_assets CASCADE;
+DROP VIEW IF EXISTS public.vuln_by_tool CASCADE;
+DROP VIEW IF EXISTS public.vuln_rating_overview CASCADE;
+DROP VIEW IF EXISTS public.remediation_open CASCADE;
+DROP VIEW IF EXISTS public.remediation_closed CASCADE;
+
+-- -------------------------------------------------------------
+-- 2. Fix: Vulnerability Rating Overview (Overcounting bug)
 -- -------------------------------------------------------------
 CREATE OR REPLACE VIEW public.vuln_rating_overview AS
 WITH findings_with_sev AS (
@@ -18,7 +27,6 @@ WITH findings_with_sev AS (
   WHERE f.status = 'open'
 ),
 deduped_findings AS (
-  -- Ensure each finding is only counted once, taking the highest severity if multiple CVEs exist
   SELECT
     id,
     CASE
@@ -57,7 +65,7 @@ LEFT JOIN counts c ON c.rating = r.label
 ORDER BY sort_order;
 
 -- -------------------------------------------------------------
--- 2. View: Top 5 At-Risk Assets (Targets with most Critical/High findings)
+-- 3. View: Top 5 At-Risk Assets (Targets with most Critical/High findings)
 -- -------------------------------------------------------------
 CREATE OR REPLACE VIEW public.vuln_top_assets AS
 SELECT
@@ -76,7 +84,7 @@ ORDER BY value DESC
 LIMIT 5;
 
 -- -------------------------------------------------------------
--- 3. View: Vulnerabilities by Discovery Tool
+-- 4. View: Vulnerabilities by Discovery Tool
 -- -------------------------------------------------------------
 CREATE OR REPLACE VIEW public.vuln_by_tool AS
 SELECT
@@ -97,7 +105,7 @@ GROUP BY f.tool
 ORDER BY value DESC;
 
 -- -------------------------------------------------------------
--- 4. Fix: Remediation Compliance (Open) - Overcounting bug
+-- 5. Fix: Remediation Compliance (Open) - Overcounting bug
 -- -------------------------------------------------------------
 CREATE OR REPLACE VIEW public.remediation_open AS
 WITH sev_levels(rating, color, sort_order, allowed_days) AS (
@@ -144,7 +152,7 @@ FROM sev_levels sl
 LEFT JOIN findings_stats fs ON fs.rating = sl.rating;
 
 -- -------------------------------------------------------------
--- 5. Fix: Remediation Compliance (Closed) - Overcounting bug
+-- 6. Fix: Remediation Compliance (Closed) - Overcounting bug
 -- -------------------------------------------------------------
 CREATE OR REPLACE VIEW public.remediation_closed AS
 WITH sev_levels(rating, color, sort_order, allowed_days) AS (
@@ -193,7 +201,7 @@ FROM sev_levels sl
 LEFT JOIN findings_stats fs ON fs.rating = sl.rating;
 
 -- -------------------------------------------------------------
--- 6. Grants
+-- 7. Grants
 -- -------------------------------------------------------------
 GRANT SELECT ON
   public.vuln_top_assets,
