@@ -1,5 +1,5 @@
 -- =============================================
--- Final Fix: Sync Invitations and User Roles
+-- Final Fix: Sync Invitations and User Roles (Corrected Types)
 -- =============================================
 
 -- 1. Add missing column if not exists
@@ -23,7 +23,7 @@ BEGIN
   -- B. Sync user to admin_users
   INSERT INTO public.admin_users (id, email, name, role, joined_at)
   VALUES (
-    NEW.id::text,
+    NEW.id, -- Use UUID directly
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
     'User',
@@ -50,11 +50,11 @@ ON CONFLICT (user_id) DO NOTHING;
 
 INSERT INTO public.admin_users (id, email, name, role, joined_at)
 SELECT
-  id::text,
+  id, -- Use UUID directly
   email,
   COALESCE(raw_user_meta_data->>'full_name', email),
   'User',
   created_at
 FROM auth.users
-WHERE id NOT IN (SELECT id::uuid FROM public.admin_users WHERE role = 'Admin')
+WHERE id NOT IN (SELECT id FROM public.admin_users WHERE role = 'Admin')
 ON CONFLICT (id) DO NOTHING;
