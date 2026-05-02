@@ -268,13 +268,13 @@ const VulnDashboard = () => {
             {/* Row 1: Status Overview */}
             <div className="grid grid-cols-4 gap-4">
               {aggregatedStatus.map((s) => {
-                const colors: any = { open: "hsl(0 84% 60%)", in_progress: "hsl(35 90% 55%)", fixed: "hsl(142 71% 45%)", suppressed: "hsl(215 15% 55%)" };
-                const labels: any = { open: "Open", in_progress: "In Progress", fixed: "Closed", suppressed: "Suppressed" };
+                const colors: any = { open: "hsl(0 84% 60%)", in_progress: "hsl(35 95% 55%)", fixed: "hsl(142 71% 45%)", suppressed: "hsl(215 15% 55%)" };
+                const labels: any = { open: "Open", in_progress: "Triaged", fixed: "Fixed", suppressed: "False Positive" };
                 const pct = totalStatus === 0 ? 0 : Math.round((s.value / totalStatus) * 100);
                 return (
                   <div key={s.label} className="bg-card border border-border rounded-xl p-4">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium" style={{ color: colors[s.label] }}>{labels[s.label]}</span>
+                      <span className="text-sm font-medium uppercase tracking-tight" style={{ color: colors[s.label] }}>{labels[s.label]}</span>
                       <span className="text-xs text-muted-foreground">{pct}%</span>
                     </div>
                     <p className="text-3xl font-bold mb-3" style={{ color: colors[s.label] }}>{s.value.toLocaleString('en-US')}</p>
@@ -421,30 +421,38 @@ const BarSection = ({ title, data }: { title: string; data: any[] }) => {
 const RemediationTable = ({ title, data, colorMap }: { title: string; data: any[]; colorMap: any }) => (
   <div className="bg-card border border-border rounded-xl p-5">
     <h3 className="text-sm font-semibold mb-4">{title}</h3>
-    <table className="w-full text-xs">
+    <table className="w-full text-[11px]">
       <thead>
         <tr className="text-muted-foreground text-[10px] uppercase tracking-wider">
-          <th className="text-left py-2">Rating</th>
-          <th className="text-left py-2">Compliance</th>
-          <th className="text-right py-2">Delta</th>
+          <th className="text-left py-2 font-semibold">EXPRT RATING</th>
+          <th className="text-left py-2 font-semibold">TIME FRAME</th>
+          <th className="text-left py-2 font-semibold">IN COMPLIANCE</th>
+          <th className="text-right py-2 font-semibold">NOT IN COMPLIANCE</th>
         </tr>
       </thead>
       <tbody>
         {data.map((row) => (
-          <tr key={row.id} className="border-t border-border">
-            <td className="py-3 flex items-center gap-2">
+          <tr key={row.id} className="border-t border-border/50">
+            <td className="py-3.5 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colorMap[row.rating] }} />
-              <span style={{ color: colorMap[row.rating] }}>{row.rating}</span>
+              <span className="font-medium" style={{ color: colorMap[row.rating] }}>{row.rating}</span>
             </td>
-            <td className="py-3">
-              <div className="flex items-center gap-2">
-                <div className="w-20 h-1.5 bg-muted rounded-full">
-                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${row.in_compliance}%` }} />
+            <td className="py-3.5 text-muted-foreground">
+              {row.time_frame}
+            </td>
+            <td className="py-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-24 h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500/80 rounded-full" style={{ width: `${row.in_compliance}%` }} />
                 </div>
-                <span>{row.in_compliance}%</span>
+                <span className="text-green-500 font-medium">{row.in_compliance.toLocaleString('en-US')}%</span>
               </div>
             </td>
-            <td className="py-3 text-right text-muted-foreground">0%</td>
+            <td className="py-3.5 text-right">
+              <span className={cn("font-medium", row.not_in_compliance > 0 ? "text-red-500" : "text-muted-foreground")}>
+                {row.not_in_compliance.toLocaleString('en-US')}%
+              </span>
+            </td>
           </tr>
         ))}
       </tbody>
