@@ -1,0 +1,80 @@
+    AND (max_uses IS NULL OR uses_count < max_uses);
+
+  IF inv IS NULL THEN
+    RETURN jsonb_build_object('valid', false, 'error', 'Invalid or expired invitation link');
+  END IF;
+
+  RETURN jsonb_build_object('valid', true, 'invitation_id', inv.id, 'email', inv.email);
+END;
+$$;
+
+-- 7. Function to accept invitation and assign user role (called after registration)
+CREATE OR REPLACE FUNCTION public.use_invitation_token(token_param text, user_id_param uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  inv RECORD;
+BEGIN
+  SELECT * INTO inv
+  FROM public.invitation_links
+  WHERE token = token_param
+    AND is_active = true
+    AND (expires_at IS NULL OR expires_at > now())
+    AND (max_uses IS NULL OR uses_count < max_uses);
+
+  IF inv IS NULL THEN
+    RETURN false;
+  END IF;
+
+  INSERT INTO public.invitation_usages (invitation_id, user_id)
+  VALUES (inv.id, user_id_param)
+  ON CONFLICT DO NOTHING;
+
+  UPDATE public.invitation_links
+  SET uses_count = uses_count + 1
+  WHERE id = inv.id;
+
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (user_id_param, 'user')
+  ON CONFLICT (user_id) DO NOTHING;
+
+  RETURN true;
+END;
+$$;
+
+-- 8. Trigger: auto-add any new user signing up directly (not via invite) as 'user'
+-- This is a safety net - the invitation flow handles it explicitly
+-- But prevents new users from having no role at all
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  -- Only add if not already in user_roles (invitation flow may have already added them)
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (NEW.id, 'user')
+  ON CONFLICT (user_id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 9. Update RLS policies on user_roles to allow self-read
+DROP POLICY IF EXISTS "Users can view own role" ON public.user_roles;
+CREATE POLICY "Users can view own role"
+  ON public.user_roles FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins can manage all roles" ON public.user_roles;
+CREATE POLICY "Admins can manage all roles"
+  ON public.user_roles FOR ALL TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'))
+  WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Service role can manage user_roles"
+  ON public.user_roles FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
