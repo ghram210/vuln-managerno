@@ -146,17 +146,17 @@ SELECT
   md5(COALESCE(target, 'all') || label)::uuid AS id,
   target,
   label,
-  ROUND(SUM(val))::int AS value,
+  ROUND(AVG(val), 1) AS value,
   color,
   sort_order
 FROM (
-  SELECT target, 'Base CVSS' AS label, SUM(base_score) AS val, 'hsl(210 70% 55%)' AS color, 1 AS sort_order FROM scored_findings GROUP BY target
+  SELECT target, 'Base CVSS' AS label, base_score AS val, 'hsl(210 70% 55%)' AS color, 1 AS sort_order FROM scored_findings
   UNION ALL
-  SELECT target, 'Exploitability' AS label, SUM(exploit_impact) AS val, 'hsl(0 72% 55%)' AS color, 2 AS sort_order FROM scored_findings GROUP BY target
+  SELECT target, 'Exploitability' AS label, exploit_impact AS val, 'hsl(0 72% 55%)' AS color, 2 AS sort_order FROM scored_findings
   UNION ALL
-  SELECT target, 'Asset Criticality' AS label, SUM(asset_impact) AS val, 'hsl(270 60% 55%)' AS color, 3 AS sort_order FROM scored_findings GROUP BY target
+  SELECT target, 'Asset Criticality' AS label, asset_impact AS val, 'hsl(270 60% 55%)' AS color, 3 AS sort_order FROM scored_findings
   UNION ALL
-  SELECT target, 'Exposure' AS label, SUM(exposure_impact) AS val, 'hsl(30 90% 55%)' AS color, 4 AS sort_order FROM scored_findings GROUP BY target
+  SELECT target, 'Exposure' AS label, exposure_impact AS val, 'hsl(30 90% 55%)' AS color, 4 AS sort_order FROM scored_findings
 ) sub
 GROUP BY target, label, color, sort_order;
 

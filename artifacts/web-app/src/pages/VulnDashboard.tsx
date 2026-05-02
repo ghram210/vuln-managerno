@@ -179,20 +179,21 @@ const VulnDashboard = () => {
   const aggregatedRiskScores = filterAsset === "all"
     ? ["Base CVSS", "Exploitability", "Asset Criticality", "Exposure"].map(label => {
         const matching = rawRiskScoresFiltered.filter(r => r.label === label);
+        const avg = matching.length > 0 ? (matching.reduce((s, r) => s + (r.value || 0), 0) / matching.length) : 0;
         return {
           label,
-          value: matching.reduce((s, r) => s + (r.value || 0), 0),
+          value: Number(avg.toFixed(1)),
           color: rawRiskScoresFiltered.find(r => r.label === label)?.color || "hsl(215 20% 65%)",
           id: label
         };
       })
-    : rawRiskScoresFiltered;
+    : rawRiskScoresFiltered.map(r => ({ ...r, value: Number((r.value || 0).toFixed(1)), id: r.id || "" }));
 
-  // Calculate weighted risk score for gauge (0-100 scale)
+  // Risk Score Formula: CVSS + Exploitability + Asset Criticality + Exposure
+  // The sum represents the total weighted risk per finding on average.
+  // We scale this to a 0-100 percentage for the gauge (where 20-25 total is very high)
   const totalRiskVal = aggregatedRiskScores.reduce((s, r) => s + (r.value || 0), 0);
-  const gaugeValue = filterAsset === "all"
-    ? Math.min(100, Math.round(totalRiskVal / (Math.max(1, (assets?.length || 1)) * 10)))
-    : Math.min(100, Math.round(totalRiskVal / 10));
+  const gaugeValue = Math.min(100, Math.round((totalRiskVal / 25) * 100));
 
   const kpis = {
     mttr: (rawKPIs?.mttr || []).filter(k => filterAsset === "all" || k.target === filterAsset).reduce((s, k) => s + (k.value || 0), 0),
@@ -254,17 +255,9 @@ const VulnDashboard = () => {
             </div>
           </div>
 
-          {/* KPI Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-8">
-             <KPICard title="Mean Time To Remediate" value={kpis.mttr} unit="Days" color="hsl(190 65% 58%)" />
-             <KPICard title="Weaponized Risks" value={kpis.weaponized} unit="Risks" color="hsl(355 70% 62%)" />
-             <KPICard title="SLA Compliance" value={kpis.compliance} unit="%" color="hsl(155 50% 55%)" />
-             <KPICard title="Total Risk" value={kpis.totalRisk} unit="" color="hsl(45 93% 47%)" />
-          </div>
-
-          {/* Status Overview */}
-          <div className="mb-8">
-            <h3 className="text-sm font-semibold mb-4">Vulnerability Status Overview</h3>
+          {/* Top Cards - 8 Total */}
+          <div className="space-y-4 mb-8">
+            {/* Row 1: Status Overview */}
             <div className="grid grid-cols-4 gap-4">
               {aggregatedStatus.map((s) => {
                 const colors: any = { open: "hsl(0 84% 60%)", in_progress: "hsl(35 90% 55%)", fixed: "hsl(142 71% 45%)", suppressed: "hsl(215 15% 55%)" };
@@ -276,9 +269,28 @@ const VulnDashboard = () => {
                       <span className="text-sm font-medium" style={{ color: colors[s.label] }}>{labels[s.label]}</span>
                       <span className="text-xs text-muted-foreground">{pct}%</span>
                     </div>
-                    <p className="text-3xl font-bold mb-3" style={{ color: colors[s.label] }}>{s.value.toLocaleString()}</p>
+                    <p className="text-3xl font-bold mb-3" style={{ color: colors[s.label] }}>{s.value.toLocaleString('en-US')}</p>
                     <div className="h-1 rounded-full bg-muted">
                       <div className="h-1 rounded-full" style={{ width: `${pct}%`, backgroundColor: colors[s.label] }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Row 2: Rating Overview */}
+            <div className="grid grid-cols-4 gap-4">
+              {ratingsWithPercent.map((r) => {
+                const color = severityColors[r.label || ""] || r.color;
+                return (
+                  <div key={r.id} className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-sm font-medium" style={{ color }}>{r.label}</span>
+                      <span className="text-xs text-muted-foreground">{r.percentage}%</span>
+                    </div>
+                    <p className="text-3xl font-bold mb-3" style={{ color }}>{(r.value || 0).toLocaleString('en-US')}</p>
+                    <div className="h-1 rounded-full bg-muted">
+                      <div className="h-1 rounded-full" style={{ width: `${r.percentage}%`, backgroundColor: color }} />
                     </div>
                   </div>
                 );
@@ -302,13 +314,13 @@ const VulnDashboard = () => {
             <div className="bg-card border border-border rounded-xl p-5">
               <h3 className="text-sm font-semibold mb-4">Risk Score · CVSS + Exploitability + Asset Criticality + Exposure</h3>
               <div className="flex flex-col items-center">
-                <GaugeChart value={gaugeValue} />
+                <GaugeChart value={gaugeValue} displayValue={totalRiskVal} />
                 <div className="flex flex-wrap gap-4 mt-4 justify-center">
                   {aggregatedRiskScores.map((r) => (
                     <div key={r.id} className="flex items-center gap-1.5 text-xs">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
                       <span className="text-muted-foreground">{r.label}</span>
-                      <span className="font-medium" style={{ color: r.color }}>{(r.value || 0).toLocaleString()}</span>
+                      <span className="font-medium" style={{ color: r.color }}>{(r.value || 0).toLocaleString('en-US')}</span>
                     </div>
                   ))}
                 </div>
@@ -322,28 +334,6 @@ const VulnDashboard = () => {
             <BarSection title="Vulnerabilities by Discovery Tool" data={aggregatedByTool} />
           </div>
 
-          {/* Rating Overview */}
-          <div className="mb-8">
-            <h3 className="text-base font-semibold mb-1">Vulnerability Rating Overview</h3>
-            <p className="text-sm text-muted-foreground mb-4">Severity breakdown based on CVSS v3 standard.</p>
-            <div className="grid grid-cols-4 gap-4">
-              {ratingsWithPercent.map((r) => {
-                const color = severityColors[r.label || ""] || r.color;
-                return (
-                  <div key={r.id} className="bg-card border border-border rounded-xl p-4">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-sm font-medium" style={{ color }}>{r.label}</span>
-                      <span className="text-xs text-muted-foreground">{r.percentage}%</span>
-                    </div>
-                    <p className="text-3xl font-bold mb-3" style={{ color }}>{(r.value || 0).toLocaleString()}</p>
-                    <div className="h-1 rounded-full bg-muted">
-                      <div className="h-1 rounded-full" style={{ width: `${r.percentage}%`, backgroundColor: color }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Remediation Compliance */}
           <div className="grid grid-cols-2 gap-4">
@@ -360,13 +350,13 @@ const KPICard = ({ title, value, unit, color }: { title: string; value: number; 
   <div className="bg-card border border-border rounded-xl p-5">
     <h4 className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-2">{title}</h4>
     <div className="flex items-baseline gap-2">
-      <span className="text-3xl font-bold" style={{ color }}>{value.toLocaleString()}</span>
+      <span className="text-3xl font-bold" style={{ color }}>{value.toLocaleString('en-US')}</span>
       <span className="text-muted-foreground text-sm">{unit}</span>
     </div>
   </div>
 );
 
-const GaugeChart = ({ value }: { value: number }) => {
+const GaugeChart = ({ value, displayValue }: { value: number; displayValue: number }) => {
   const cx = 200; const cy = 170; const outerRadius = 140; const innerRadius = 100;
   const valToAngle = (v: number) => 180 - (Math.min(v, 100) / 100) * 180;
   const degToRad = (d: number) => (d * Math.PI) / 180;
@@ -395,7 +385,7 @@ const GaugeChart = ({ value }: { value: number }) => {
       {segments.map((seg, i) => <path key={i} d={arcSegment(seg.start, seg.end)} fill={seg.color} />)}
       <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="white" strokeWidth={2} />
       <circle cx={cx} cy={cy} r={6} fill="white" />
-      <text x={cx} y={cy + 40} textAnchor="middle" fill="white" fontSize={32} fontWeight="bold">{Math.round(value)}</text>
+      <text x={cx} y={cy + 40} textAnchor="middle" fill="white" fontSize={32} fontWeight="bold">{displayValue.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</text>
     </svg>
   );
 };
@@ -412,7 +402,7 @@ const BarSection = ({ title, data }: { title: string; data: any[] }) => {
             <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
               <div className="h-full" style={{ width: `${((d.value || 0) / max) * 100}%`, backgroundColor: d.color }} />
             </div>
-            <span className="text-xs font-medium w-8 text-right">{(d.value || 0).toLocaleString()}</span>
+            <span className="text-xs font-medium w-8 text-right">{(d.value || 0).toLocaleString('en-US')}</span>
           </div>
         ))}
       </div>
