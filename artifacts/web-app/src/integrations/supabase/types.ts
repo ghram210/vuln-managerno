@@ -126,10 +126,11 @@ export type Database = {
         Row: {
           color: string
           id: string
-          in_compliance: number
-          not_in_compliance: number
+          in_comp_count: number
+          total_count: number
           rating: string
           sort_order: number
+          target: string | null
           time_frame: string
         }
         Insert: {
@@ -139,6 +140,7 @@ export type Database = {
           not_in_compliance?: number
           rating: string
           sort_order?: number
+          target?: string | null
           time_frame: string
         }
         Update: {
@@ -148,6 +150,7 @@ export type Database = {
           not_in_compliance?: number
           rating?: string
           sort_order?: number
+          target?: string | null
           time_frame?: string
         }
         Relationships: []
@@ -200,6 +203,39 @@ export type Database = {
           id?: string
           not_reviewed?: number
           reviewed?: number
+        }
+        Relationships: []
+      }
+      scan_findings: {
+        Row: {
+          created_at: string
+          id: string
+          scan_id: string
+          severity: string
+          status: string
+          target: string
+          title: string
+          tool: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          scan_id: string
+          severity: string
+          status: string
+          target: string
+          title: string
+          tool: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scan_id?: string
+          severity?: string
+          status?: string
+          target?: string
+          title?: string
+          tool?: string
         }
         Relationships: []
       }
@@ -274,8 +310,8 @@ export type Database = {
           id?: string
           ip_address: string
           last_scan?: string
-          open_ports: string
-          os: string
+          open_ports?: string
+          os?: string
           risk?: string
         }
         Update: {
@@ -403,16 +439,19 @@ export type Database = {
           count: number
           day: number
           id: string
+          target: string | null
         }
         Insert: {
           count?: number
-          day: number
+          day?: number
           id?: string
+          target?: string | null
         }
         Update: {
           count?: number
           day?: number
           id?: string
+          target?: string | null
         }
         Relationships: []
       }
@@ -449,6 +488,7 @@ export type Database = {
           id: string
           label: string
           sort_order: number
+          target: string | null
           value: number
         }
         Insert: {
@@ -456,6 +496,7 @@ export type Database = {
           id?: string
           label: string
           sort_order?: number
+          target?: string | null
           value?: number
         }
         Update: {
@@ -463,6 +504,7 @@ export type Database = {
           id?: string
           label?: string
           sort_order?: number
+          target?: string | null
           value?: number
         }
         Relationships: []
@@ -556,7 +598,63 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      cve_catalog: {
+        Row: {
+          cve_id: string
+          cvss_v3_score: number | null
+          cvss_v3_severity: string | null
+          published_date: string | null
+          description: string | null
+        }
+        Relationships: []
+      }
+      vuln_top_assets: {
+        Row: {
+          color: string
+          id: string
+          label: string
+          sort_order: number
+          value: number
+        }
+        Relationships: []
+      }
+      vuln_by_tool: {
+        Row: {
+          color: string
+          id: string
+          label: string
+          sort_order: number
+          target: string | null
+          value: number
+        }
+        Relationships: []
+      }
+      // Re-define these here for frontend usage without conflicts
+      vuln_rating_overview_filtered: {
+        Row: {
+          color: string
+          id: string
+          label: string
+          percentage: number | null
+          sort_order: number
+          target: string | null
+          value: number
+        }
+        Relationships: []
+      }
+      remediation_open_filtered: {
+        Row: {
+          color: string
+          id: string
+          in_comp_count: number | null
+          total_count: number | null
+          rating: string
+          sort_order: number
+          target: string | null
+          time_frame: string
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
