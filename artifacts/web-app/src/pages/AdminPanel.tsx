@@ -292,9 +292,14 @@ const AdminPanel = () => {
                     <td className="py-3 px-2 text-muted-foreground">{formatDate(user.joined_at)}</td>
                     {userRole === "admin" && (
                       <td className="py-3 px-2">
+                        {/* Only allow removing users with 'User' role to prevent admin lockout */}
                         {user.role === "User" && (
                           <button
-                            onClick={() => removeUserMutation.mutate(user.id)}
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to remove ${user.name || user.email}?`)) {
+                                removeUserMutation.mutate(user.id);
+                              }
+                            }}
                             className="flex items-center gap-1.5 text-muted-foreground hover:text-red-400 transition-colors text-sm"
                           >
                             <Trash2 className="w-4 h-4" />

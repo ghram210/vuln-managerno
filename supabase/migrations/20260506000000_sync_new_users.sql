@@ -1,5 +1,5 @@
 -- =============================================
--- Final Fix: Sync Invitations and User Roles (Corrected Types)
+-- Final Fix: Sync Invitations and User Roles (Constraint Fix)
 -- =============================================
 
 -- 1. Add missing column if not exists
@@ -23,7 +23,7 @@ BEGIN
   -- B. Sync user to admin_users
   INSERT INTO public.admin_users (id, email, name, role, joined_at)
   VALUES (
-    NEW.id, -- Use UUID directly
+    NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
     'User',
@@ -43,18 +43,23 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 4. Backfill existing users
+-- 4. Backfill existing users (Strict Safety)
 INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'user' FROM auth.users
 ON CONFLICT (user_id) DO NOTHING;
 
+-- This part was causing the 'duplicate key value violates unique constraint'
+-- We use a more careful approach: only insert if BOTH id and email don't exist
 INSERT INTO public.admin_users (id, email, name, role, joined_at)
 SELECT
-  id, -- Use UUID directly
-  email,
-  COALESCE(raw_user_meta_data->>'full_name', email),
+  u.id,
+  u.email,
+  COALESCE(u.raw_user_meta_data->>'full_name', u.email),
   'User',
-  created_at
-FROM auth.users
-WHERE id NOT IN (SELECT id FROM public.admin_users WHERE role = 'Admin')
-ON CONFLICT (id) DO NOTHING;
+  u.created_at
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.admin_users a
+  WHERE a.id = u.id OR lower(a.email) = lower(u.email)
+)
+ON CONFLICT DO NOTHING;
