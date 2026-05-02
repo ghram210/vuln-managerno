@@ -174,7 +174,14 @@ const VulnDashboard = () => {
     return { label, value: val, color, id: label };
   });
 
-  const totalRisk = aggregatedRiskScores.reduce((s, r) => s + r.value, 0);
+  // Calculate weighted risk score for gauge (0-100 scale)
+  // We sum the raw values and then normalize it.
+  // In a real scenario, this would be a weighted average.
+  // For the gauge, we use a heuristic based on total volume.
+  const totalRiskVal = aggregatedRiskScores.reduce((s, r) => s + r.value, 0);
+  const gaugeValue = filterAsset === "all"
+    ? Math.min(100, Math.round(totalRiskVal / (Math.max(1, (assets?.length || 1)) * 10)))
+    : Math.min(100, Math.round(totalRiskVal / 10));
 
   const kpis = {
     mttr: (rawKPIs?.mttr || []).filter(k => filterAsset === "all" || k.target === filterAsset).reduce((s, k) => s + (k.value || 0), 0),
@@ -282,7 +289,7 @@ const VulnDashboard = () => {
             <div className="bg-card border border-border rounded-xl p-5">
               <h3 className="text-sm font-semibold mb-4">Risk Score Breakdown</h3>
               <div className="flex flex-col items-center">
-                <GaugeChart value={totalRisk} />
+                <GaugeChart value={gaugeValue} />
                 <div className="flex flex-wrap gap-4 mt-4 justify-center">
                   {aggregatedRiskScores.map((r) => (
                     <div key={r.id} className="flex items-center gap-1.5 text-xs">
