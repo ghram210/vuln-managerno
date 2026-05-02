@@ -20,6 +20,7 @@ DROP VIEW IF EXISTS public.dash_kpi_weaponized CASCADE;
 DROP VIEW IF EXISTS public.dash_kpi_compliance CASCADE;
 DROP VIEW IF EXISTS public.remediation_open_filtered CASCADE;
 DROP VIEW IF EXISTS public.remediation_closed CASCADE;
+DROP VIEW IF EXISTS public.vuln_status_overview CASCADE;
 
 -- 2. Severity Overview (Deduplicated by Finding)
 CREATE OR REPLACE VIEW public.vuln_rating_overview_filtered AS
