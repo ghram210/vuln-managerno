@@ -257,7 +257,7 @@ SELECT
   'hsl(155 50% 55%)' AS color
 FROM stats;
 
--- 10. Remediation Compliance Tables (Fixes Overcounting and supports Filtering)
+-- 10. Remediation Compliance Tables (Fixes syntax error and logic)
 CREATE OR REPLACE VIEW public.remediation_open_filtered AS
 WITH sev_levels(rating, color, sort_order, allowed_days) AS (
   VALUES
@@ -269,28 +269,36 @@ WITH sev_levels(rating, color, sort_order, allowed_days) AS (
 targets AS (
   SELECT DISTINCT target FROM public.scan_findings
 ),
-findings_stats AS (
+finding_info AS (
   SELECT
+    f.id,
     f.target,
+    f.created_at,
     CASE
       WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'CRITICAL') THEN 'Critical'
       WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'HIGH')     THEN 'High'
       WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'MEDIUM')   THEN 'Medium'
       ELSE 'Low'
-    END as sev,
-    COUNT(DISTINCT f.id) as total_count,
-    COUNT(DISTINCT f.id) FILTER (WHERE (now() - f.created_at) <= (
-      CASE
-        WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'CRITICAL') THEN 7
-        WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'HIGH')     THEN 30
-        WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'MEDIUM')   THEN 90
-        ELSE 180
-      END * interval '1 day')) as in_comp_count
+    END as sev
   FROM public.scan_findings f
   LEFT JOIN public.finding_cves fc ON fc.finding_id = f.id
   LEFT JOIN public.cve_catalog c ON c.cve_id = fc.cve_id
   WHERE f.status = 'open'
-  GROUP BY f.id, f.target
+  GROUP BY f.id, f.target, f.created_at
+),
+finding_compliance AS (
+  SELECT
+    id,
+    target,
+    sev,
+    CASE
+      WHEN sev = 'Critical' AND (now() - created_at) <= interval '7 days' THEN 1
+      WHEN sev = 'High'     AND (now() - created_at) <= interval '30 days' THEN 1
+      WHEN sev = 'Medium'   AND (now() - created_at) <= interval '90 days' THEN 1
+      WHEN sev = 'Low'      AND (now() - created_at) <= interval '180 days' THEN 1
+      ELSE 0
+    END as is_in_comp
+  FROM finding_info
 )
 SELECT
   md5(COALESCE(t.target, 'all') || sl.rating)::uuid AS id,
@@ -298,12 +306,12 @@ SELECT
   sl.rating,
   sl.color,
   'last_30_days' AS time_frame,
-  COALESCE(SUM(total_count), 0)::int as total_count,
-  COALESCE(SUM(in_comp_count), 0)::int as in_comp_count,
+  COUNT(f.id)::int as total_count,
+  SUM(COALESCE(f.is_in_comp, 0))::int as in_comp_count,
   sl.sort_order
 FROM sev_levels sl
 CROSS JOIN targets t
-LEFT JOIN findings_stats f ON f.sev = sl.rating AND f.target = t.target
+LEFT JOIN finding_compliance f ON f.sev = sl.rating AND f.target = t.target
 GROUP BY t.target, sl.rating, sl.color, sl.sort_order;
 
 CREATE OR REPLACE VIEW public.remediation_closed AS
@@ -317,29 +325,38 @@ WITH sev_levels(rating, color, sort_order, allowed_days) AS (
 targets AS (
   SELECT DISTINCT target FROM public.scan_findings
 ),
-findings_stats AS (
+finding_info AS (
   SELECT
+    f.id,
     f.target,
+    f.created_at,
+    sr.completed_at,
     CASE
       WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'CRITICAL') THEN 'Critical'
       WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'HIGH')     THEN 'High'
       WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'MEDIUM')   THEN 'Medium'
       ELSE 'Low'
-    END as sev,
-    COUNT(DISTINCT f.id) AS total_count,
-    COUNT(DISTINCT f.id) FILTER (WHERE (sr.completed_at - f.created_at) <= (
-      CASE
-        WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'CRITICAL') THEN 7
-        WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'HIGH')     THEN 30
-        WHEN bool_or(UPPER(COALESCE(c.cvss_v3_severity, 'MEDIUM')) = 'MEDIUM')   THEN 90
-        ELSE 180
-      END * interval '1 day')) AS in_comp_count
+    END as sev
   FROM public.scan_findings f
   LEFT JOIN public.finding_cves fc ON fc.finding_id = f.id
   LEFT JOIN public.cve_catalog c ON c.cve_id = fc.cve_id
   LEFT JOIN public.scan_results sr ON sr.id = f.scan_id
   WHERE f.status IN ('fixed', 'resolved', 'closed')
-  GROUP BY f.id, f.target, sr.completed_at
+  GROUP BY f.id, f.target, f.created_at, sr.completed_at
+),
+finding_compliance AS (
+  SELECT
+    id,
+    target,
+    sev,
+    CASE
+      WHEN sev = 'Critical' AND (completed_at - created_at) <= interval '7 days' THEN 1
+      WHEN sev = 'High'     AND (completed_at - created_at) <= interval '30 days' THEN 1
+      WHEN sev = 'Medium'   AND (completed_at - created_at) <= interval '90 days' THEN 1
+      WHEN sev = 'Low'      AND (completed_at - created_at) <= interval '180 days' THEN 1
+      ELSE 0
+    END as is_in_comp
+  FROM finding_info
 )
 SELECT
   md5(COALESCE(t.target, 'all') || sl.rating || 'closed')::uuid AS id,
@@ -347,16 +364,15 @@ SELECT
   sl.rating,
   sl.color,
   'last_30_days' AS time_frame,
-  COALESCE(SUM(total_count), 0)::int as total_count,
-  COALESCE(SUM(in_comp_count), 0)::int as in_comp_count,
+  COUNT(f.id)::int as total_count,
+  SUM(COALESCE(f.is_in_comp, 0))::int as in_comp_count,
   sl.sort_order
 FROM sev_levels sl
 CROSS JOIN targets t
-LEFT JOIN findings_stats f ON f.sev = sl.rating AND f.target = t.target
+LEFT JOIN finding_compliance f ON f.sev = sl.rating AND f.target = t.target
 GROUP BY t.target, sl.rating, sl.color, sl.sort_order;
 
 -- 11. Final Grants
--- Fix for syntax error: GRANT ON ALL TABLES includes views
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 
 COMMIT;
