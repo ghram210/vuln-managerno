@@ -122,21 +122,18 @@ const VulnDashboard = () => {
   // --- Aggregation Logic ---
 
   const daily = (rawDaily || []).filter(d => filterAsset === "all" || d.target === filterAsset);
-  const aggregatedDaily = filterAsset === "all"
-    ? Array.from(new Set(rawDaily?.map(d => d.day))).map(day => {
-        const matching = rawDaily?.filter(d => d.day === day) || [];
-        return { day, count: matching.reduce((s, d) => s + (d.count || 0), 0) };
-      }).sort((a, b) => (a.day || 0) - (b.day || 0))
-    : daily;
+  const aggregatedDaily = Array.from({ length: 45 }, (_, i) => i + 1).map(dayNum => {
+    const matching = daily.filter(d => d.day === dayNum);
+    const count = matching.reduce((s, d) => s + (d.count || 0), 0);
+    return { day: dayNum, count };
+  });
 
   const ratings = (rawRatings || []).filter(r => filterAsset === "all" || r.target === filterAsset);
-  const aggregatedRatings = filterAsset === "all"
-    ? ["Critical", "High", "Medium", "Low"].map(label => {
-        const matching = ratings.filter(r => r.label === label);
-        const val = matching.reduce((s, r) => s + (r.value || 0), 0);
-        return { label, value: val, color: severityColors[label], id: label };
-      })
-    : ratings;
+  const aggregatedRatings = ["Critical", "High", "Medium", "Low"].map(label => {
+    const matching = ratings.filter(r => r.label === label);
+    const val = matching.reduce((s, r) => s + (r.value || 0), 0);
+    return { label, value: val, color: severityColors[label], id: label };
+  });
 
   const totalResults = aggregatedRatings.reduce((s, r) => s + (r.value || 0), 0);
   const ratingsWithPercent = aggregatedRatings.map(r => ({
@@ -176,18 +173,24 @@ const VulnDashboard = () => {
   const aggregatedRemClosed = calculateRemediation(rawRemClosed || []);
 
   const rawRiskScoresFiltered = (rawRiskScores || []).filter(r => filterAsset === "all" || r.target === filterAsset);
-  const aggregatedRiskScores = filterAsset === "all"
-    ? ["Base CVSS", "Exploitability", "Asset Criticality", "Exposure"].map(label => {
-        const matching = rawRiskScoresFiltered.filter(r => r.label === label);
-        const avg = matching.length > 0 ? (matching.reduce((s, r) => s + (r.value || 0), 0) / matching.length) : 0;
-        return {
-          label,
-          value: Number(avg.toFixed(1)),
-          color: rawRiskScoresFiltered.find(r => r.label === label)?.color || "hsl(215 20% 65%)",
-          id: label
-        };
-      })
-    : rawRiskScoresFiltered.map(r => ({ ...r, value: Number((r.value || 0).toFixed(1)), id: r.id || "" }));
+  const riskLabels = ["Base CVSS", "Exploitability", "Asset Criticality", "Exposure"];
+  const riskColors: Record<string, string> = {
+    "Base CVSS": "hsl(210 70% 55%)",
+    "Exploitability": "hsl(0 72% 55%)",
+    "Asset Criticality": "hsl(270 60% 55%)",
+    "Exposure": "hsl(30 90% 55%)"
+  };
+
+  const aggregatedRiskScores = riskLabels.map(label => {
+    const matching = rawRiskScoresFiltered.filter(r => r.label === label);
+    const avg = matching.length > 0 ? (matching.reduce((s, r) => s + (r.value || 0), 0) / matching.length) : 0;
+    return {
+      label,
+      value: Number(avg.toFixed(1)),
+      color: riskColors[label] || "hsl(215 20% 65%)",
+      id: label
+    };
+  });
 
   // Risk Score Formula: CVSS + Exploitability + Asset Criticality + Exposure
   // The sum represents the total weighted risk per finding on average.
