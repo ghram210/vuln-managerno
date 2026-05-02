@@ -1,11 +1,30 @@
 import { useState } from "react";
 import AppSidebar from "@/components/AppSidebar";
 import TopBar from "@/components/TopBar";
-import { Users, Scan, Bug, Activity, UserPlus, Send, FileText, Trash2, Copy, Check } from "lucide-react";
+import { Users, Scan, Bug, Activity, UserPlus, Send, FileText, Trash2, Copy, Check, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const AdminPanel = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -13,6 +32,8 @@ const AdminPanel = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: string, name: string } | null>(null);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const { userRole, session } = useAuth();
   const queryClient = useQueryClient();
 
@@ -142,6 +163,7 @@ const AdminPanel = () => {
       if (!res.ok) throw new Error(data.error || "Failed to generate invitation");
       const link = `${window.location.origin}/invite/${data.token}`;
       setGeneratedLink(link);
+      setIsInviteDialogOpen(true);
       toast.success("Invitation link generated");
     } catch (err: any) {
       toast.error(err.message || "Failed to generate invitation");
@@ -153,13 +175,6 @@ const AdminPanel = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success("Link copied to clipboard");
-  };
-
-  const handleCloseInvite = () => {
-    setShowInvite(false);
-    setInviteEmail("");
-    setGeneratedLink("");
-    setCopied(false);
   };
 
   const formatDate = (dateStr: string) => {
@@ -194,55 +209,31 @@ const AdminPanel = () => {
 
           {showInvite && (
             <div className="bg-card border border-border rounded-xl p-5 mb-6">
-              {!generatedLink ? (
-                <div className="flex items-end gap-4">
-                  <div className="flex-1">
-                    <label className="text-sm text-muted-foreground mb-1 block">Email (optional)</label>
-                    <input
-                      type="email"
-                      placeholder="user@example.com"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-                    />
-                  </div>
-                  <button
-                    onClick={handleGenerateInvite}
-                    className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors whitespace-nowrap"
-                  >
-                    <Send className="w-4 h-4" />
-                    Generate Link
-                  </button>
-                  <button
-                    onClick={handleCloseInvite}
-                    className="px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Cancel
-                  </button>
+              <div className="flex items-end gap-4">
+                <div className="flex-1">
+                  <label className="text-sm text-muted-foreground mb-1 block">Email (optional)</label>
+                  <input
+                    type="email"
+                    placeholder="user@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
+                  />
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">Copy this link and send it to the user. It expires in 7 days.</p>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-foreground font-mono overflow-hidden text-ellipsis whitespace-nowrap">
-                      {generatedLink}
-                    </div>
-                    <button
-                      onClick={handleCopyLink}
-                      className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors whitespace-nowrap"
-                    >
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copied ? "Copied!" : "Copy"}
-                    </button>
-                    <button
-                      onClick={handleCloseInvite}
-                      className="px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Done
-                    </button>
-                  </div>
-                </div>
-              )}
+                <button
+                  onClick={handleGenerateInvite}
+                  className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors whitespace-nowrap"
+                >
+                  <Send className="w-4 h-4" />
+                  Generate Link
+                </button>
+                <button
+                  onClick={() => { setShowInvite(false); setInviteEmail(""); }}
+                  className="px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
@@ -295,11 +286,7 @@ const AdminPanel = () => {
                         {/* Only allow removing users with 'User' role to prevent admin lockout */}
                         {user.role === "User" && (
                           <button
-                            onClick={() => {
-                              if (window.confirm(`Are you sure you want to remove ${user.name || user.email}?`)) {
-                                removeUserMutation.mutate(user.id);
-                              }
-                            }}
+                            onClick={() => setUserToDelete({ id: user.id, name: user.name || user.email })}
                             className="flex items-center gap-1.5 text-muted-foreground hover:text-red-400 transition-colors text-sm"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -367,6 +354,79 @@ const AdminPanel = () => {
           </div>
         </main>
       </div>
+
+      {/* Invitation Link Dialog */}
+      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" />
+              Invitation Link Generated
+            </DialogTitle>
+            <DialogDescription>
+              Copy this link and send it to the user. It expires in 7 days.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2 mt-4">
+            <div className="grid flex-1 gap-2">
+              <div className="bg-muted p-3 rounded-lg font-mono text-sm break-all">
+                {generatedLink}
+              </div>
+            </div>
+            <Button
+              size="icon"
+              onClick={handleCopyLink}
+              className="shrink-0"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </Button>
+          </div>
+          <DialogFooter className="sm:justify-start mt-6">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsInviteDialogOpen(false);
+                setShowInvite(false);
+                setInviteEmail("");
+                setGeneratedLink("");
+              }}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove User Confirmation */}
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Confirm User Removal
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove <span className="font-semibold text-foreground">{userToDelete?.name}</span>?
+              This action will revoke all access for this user. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (userToDelete) {
+                  removeUserMutation.mutate(userToDelete.id);
+                  setUserToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
