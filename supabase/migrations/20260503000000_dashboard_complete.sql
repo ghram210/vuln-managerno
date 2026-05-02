@@ -356,6 +356,7 @@ LEFT JOIN findings_stats f ON f.sev = sl.rating AND f.target = t.target
 GROUP BY t.target, sl.rating, sl.color, sl.sort_order;
 
 -- 11. Final Grants
-GRANT SELECT ON ALL VIEWS IN SCHEMA public TO anon, authenticated;
+-- Fix for syntax error: GRANT ON ALL TABLES includes views
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 
 COMMIT;
