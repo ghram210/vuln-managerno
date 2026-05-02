@@ -59,7 +59,12 @@ router.post("/", async (req, res): Promise<void> => {
     .single();
 
   if (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Invitation insertion error:", error);
+    let message = error.message;
+    if (message.includes("is_active")) {
+      message = "Database schema mismatch: missing 'is_active' column. Please run the provided SQL migration in Supabase.";
+    }
+    res.status(500).json({ error: message });
     return;
   }
 
@@ -87,9 +92,10 @@ router.post("/sync-admin-roles", async (req, res): Promise<void> => {
       if (!email || role?.toLowerCase() !== "admin") continue;
 
       // Find auth user by email
-      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-      const authUser = authUsers?.users?.find(
-        (u) => u.email?.toLowerCase() === email.toLowerCase()
+      const { data: authListData } = await supabaseAdmin.auth.admin.listUsers();
+      const authUsers: any[] = authListData?.users ?? [];
+      const authUser = authUsers.find(
+        (u: any) => (u.email ?? "").toLowerCase() === email.toLowerCase()
       );
       if (!authUser) continue;
 
