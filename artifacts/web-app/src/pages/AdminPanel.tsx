@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AppSidebar from "@/components/AppSidebar";
 import TopBar from "@/components/TopBar";
-import { Users, Scan, Bug, Activity, UserPlus, Send, FileText, Trash2, Copy, Check, AlertTriangle } from "lucide-react";
+import { Users, Scan, Bug, Activity, UserPlus, Send, FileText, Trash2, Copy, Check, AlertTriangle, Loader2, Wifi, WifiOff } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -32,15 +32,30 @@ const AdminPanel = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string, name: string } | null>(null);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const { userRole, session } = useAuth();
   const queryClient = useQueryClient();
 
+  const { data: apiHealth } = useQuery({
+    queryKey: ["api-health"],
+    queryFn: async () => {
+      try {
+        const res = await fetch("/api/healthz");
+        return res.ok;
+      } catch {
+        return false;
+      }
+    },
+    refetchInterval: 10000,
+  });
+
   const { data: users } = useQuery({
     queryKey: ["admin_users"],
     queryFn: async () => {
-      const { data } = await supabase.from("admin_users").select("*").order("joined_at", { ascending: false });
+      const { data, error } = await supabase.from("admin_users").select("*").order("joined_at", { ascending: false });
+      if (error) console.error("Error fetching users:", error);
       return data || [];
     },
   });
@@ -68,7 +83,6 @@ const AdminPanel = () => {
     queryKey: ["scan_creator_emails", scanUserIds],
     enabled: scanUserIds.length > 0,
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.rpc as any)("get_user_emails", {
         user_ids: scanUserIds,
       });
@@ -102,22 +116,25 @@ const AdminPanel = () => {
 
   const removeUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      // Delete from admin_users
+      console.log(`Attempting to remove user: ${userId}`);
       const { error: adminError } = await supabase.from("admin_users").delete().eq("id", userId);
-      if (adminError) throw adminError;
+      if (adminError) {
+        console.error("Admin table deletion error:", adminError);
+        throw new Error(`Admin table error: ${adminError.message}`);
+      }
 
-      // Also delete from user_roles to fully revoke access
       const { error: roleError } = await supabase.from("user_roles").delete().eq("user_id", userId);
       if (roleError) {
-        console.warn("Failed to remove user role:", roleError.message);
+        console.warn("User roles table error (might be ignored):", roleError.message);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
       toast.success("User removed successfully");
     },
-    onError: () => {
-      toast.error("Failed to remove user");
+    onError: (err: any) => {
+      console.error("Removal mutation failed:", err);
+      toast.error(`Failed to remove user: ${err.message || "Unknown error"}`);
     },
   });
 
@@ -147,9 +164,11 @@ const AdminPanel = () => {
 
   const handleGenerateInvite = async () => {
     if (!session?.access_token) {
-      toast.error("Not authenticated");
+      toast.error("Not authenticated in UI");
       return;
     }
+    setIsGeneratingInvite(true);
+    console.log("Generating invitation link for:", inviteEmail || "anyone");
     try {
       const res = await fetch("/api/invitations", {
         method: "POST",
@@ -159,14 +178,23 @@ const AdminPanel = () => {
         },
         body: JSON.stringify({ email: inviteEmail || null }),
       });
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate invitation");
+      console.log("Invitation API response:", { status: res.status, data });
+
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: Invitation failed`);
+      }
+
       const link = `${window.location.origin}/invite/${data.token}`;
       setGeneratedLink(link);
       setIsInviteDialogOpen(true);
       toast.success("Invitation link generated");
     } catch (err: any) {
-      toast.error(err.message || "Failed to generate invitation");
+      console.error("handleGenerateInvite caught error:", err);
+      toast.error(`Invitation Error: ${err.message}`);
+    } finally {
+      setIsGeneratingInvite(false);
     }
   };
 
@@ -195,7 +223,13 @@ const AdminPanel = () => {
         <main className="flex-1 overflow-y-auto p-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-foreground mb-1">Admin Panel</h1>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${apiHealth ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}`}>
+                  {apiHealth ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                  API {apiHealth ? "ONLINE" : "OFFLINE"}
+                </div>
+              </div>
               <p className="text-muted-foreground">System administration and user management</p>
             </div>
             <button
@@ -222,9 +256,10 @@ const AdminPanel = () => {
                 </div>
                 <button
                   onClick={handleGenerateInvite}
-                  className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors whitespace-nowrap"
+                  disabled={isGeneratingInvite}
+                  className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors whitespace-nowrap disabled:opacity-50"
                 >
-                  <Send className="w-4 h-4" />
+                  {isGeneratingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   Generate Link
                 </button>
                 <button
@@ -283,7 +318,6 @@ const AdminPanel = () => {
                     <td className="py-3 px-2 text-muted-foreground">{formatDate(user.joined_at)}</td>
                     {userRole === "admin" && (
                       <td className="py-3 px-2">
-                        {/* Only allow removing users with 'User' role to prevent admin lockout */}
                         {user.role === "User" && (
                           <button
                             onClick={() => setUserToDelete({ id: user.id, name: user.name || user.email })}
@@ -357,28 +391,28 @@ const AdminPanel = () => {
 
       {/* Invitation Link Dialog */}
       <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-foreground">
               <UserPlus className="w-5 h-5 text-primary" />
               Invitation Link Generated
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground">
               Copy this link and send it to the user. It expires in 7 days.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center space-x-2 mt-4">
             <div className="grid flex-1 gap-2">
-              <div className="bg-muted p-3 rounded-lg font-mono text-sm break-all">
+              <div className="bg-muted p-3 rounded-lg font-mono text-sm break-all text-foreground border border-border">
                 {generatedLink}
               </div>
             </div>
             <Button
-              size="icon"
               onClick={handleCopyLink}
-              className="shrink-0"
+              className="shrink-0 flex gap-2"
             >
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? "Copied" : "Copy"}
             </Button>
           </div>
           <DialogFooter className="sm:justify-start mt-6">
@@ -400,19 +434,19 @@ const AdminPanel = () => {
 
       {/* Remove User Confirmation */}
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
+            <AlertDialogTitle className="flex items-center gap-2 text-foreground">
               <AlertTriangle className="w-5 h-5 text-destructive" />
               Confirm User Removal
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-muted-foreground">
               Are you sure you want to remove <span className="font-semibold text-foreground">{userToDelete?.name}</span>?
               This action will revoke all access for this user. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-muted text-foreground hover:bg-muted/80 border-none">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (userToDelete) {
@@ -420,7 +454,7 @@ const AdminPanel = () => {
                   setUserToDelete(null);
                 }
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-white hover:bg-destructive/90 border-none"
             >
               Remove User
             </AlertDialogAction>
