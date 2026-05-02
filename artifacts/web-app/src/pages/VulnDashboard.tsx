@@ -63,8 +63,8 @@ const VulnDashboard = () => {
     },
   });
 
-  const { data: topAssets } = useQuery({
-    queryKey: ["vuln-top-assets"],
+  const { data: rawTopAssets } = useQuery({
+    queryKey: ["vuln-top-assets", filterAsset],
     queryFn: async () => {
       const { data } = await supabase.from("vuln_top_assets").select("*");
       return (data || []) as TopAsset[];
@@ -72,7 +72,7 @@ const VulnDashboard = () => {
   });
 
   const { data: rawByTool } = useQuery({
-    queryKey: ["vuln-by-tool"],
+    queryKey: ["vuln-by-tool", filterAsset],
     queryFn: async () => {
       const { data } = await supabase.from("vuln_by_tool").select("*");
       return (data || []) as ByTool[];
@@ -213,6 +213,11 @@ const VulnDashboard = () => {
   });
   const totalStatus = aggregatedStatus.reduce((s, st) => s + st.value, 0);
 
+  const aggregatedTopAssets = (rawTopAssets || [])
+    .filter(a => filterAsset === "all" || a.label === filterAsset)
+    .sort((a, b) => (b.value || 0) - (a.value || 0))
+    .slice(0, 5);
+
   return (
     <div className="flex h-screen bg-background text-foreground">
       <AppSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} activePage="vuln-dashboard" />
@@ -333,7 +338,7 @@ const VulnDashboard = () => {
 
           {/* Charts Row 2 */}
           <div className="grid grid-cols-2 gap-4 mb-8">
-            <BarSection title="Top 5 At-Risk Assets" data={topAssets || []} />
+            <BarSection title={filterAsset === "all" ? "Top 5 At-Risk Assets" : "Asset Risk Level"} data={aggregatedTopAssets} />
             <BarSection title="Vulnerabilities by Discovery Tool" data={aggregatedByTool} />
           </div>
 
