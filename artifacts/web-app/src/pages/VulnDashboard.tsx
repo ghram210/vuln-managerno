@@ -5,120 +5,218 @@ import AppSidebar from "@/components/AppSidebar";
 import TopBar from "@/components/TopBar";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
+import { Database } from "@/integrations/supabase/types";
+
+type VulnRating = Database["public"]["Views"]["vuln_rating_overview_filtered"]["Row"];
+type RemOpen = Database["public"]["Views"]["remediation_open_filtered"]["Row"];
+type RemClosed = Database["public"]["Tables"]["remediation_closed"]["Row"];
+type RiskScore = Database["public"]["Tables"]["vuln_risk_score"]["Row"];
+type DailyTrend = Database["public"]["Tables"]["vuln_daily_open"]["Row"];
+type TopAsset = Database["public"]["Views"]["vuln_top_assets"]["Row"];
+type ByTool = Database["public"]["Views"]["vuln_by_tool"]["Row"];
+type StatusOverview = { id: string; target: string; label: string; value: number };
 
 const severityColors: Record<string, string> = {
   Critical: "hsl(0 84% 60%)",
   High: "hsl(24 95% 53%)",
   Medium: "hsl(45 93% 47%)",
   Low: "hsl(142 71% 45%)",
-  Info: "hsl(215 20% 65%)",
-  None: "hsl(215 15% 75%)",
-};
-
-const statusColors: Record<string, string> = {
-  Open: "hsl(0 84% 60%)",
-  "In Progress": "hsl(35 92% 50%)",
-  Closed: "hsl(142 71% 45%)",
-  Suppressed: "hsl(215 20% 65%)",
-};
-
-const exploitColors: Record<string, string> = {
-  "Actively Used": "hsl(0 84% 60%)",
-  Available: "hsl(24 95% 53%)",
-  Unproven: "hsl(45 93% 47%)",
-  None: "hsl(215 20% 65%)",
 };
 
 const VulnDashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const [filterRating, setFilterRating] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [showRatingDrop, setShowRatingDrop] = useState(false);
-  const [showStatusDrop, setShowStatusDrop] = useState(false);
+  const [filterAsset, setFilterAsset] = useState("all");
+  const [showAssetDrop, setShowAssetDrop] = useState(false);
 
-  const { data: ratings } = useQuery({
+  // --- Data Fetching ---
+
+  const { data: assets } = useQuery({
+    queryKey: ["vuln-assets"],
+    queryFn: async () => {
+      const { data } = await supabase.from("vuln_rating_overview_filtered").select("target");
+      const uniqueTargets = Array.from(new Set((data || []).map(f => f.target).filter(Boolean))) as string[];
+      return uniqueTargets.sort();
+    },
+  });
+
+  const { data: rawRatings } = useQuery({
     queryKey: ["vuln-ratings"],
     queryFn: async () => {
-      const { data } = await supabase.from("vuln_rating_overview").select("*").order("sort_order");
-      return data || [];
+      const { data } = await supabase.from("vuln_rating_overview_filtered").select("*").order("sort_order");
+      return (data || []) as VulnRating[];
     },
   });
 
-  const { data: statuses } = useQuery({
-    queryKey: ["vuln-statuses"],
-    queryFn: async () => {
-      const { data } = await supabase.from("vuln_status_overview").select("*").order("sort_order");
-      return data || [];
-    },
-  });
-
-  const { data: daily } = useQuery({
-    queryKey: ["vuln-daily"],
+  const { data: rawDaily } = useQuery({
+    queryKey: ["vuln-daily", filterAsset],
     queryFn: async () => {
       const { data } = await supabase.from("vuln_daily_open").select("*").order("day");
-      return data || [];
+      return (data || []) as DailyTrend[];
     },
   });
 
-  const { data: riskScores } = useQuery({
-    queryKey: ["vuln-risk"],
+  const { data: rawRiskScores } = useQuery({
+    queryKey: ["vuln-risk", filterAsset],
     queryFn: async () => {
       const { data } = await supabase.from("vuln_risk_score").select("*").order("sort_order");
-      return data || [];
+      return (data || []) as RiskScore[];
     },
   });
 
-  const { data: byStatus } = useQuery({
-    queryKey: ["vuln-by-status"],
+  const { data: rawTopAssets } = useQuery({
+    queryKey: ["vuln-top-assets", filterAsset],
     queryFn: async () => {
-      const { data } = await supabase.from("vuln_by_status").select("*").order("sort_order");
-      return data || [];
+      const { data } = await supabase.from("vuln_top_assets").select("*");
+      return (data || []) as TopAsset[];
     },
   });
 
-  const { data: byExploit } = useQuery({
-    queryKey: ["vuln-by-exploit"],
+  const { data: rawByTool } = useQuery({
+    queryKey: ["vuln-by-tool", filterAsset],
     queryFn: async () => {
-      const { data } = await supabase.from("vuln_by_exploit").select("*").order("sort_order");
-      return data || [];
+      const { data } = await supabase.from("vuln_by_tool").select("*");
+      return (data || []) as ByTool[];
     },
   });
 
-  const { data: remOpen } = useQuery({
-    queryKey: ["remediation-open"],
+  const { data: rawRemOpen } = useQuery({
+    queryKey: ["remediation-open", filterAsset],
     queryFn: async () => {
-      const { data } = await supabase.from("remediation_open").select("*").order("sort_order");
-      return data || [];
+      const { data } = await supabase.from("remediation_open_filtered").select("*").order("sort_order");
+      return (data || []) as RemOpen[];
     },
   });
 
-  const { data: remClosed } = useQuery({
-    queryKey: ["remediation-closed"],
+  const { data: rawRemClosed } = useQuery({
+    queryKey: ["remediation-closed", filterAsset],
     queryFn: async () => {
       const { data } = await supabase.from("remediation_closed").select("*").order("sort_order");
-      return data || [];
+      return (data || []) as RemClosed[];
     },
   });
 
-  // Filter ratings cards
-  const filteredRatings = (ratings || []).filter((r) => {
-    if (filterRating !== "all" && r.label !== filterRating) return false;
-    return true;
+  const { data: rawStatus } = useQuery({
+    queryKey: ["vuln-status"],
+    queryFn: async () => {
+      const { data } = await supabase.from("vuln_status_overview" as any).select("*");
+      return (data || []) as StatusOverview[];
+    },
   });
 
-  // Filter status cards
-  const filteredStatuses = (statuses || []).filter((s) => {
-    if (filterStatus !== "all" && s.label !== filterStatus) return false;
-    return true;
+  const { data: rawKPIs } = useQuery({
+    queryKey: ["vuln-kpis", filterAsset],
+    queryFn: async () => {
+      const [mttr, weaponized, compliance] = await Promise.all([
+        supabase.from("dash_kpi_mttr" as any).select("*"),
+        supabase.from("dash_kpi_weaponized" as any).select("*"),
+        supabase.from("dash_kpi_compliance" as any).select("*"),
+      ]);
+      return {
+        mttr: (mttr.data || []) as any[],
+        weaponized: (weaponized.data || []) as any[],
+        compliance: (compliance.data || []) as any[],
+      };
+    },
   });
 
-  const totalResults = (ratings || []).reduce((s, r) => s + r.value, 0);
-  const totalRisk = (riskScores || []).reduce((s, r) => s + r.value, 0);
+  // --- Aggregation Logic ---
 
-  const ratingOptions = ["All Ratings", "Critical", "High", "Medium", "Low"];
-  const statusOptions = ["All Status", "Open", "In Progress", "Closed", "Suppressed"];
+  const daily = (rawDaily || []).filter(d => filterAsset === "all" || d.target === filterAsset);
+  const aggregatedDaily = Array.from({ length: 45 }, (_, i) => i + 1).map(dayNum => {
+    const matching = daily.filter(d => d.day === dayNum);
+    const count = matching.reduce((s, d) => s + (d.count || 0), 0);
+    return { day: dayNum, count };
+  });
 
-  const closeAllDrops = () => { setShowRatingDrop(false); setShowStatusDrop(false); };
+  const ratings = (rawRatings || []).filter(r => filterAsset === "all" || r.target === filterAsset);
+  const aggregatedRatings = ["Critical", "High", "Medium", "Low"].map(label => {
+    const matching = ratings.filter(r => r.label === label);
+    const val = matching.reduce((s, r) => s + (r.value || 0), 0);
+    return { label, value: val, color: severityColors[label], id: label };
+  });
+
+  const totalResults = aggregatedRatings.reduce((s, r) => s + (r.value || 0), 0);
+  const ratingsWithPercent = aggregatedRatings.map(r => ({
+    ...r,
+    percentage: totalResults === 0 ? 0 : Math.round(((r.value || 0) / totalResults) * 100)
+  }));
+
+  const byTool = (rawByTool || []).filter(t => filterAsset === "all" || t.target === filterAsset);
+  const aggregatedByTool = filterAsset === "all"
+    ? Array.from(new Set((rawByTool || []).map(t => t.label))).map(label => {
+        const matching = byTool.filter(t => t.label === label);
+        const val = matching.reduce((s, t) => s + (t.value || 0), 0);
+        const color = (rawByTool || []).find(t => t.label === label)?.color || "hsl(215 20% 65%)";
+        return { label, value: val, color, id: label || "" };
+      })
+    : byTool.map(t => ({ ...t, id: t.id || "" }));
+
+  const calculateRemediation = (rows: (RemOpen | RemClosed)[]) => {
+    const filtered = rows.filter(r => filterAsset === "all" || r.target === filterAsset);
+    return ["Critical", "High", "Medium", "Low"].map(rating => {
+      const matching = filtered.filter(r => r.rating === rating);
+      const totalCount = matching.reduce((s, r) => s + (r.total_count || 0), 0);
+      const inCompCount = matching.reduce((s, r) => s + (r.in_comp_count || 0), 0);
+      const inCompliance = totalCount === 0 ? 100 : Math.round((inCompCount / totalCount) * 100);
+      return { 
+        rating, 
+        in_compliance: inCompliance, 
+        not_in_compliance: 100 - inCompliance, 
+        time_frame: "last_30_days", 
+        id: rating, 
+        color: severityColors[rating] 
+      };
+    });
+  };
+
+  const aggregatedRemOpen = calculateRemediation(rawRemOpen || []);
+  const aggregatedRemClosed = calculateRemediation(rawRemClosed || []);
+
+  const rawRiskScoresFiltered = (rawRiskScores || []).filter(r => filterAsset === "all" || r.target === filterAsset);
+  const riskLabels = ["Base CVSS", "Exploitability", "Asset Criticality", "Exposure"];
+  const riskColors: Record<string, string> = {
+    "Base CVSS": "hsl(210 70% 55%)",
+    "Exploitability": "hsl(0 72% 55%)",
+    "Asset Criticality": "hsl(270 60% 55%)",
+    "Exposure": "hsl(30 90% 55%)"
+  };
+
+  const aggregatedRiskScores = riskLabels.map(label => {
+    const matching = rawRiskScoresFiltered.filter(r => r.label === label);
+    const avg = matching.length > 0 ? (matching.reduce((s, r) => s + (r.value || 0), 0) / matching.length) : 0;
+    return { 
+      label, 
+      value: Number(avg.toFixed(1)), 
+      color: riskColors[label] || "hsl(215 20% 65%)", 
+      id: label 
+    };
+  });
+  
+  // Risk Score Formula: CVSS + Exploitability + Asset Criticality + Exposure
+  // The sum represents the total weighted risk per finding on average.
+  // We scale this to a 0-100 percentage for the gauge (where 20-25 total is very high)
+  const totalRiskVal = aggregatedRiskScores.reduce((s, r) => s + (r.value || 0), 0);
+  const gaugeValue = Math.min(100, Math.round((totalRiskVal / 25) * 100));
+
+  const kpis = {
+    mttr: (rawKPIs?.mttr || []).filter(k => filterAsset === "all" || k.target === filterAsset).reduce((s, k) => s + (k.value || 0), 0),
+    weaponized: (rawKPIs?.weaponized || []).filter(k => filterAsset === "all" || k.target === filterAsset).reduce((s, k) => s + (k.value || 0), 0),
+    compliance: filterAsset === "all" ? Math.round(aggregatedRemOpen.reduce((s, r) => s + r.in_compliance, 0) / 4) : ((rawKPIs?.compliance || []).find(k => k.target === filterAsset)?.value || 0),
+    totalRisk: gaugeValue
+  };
+
+  const statusData = (rawStatus || []).filter(s => filterAsset === "all" || s.target === filterAsset);
+  const aggregatedStatus = ["open", "in_progress", "fixed", "suppressed"].map(status => {
+    const matching = statusData.filter(s => s.label === status);
+    const val = matching.reduce((sum, s) => sum + (s.value || 0), 0);
+    return { label: status, value: val };
+  });
+  const totalStatus = aggregatedStatus.reduce((s, st) => s + st.value, 0);
+
+  const aggregatedTopAssets = (rawTopAssets || [])
+    .filter(a => filterAsset === "all" || a.label === filterAsset)
+    .sort((a, b) => (b.value || 0) - (a.value || 0))
+    .slice(0, 5);
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -126,128 +224,97 @@ const VulnDashboard = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
         <main className="flex-1 overflow-y-auto p-6">
-          {/* Tabs */}
-          <div className="flex gap-1 mb-4">
-            <button className="px-4 py-2 text-sm rounded-t-lg bg-card border border-border border-b-0 text-primary font-medium">
-              Overview (CVSS)
-            </button>
-            <button className="px-4 py-2 text-sm rounded-t-lg text-muted-foreground hover:text-foreground">
-              Overview (ExPRT rating)
-            </button>
+          {/* Header & Filter */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold">Vulnerability Dashboard</h1>
+              <p className="text-muted-foreground text-sm">Security posture overview across all assets.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Asset:</span>
+              <div className="relative">
+                <button
+                  onClick={() => setShowAssetDrop(!showAssetDrop)}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-card border border-border rounded-lg min-w-[200px]"
+                >
+                  <span className="truncate">{filterAsset === "all" ? "All Assets" : filterAsset}</span>
+                  <svg className="w-3 h-3 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                {showAssetDrop && (
+                  <div className="absolute z-20 mt-1 right-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[200px] max-h-60 overflow-y-auto">
+                    <button
+                      onClick={() => { setFilterAsset("all"); setShowAssetDrop(false); }}
+                      className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent", filterAsset === "all" ? "bg-primary text-primary-foreground" : "")}
+                    >
+                      All Assets {filterAsset === "all" && "✓"}
+                    </button>
+                    {(assets || []).map((asset) => (
+                      <button
+                        key={asset}
+                        onClick={() => { setFilterAsset(asset); setShowAssetDrop(false); }}
+                        className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent truncate", filterAsset === asset ? "bg-primary text-primary-foreground" : "")}
+                      >
+                        {asset} {filterAsset === asset && "✓"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Filters */}
-          <div className="flex items-center gap-4 mb-6">
-            <span className="text-sm text-muted-foreground">Filter by:</span>
-
-            {/* Rating filter */}
-            <div className="relative">
-              <button
-                onClick={() => { closeAllDrops(); setShowRatingDrop(!showRatingDrop); }}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-card border border-border rounded-lg"
-              >
-                {filterRating === "all" ? "All Ratings" : filterRating}
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-              </button>
-              {showRatingDrop && (
-                <div className="absolute z-10 mt-1 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[140px]">
-                  {ratingOptions.map((opt) => {
-                    const val = opt === "All Ratings" ? "all" : opt;
-                    const active = filterRating === val;
-                    return (
-                      <button
-                        key={opt}
-                        onClick={() => { setFilterRating(val); setShowRatingDrop(false); }}
-                        className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent", active ? "bg-primary text-primary-foreground" : "")}
-                      >
-                        {opt} {active && "✓"}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+          {/* Top Cards - 8 Total */}
+          <div className="space-y-4 mb-8">
+            {/* Row 1: Status Overview */}
+            <div className="grid grid-cols-4 gap-4">
+              {aggregatedStatus.map((s) => {
+                const colors: any = { open: "hsl(0 84% 60%)", in_progress: "hsl(35 95% 55%)", fixed: "hsl(142 71% 45%)", suppressed: "hsl(215 15% 55%)" };
+                const labels: any = { open: "Open", in_progress: "Triaged", fixed: "Fixed", suppressed: "False Positive" };
+                const pct = totalStatus === 0 ? 0 : Math.round((s.value / totalStatus) * 100);
+                return (
+                  <div key={s.label} className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium uppercase tracking-tight" style={{ color: colors[s.label] }}>{labels[s.label]}</span>
+                      <span className="text-xs text-muted-foreground">{pct}%</span>
+                    </div>
+                    <p className="text-3xl font-bold mb-3" style={{ color: colors[s.label] }}>{s.value.toLocaleString('en-US')}</p>
+                    <div className="h-1 rounded-full bg-muted">
+                      <div className="h-1 rounded-full" style={{ width: `${pct}%`, backgroundColor: colors[s.label] }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Status filter */}
-            <div className="relative">
-              <button
-                onClick={() => { closeAllDrops(); setShowStatusDrop(!showStatusDrop); }}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-card border border-border rounded-lg"
-              >
-                {filterStatus === "all" ? "All Status" : filterStatus}
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-              </button>
-              {showStatusDrop && (
-                <div className="absolute z-10 mt-1 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[140px]">
-                  {statusOptions.map((opt) => {
-                    const val = opt === "All Status" ? "all" : opt;
-                    const active = filterStatus === val;
-                    return (
-                      <button
-                        key={opt}
-                        onClick={() => { setFilterStatus(val); setShowStatusDrop(false); }}
-                        className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent", active ? "bg-primary text-primary-foreground" : "")}
-                      >
-                        {opt} {active && "✓"}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+            {/* Row 2: Rating Overview */}
+            <div className="grid grid-cols-4 gap-4">
+              {ratingsWithPercent.map((r) => {
+                const color = severityColors[r.label || ""] || r.color;
+                return (
+                  <div key={r.id} className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-sm font-medium" style={{ color }}>{r.label}</span>
+                      <span className="text-xs text-muted-foreground">{r.percentage}%</span>
+                    </div>
+                    <p className="text-3xl font-bold mb-3" style={{ color }}>{(r.value || 0).toLocaleString('en-US')}</p>
+                    <div className="h-1 rounded-full bg-muted">
+                      <div className="h-1 rounded-full" style={{ width: `${r.percentage}%`, backgroundColor: color }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-
-            <span className="ml-auto text-sm text-muted-foreground">{totalResults.toLocaleString("en-US")} results</span>
           </div>
 
-          {/* Rating Overview */}
-          <h3 className="text-base font-semibold mb-3">Vulnerability Rating Overview</h3>
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            {filteredRatings.map((r) => {
-              const color = severityColors[r.label] || r.color;
-              return (
-                <div key={r.id} className="bg-card border border-border rounded-xl p-4">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-sm font-medium" style={{ color }}>{r.label}</span>
-                    <span className="text-xs text-muted-foreground">{r.percentage.toLocaleString("en-US")}%</span>
-                  </div>
-                  <p className="text-3xl font-bold mb-3" style={{ color }}>{r.value.toLocaleString("en-US")}</p>
-                  <div className="h-1 rounded-full bg-muted">
-                    <div className="h-1 rounded-full" style={{ width: `${r.percentage}%`, backgroundColor: color }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Status Overview */}
-          <h3 className="text-base font-semibold mb-3">Vulnerability Status Overview</h3>
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            {filteredStatuses.map((s) => {
-              const color = statusColors[s.label] || s.color;
-              return (
-                <div key={s.id} className="bg-card border border-border rounded-xl p-4">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-sm font-medium" style={{ color }}>{s.label}</span>
-                    <span className="text-xs text-muted-foreground">{s.percentage.toLocaleString("en-US")}%</span>
-                  </div>
-                  <p className="text-3xl font-bold mb-3" style={{ color }}>{s.value.toLocaleString("en-US")}</p>
-                  <div className="h-1 rounded-full bg-muted">
-                    <div className="h-1 rounded-full" style={{ width: `${Math.max(s.percentage, 2)}%`, backgroundColor: color }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Charts Row */}
+          {/* Charts Row 1 */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-card border border-border rounded-xl p-5">
               <h3 className="text-sm font-semibold mb-4">Open vulnerabilities by day · Last 45 days</h3>
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={daily || []}>
+                <LineChart data={aggregatedDaily}>
                   <XAxis dataKey="day" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} labelFormatter={(v) => `Day ${v}`} />
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
                   <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -255,35 +322,31 @@ const VulnDashboard = () => {
             <div className="bg-card border border-border rounded-xl p-5">
               <h3 className="text-sm font-semibold mb-4">Risk Score · CVSS + Exploitability + Asset Criticality + Exposure</h3>
               <div className="flex flex-col items-center">
-                <GaugeChart value={totalRisk} />
+                <GaugeChart value={gaugeValue} displayValue={totalRiskVal} />
                 <div className="flex flex-wrap gap-4 mt-4 justify-center">
-                  {(riskScores || []).map((r) => {
-                    const color = r.label === "Exploitability" ? "hsl(0 84% 60%)" : 
-                                  r.label === "Asset Criticality" ? "hsl(270 70% 60%)" :
-                                  r.label === "Exposure" ? "hsl(30 90% 55%)" : r.color;
-                    return (
-                      <div key={r.id} className="flex items-center gap-1.5 text-xs">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                        <span className="text-muted-foreground">{r.label}</span>
-                        <span className="font-medium" style={{ color }}>{r.value.toLocaleString("en-US")}</span>
-                      </div>
-                    );
-                  })}
+                  {aggregatedRiskScores.map((r) => (
+                    <div key={r.id} className="flex items-center gap-1.5 text-xs">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
+                      <span className="text-muted-foreground">{r.label}</span>
+                      <span className="font-medium" style={{ color: r.color }}>{(r.value || 0).toLocaleString('en-US')}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Bar Charts Row */}
+          {/* Charts Row 2 */}
           <div className="grid grid-cols-2 gap-4 mb-8">
-            <BarSection title="By Status" data={byStatus || []} colorMap={statusColors} />
-            <BarSection title="By Exploit Status" data={byExploit || []} colorMap={exploitColors} />
+            <BarSection title={filterAsset === "all" ? "Top 5 At-Risk Assets" : "Asset Risk Level"} data={aggregatedTopAssets} />
+            <BarSection title="Vulnerabilities by Discovery Tool" data={aggregatedByTool} />
           </div>
+
 
           {/* Remediation Compliance */}
           <div className="grid grid-cols-2 gap-4">
-            <RemediationTable title="Remediation Time Frame Compliance (Open Vulnerabilities)" data={remOpen || []} colorMap={severityColors} />
-            <RemediationTable title="Remediation Time Frame Compliance (Closed Vulnerabilities)" data={remClosed || []} colorMap={severityColors} />
+            <RemediationTable title="Remediation Compliance (Open)" data={aggregatedRemOpen} colorMap={severityColors} />
+            <RemediationTable title="Remediation Compliance (Closed)" data={aggregatedRemClosed} colorMap={severityColors} />
           </div>
         </main>
       </div>
@@ -291,160 +354,110 @@ const VulnDashboard = () => {
   );
 };
 
-// Gauge Component - EASM Risk Score style matching reference image
-const GaugeChart = ({ value }: { value: number }) => {
-  const cx = 200;
-  const cy = 170;
-  const outerRadius = 140;
-  const innerRadius = 100;
+const KPICard = ({ title, value, unit, color }: { title: string; value: number; unit: string; color: string }) => (
+  <div className="bg-card border border-border rounded-xl p-5">
+    <h4 className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-2">{title}</h4>
+    <div className="flex items-baseline gap-2">
+      <span className="text-3xl font-bold" style={{ color }}>{value.toLocaleString('en-US')}</span>
+      <span className="text-muted-foreground text-sm">{unit}</span>
+    </div>
+  </div>
+);
 
+const GaugeChart = ({ value, displayValue }: { value: number; displayValue: number }) => {
+  const cx = 200; const cy = 170; const outerRadius = 140; const innerRadius = 100;
+  const valToAngle = (v: number) => 180 - (Math.min(v, 100) / 100) * 180;
   const degToRad = (d: number) => (d * Math.PI) / 180;
-  const valToAngle = (v: number) => 180 - (v / 100) * 180;
 
-  const formatValue = (v: number) => v.toLocaleString("en-US");
-
-  // Create thick arc segment using two arcs (outer + inner) forming a filled shape
   const arcSegment = (startVal: number, endVal: number) => {
-    const a1 = degToRad(valToAngle(startVal));
-    const a2 = degToRad(valToAngle(endVal));
-    // Outer arc points
-    const ox1 = cx + outerRadius * Math.cos(a1);
-    const oy1 = cy - outerRadius * Math.sin(a1);
-    const ox2 = cx + outerRadius * Math.cos(a2);
-    const oy2 = cy - outerRadius * Math.sin(a2);
-    // Inner arc points
-    const ix1 = cx + innerRadius * Math.cos(a1);
-    const iy1 = cy - innerRadius * Math.sin(a1);
-    const ix2 = cx + innerRadius * Math.cos(a2);
-    const iy2 = cy - innerRadius * Math.sin(a2);
-    const largeArc = Math.abs(endVal - startVal) > 50 ? 1 : 0;
-    return `M ${ox1} ${oy1} A ${outerRadius} ${outerRadius} 0 ${largeArc} 0 ${ox2} ${oy2} L ${ix2} ${iy2} A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${ix1} ${iy1} Z`;
+    const a1 = degToRad(valToAngle(startVal)); const a2 = degToRad(valToAngle(endVal));
+    const ox1 = cx + outerRadius * Math.cos(a1); const oy1 = cy - outerRadius * Math.sin(a1);
+    const ox2 = cx + outerRadius * Math.cos(a2); const oy2 = cy - outerRadius * Math.sin(a2);
+    const ix1 = cx + innerRadius * Math.cos(a1); const iy1 = cy - innerRadius * Math.sin(a1);
+    const ix2 = cx + innerRadius * Math.cos(a2); const iy2 = cy - innerRadius * Math.sin(a2);
+    return `M ${ox1} ${oy1} A ${outerRadius} ${outerRadius} 0 0 0 ${ox2} ${oy2} L ${ix2} ${iy2} A ${innerRadius} ${innerRadius} 0 0 1 ${ix1} ${iy1} Z`;
   };
 
   const segments = [
-    { start: 0, end: 20, color: "#7dd3e8" },
-    { start: 20, end: 40, color: "#4ade80" },
-    { start: 40, end: 60, color: "#facc15" },
-    { start: 60, end: 80, color: "#fb923c" },
+    { start: 0, end: 20, color: "#7dd3e8" }, { start: 20, end: 40, color: "#4ade80" },
+    { start: 40, end: 60, color: "#facc15" }, { start: 60, end: 80, color: "#fb923c" },
     { start: 80, end: 100, color: "#ef4444" },
   ];
 
-  const gap = 1.2;
-
-  // Needle
   const needleAngle = degToRad(valToAngle(value));
-  const needleLen = outerRadius - 8;
-  const nx = cx + needleLen * Math.cos(needleAngle);
-  const ny = cy - needleLen * Math.sin(needleAngle);
+  const nx = cx + (outerRadius - 10) * Math.cos(needleAngle);
+  const ny = cy - (outerRadius - 10) * Math.sin(needleAngle);
 
   return (
     <svg viewBox="0 0 400 230" className="w-80 h-48">
-      {/* Arc segments - filled shapes with straight edges */}
-      {segments.map((seg, i) => {
-        const s = i === 0 ? seg.start : seg.start + gap / 2;
-        const e = i === segments.length - 1 ? seg.end : seg.end - gap / 2;
-        return (
-          <path
-            key={i}
-            d={arcSegment(s, e)}
-            fill={seg.color}
-            stroke="none"
-          />
-        );
-      })}
-      {/* Tick labels */}
-      {[0, 20, 40, 60, 80, 100].map((v) => {
-        const a = degToRad(valToAngle(v));
-        const labelR = outerRadius + 14;
-        const tx = cx + labelR * Math.cos(a);
-        const ty = cy - labelR * Math.sin(a);
-        return (
-          <text key={v} x={tx} y={ty} textAnchor="middle" dominantBaseline="central" fill="#94a3b8" fontSize={12} fontWeight={500}>
-            {formatValue(v)}
-          </text>
-        );
-      })}
-      {/* Needle */}
-      <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="white" strokeWidth={2.5} strokeLinecap="round" />
-      {/* Center circle */}
-      <circle cx={cx} cy={cy} r={28} fill="none" stroke="#475569" strokeWidth={2} />
-      <circle cx={cx} cy={cy} r={5} fill="white" />
-      {/* Value below gauge */}
-      <text x={cx} y={cy + 50} textAnchor="middle" dominantBaseline="central" fill="white" fontSize={32} fontWeight="bold">
-        {formatValue(value)}
-      </text>
+      {segments.map((seg, i) => <path key={i} d={arcSegment(seg.start, seg.end)} fill={seg.color} />)}
+      <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="white" strokeWidth={2} />
+      <circle cx={cx} cy={cy} r={6} fill="white" />
+      <text x={cx} y={cy + 40} textAnchor="middle" fill="white" fontSize={32} fontWeight="bold">{displayValue.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</text>
     </svg>
   );
 };
 
-// Bar Section
-const BarSection = ({ title, data, colorMap }: { title: string; data: Array<{ id: string; label: string; value: number; color: string }>; colorMap?: Record<string, string> }) => {
-  const max = Math.max(...data.map((d) => d.value), 1);
+const BarSection = ({ title, data }: { title: string; data: any[] }) => {
+  const max = Math.max(...data.map(d => d.value || 0), 1);
   return (
     <div className="bg-card border border-border rounded-xl p-5">
       <h3 className="text-sm font-semibold mb-4">{title}</h3>
       <div className="space-y-3">
-        {data.map((d) => {
-          const color = colorMap?.[d.label] || d.color;
-          return (
-            <div key={d.id} className="flex items-center gap-3">
-              <span className="text-sm w-28 shrink-0" style={{ color }}>{d.label}</span>
-              <div className="flex-1 h-2.5 bg-muted rounded-full">
-                <div className="h-2.5 rounded-full" style={{ width: `${(d.value / max) * 100}%`, backgroundColor: color }} />
-              </div>
-              <span className="text-sm font-medium w-8 text-right">{d.value.toLocaleString("en-US")}</span>
+        {data.map((d, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <span className="text-xs w-28 truncate" style={{ color: d.color }}>{d.label}</span>
+            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+              <div className="h-full" style={{ width: `${((d.value || 0) / max) * 100}%`, backgroundColor: d.color }} />
             </div>
-          );
-        })}
+            <span className="text-xs font-medium w-8 text-right">{(d.value || 0).toLocaleString('en-US')}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 };
 
-// Remediation Table
-const RemediationTable = ({ title, data, colorMap }: { title: string; data: Array<{ id: string; rating: string; color: string; time_frame: string; in_compliance: number; not_in_compliance: number }>; colorMap?: Record<string, string> }) => {
-  return (
-    <div className="bg-card border border-border rounded-xl p-5">
-      <h3 className="text-sm font-semibold mb-4">{title}</h3>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-muted-foreground text-xs uppercase tracking-wider">
-            <th className="text-left py-2">ExPRT Rating</th>
-            <th className="text-left py-2">Time Frame</th>
-            <th className="text-left py-2">In Compliance</th>
-            <th className="text-left py-2">Not In Compliance</th>
+const RemediationTable = ({ title, data, colorMap }: { title: string; data: any[]; colorMap: any }) => (
+  <div className="bg-card border border-border rounded-xl p-5">
+    <h3 className="text-sm font-semibold mb-4">{title}</h3>
+    <table className="w-full text-[11px]">
+      <thead>
+        <tr className="text-muted-foreground text-[10px] uppercase tracking-wider">
+          <th className="text-left py-2 font-semibold">EXPRT RATING</th>
+          <th className="text-left py-2 font-semibold">TIME FRAME</th>
+          <th className="text-left py-2 font-semibold">IN COMPLIANCE</th>
+          <th className="text-right py-2 font-semibold">NOT IN COMPLIANCE</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((row) => (
+          <tr key={row.id} className="border-t border-border/50">
+            <td className="py-3.5 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colorMap[row.rating] }} />
+              <span className="font-medium" style={{ color: colorMap[row.rating] }}>{row.rating}</span>
+            </td>
+            <td className="py-3.5 text-muted-foreground">
+              {row.time_frame}
+            </td>
+            <td className="py-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-24 h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500/80 rounded-full" style={{ width: `${row.in_compliance}%` }} />
+                </div>
+                <span className="text-green-500 font-medium">{row.in_compliance.toLocaleString('en-US')}%</span>
+              </div>
+            </td>
+            <td className="py-3.5 text-right">
+              <span className={cn("font-medium", row.not_in_compliance > 0 ? "text-red-500" : "text-muted-foreground")}>
+                {row.not_in_compliance.toLocaleString('en-US')}%
+              </span>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {data.map((row) => {
-            const color = colorMap?.[row.rating] || row.color;
-            return (
-              <tr key={row.id} className="border-t border-border">
-                <td className="py-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                  <span style={{ color }}>{row.rating}</span>
-                </td>
-                <td className="py-3 text-muted-foreground">{row.time_frame}</td>
-                <td className="py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-20 h-2 bg-muted rounded-full">
-                      <div className="h-2 rounded-full bg-green-500" style={{ width: `${row.in_compliance}%` }} />
-                    </div>
-                    <span className="text-green-400 text-xs">{row.in_compliance.toLocaleString("en-US")}%</span>
-                  </div>
-                </td>
-                <td className="py-3">
-                  <span className={`text-xs ${row.not_in_compliance > 0 ? "text-red-400" : "text-muted-foreground"}`}>
-                    {row.not_in_compliance.toLocaleString("en-US")}%
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-};
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
 
 export default VulnDashboard;
