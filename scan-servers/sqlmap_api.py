@@ -37,10 +37,6 @@ PROTECTED_FLAGS = {
     "-v", "--keep-alive", "--random-agent", "--tamper",
     "--text-only", "--titles", "--parse-errors",
     "--smart", "--forms", "--crawl", "--dbs",
-<<<<<<< HEAD
-=======
-    "--flush-session", "--fresh-queries",
->>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538
     # We always inject `--cookie` ourselves from the dedicated `cookie`
     # field, so silently drop a `--cookie=` someone tucked into options
     # to avoid sqlmap getting two of them.
@@ -369,7 +365,6 @@ def run_sqlmap(req: ScanRequest):
     # against the same host can restore previous heuristics, crawl
     # results, and confirmed injection points.
     # sqlmap auto-creates a per-target subfolder inside --output-dir and
-<<<<<<< HEAD
     # stores session.sqlite there. Using SESSIONS_ROOT directly as
     # --output-dir ensures that sqlmap creates/uses
     # SESSIONS_ROOT/<hostname>/session.sqlite, giving us stable
@@ -383,17 +378,6 @@ def run_sqlmap(req: ScanRequest):
         common.extend([stdbuf_path, "-oL", "-eL"])
 
     common.extend([
-=======
-    # stores session.sqlite there, so a stable per-host root is enough
-    # to give us session persistence across runs (no --session-file flag
-    # needed; it was removed in modern sqlmap versions).
-    host = parsed.hostname or "default"
-    host_dir = os.path.join(SESSIONS_ROOT, _safe_host_dir(host))
-    os.makedirs(host_dir, exist_ok=True)
-
-    # User-requested baseline profile.
-    common = [
->>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538
         sqlmap_path,
         "-u", url,
         "--batch",
@@ -406,15 +390,10 @@ def run_sqlmap(req: ScanRequest):
         "--text-only",
         "--titles",
         "--parse-errors",
-        "--smart",
         # Persistent session so repeat scans actually progress instead
         # of restarting from scratch every time. sqlmap stores
         # session.sqlite under <output-dir>/<target> automatically.
-<<<<<<< HEAD
         "--output-dir", SESSIONS_ROOT,
-=======
-        "--output-dir", host_dir,
->>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538
         "-v", "2",
         "--keep-alive",
         "--timeout=30",
@@ -439,14 +418,8 @@ def run_sqlmap(req: ScanRequest):
     # "one path yes, the other no".
     cmd.append("--dbs")
     cmd.extend(["--forms", "--crawl=2"])
-<<<<<<< HEAD
     # Always exclude logout/reset/delete links to avoid losing the session.
     cmd.append("--crawl-exclude=logout|signout|delete|reset|change-password")
-=======
-    if not has_query:
-        # No parameter on the entry URL → also follow same-host links.
-        cmd.append("--crawl-exclude=logout|signout|delete")
->>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538
 
     # Authenticated session support — same effect as accepting the
     # "use server cookie" prompt in the interactive workflow. When a
@@ -466,7 +439,6 @@ def run_sqlmap(req: ScanRequest):
     # Merge user-supplied extra options without letting them override
     # any of the protected flags above.
     if options:
-<<<<<<< HEAD
         # Pre-process PROTECTED_FLAGS to handle both --flag and --flag=value forms
         protected_bases = set()
         for f in PROTECTED_FLAGS:
@@ -476,19 +448,12 @@ def run_sqlmap(req: ScanRequest):
 
         current_cmd_bases = {_base_flag(o) for o in cmd}
         
-=======
-        protected_bases = {_base_flag(o) for o in cmd}
->>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538
         for o in options.split():
             if not ((o.startswith("--") or o.startswith("-")) and len(o) < 60):
                 continue
             base = _base_flag(o)
-<<<<<<< HEAD
             if base in protected_bases or base in current_cmd_bases:
                 print(f"[SQLMAP-API] dropping protected/duplicate option: {o}", flush=True)
-=======
-            if base in PROTECTED_FLAGS or base in protected_bases:
->>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538
                 continue
             cmd.append(o)
 
@@ -542,12 +507,9 @@ def run_sqlmap(req: ScanRequest):
     if pre_flight_warning:
         output = pre_flight_warning + "\n" + output
 
-<<<<<<< HEAD
     host = parsed.hostname or "default"
     host_dir = os.path.join(SESSIONS_ROOT, _safe_host_dir(host))
 
-=======
->>>>>>> 2b51605a96d11ebc16030a97ac19ddf3e2241538
     return {
         "tool": "sqlmap",
         "target": target,
