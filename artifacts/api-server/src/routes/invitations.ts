@@ -18,18 +18,21 @@ router.get("/:token/validate", async (req, res) => {
 });
 
 // Create an invitation link (admin only)
-router.post("/", async (req, res) => {
+router.post("/", async (req, res): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Unauthorized" });
+    return;
   }
   const token = authHeader.slice(7);
 
   // Verify the user and check admin role
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !user) {
-    return res.status(401).json({ error: "Invalid token" });
+  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !authData?.user) {
+    res.status(401).json({ error: "Invalid token" });
+    return;
   }
+  const { user } = authData;
 
   const { data: roleData } = await supabaseAdmin
     .from("user_roles")
@@ -38,7 +41,8 @@ router.post("/", async (req, res) => {
     .maybeSingle();
 
   if (roleData?.role !== "admin") {
-    return res.status(403).json({ error: "Admin access required" });
+    res.status(403).json({ error: "Admin access required" });
+    return;
   }
 
   const { email } = req.body as { email?: string };
@@ -55,28 +59,37 @@ router.post("/", async (req, res) => {
     .single();
 
   if (error) {
-    return res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message });
+    return;
   }
 
   res.json({ token: data.token, id: data.id, email: data.email, expires_at: data.expires_at });
 });
 
 // Sync admin roles from admin_users to user_roles (admin bootstrap)
-router.post("/sync-admin-roles", async (req, res) => {
+router.post("/sync-admin-roles", async (req, res): Promise<void> => {
   try {
-    const { data: adminUsers } = await supabaseAdmin
+    const { data: adminUsers } = await (supabaseAdmin
       .from("admin_users")
-      .select("email, role");
+      .select("email, role") as any);
 
-    if (!adminUsers) return res.json({ synced: 0 });
+    if (!adminUsers) {
+      res.json({ synced: 0 });
+      return;
+    }
 
     let synced = 0;
-    for (const au of adminUsers) {
-      if (au.role?.toLowerCase() !== "admin") continue;
+    const usersList: any[] = adminUsers;
+    for (const au of usersList) {
+      const email = au.email as string | undefined;
+      const role = au.role as string | undefined;
+
+      if (!email || role?.toLowerCase() !== "admin") continue;
+
       // Find auth user by email
       const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
       const authUser = authUsers?.users?.find(
-        (u) => u.email?.toLowerCase() === au.email?.toLowerCase()
+        (u) => u.email?.toLowerCase() === email.toLowerCase()
       );
       if (!authUser) continue;
 
@@ -93,15 +106,20 @@ router.post("/sync-admin-roles", async (req, res) => {
 });
 
 // List invitations (admin only)
-router.get("/", async (req, res) => {
+router.get("/", async (req, res): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Unauthorized" });
+    return;
   }
   const token = authHeader.slice(7);
 
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !user) return res.status(401).json({ error: "Invalid token" });
+  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !authData?.user) {
+    res.status(401).json({ error: "Invalid token" });
+    return;
+  }
+  const { user } = authData;
 
   const { data: roleData } = await supabaseAdmin
     .from("user_roles")
@@ -109,14 +127,20 @@ router.get("/", async (req, res) => {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (roleData?.role !== "admin") return res.status(403).json({ error: "Admin access required" });
+  if (roleData?.role !== "admin") {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
 
   const { data, error } = await supabaseAdmin
     .from("invitation_links")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
   res.json(data);
 });
 

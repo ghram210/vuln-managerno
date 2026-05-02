@@ -82,8 +82,14 @@ const AdminPanel = () => {
   const removeUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       // Delete from admin_users
-      const { error } = await supabase.from("admin_users").delete().eq("id", userId);
-      if (error) throw error;
+      const { error: adminError } = await supabase.from("admin_users").delete().eq("id", userId);
+      if (adminError) throw adminError;
+
+      // Also delete from user_roles to fully revoke access
+      const { error: roleError } = await supabase.from("user_roles").delete().eq("user_id", userId);
+      if (roleError) {
+        console.warn("Failed to remove user role:", roleError.message);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
