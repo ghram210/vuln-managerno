@@ -4,22 +4,30 @@ import { supabaseAdmin } from "@workspace/db";
 const router = Router();
 
 // Sync admin roles - called once on setup to fix admin users
-router.post("/sync-roles", async (req, res) => {
+router.post("/sync-roles", async (req, res): Promise<void> => {
   try {
-    const { data: adminUsers } = await supabaseAdmin
+    const { data: adminUsers } = await (supabaseAdmin
       .from("admin_users")
-      .select("email, role");
+      .select("email, role") as any);
 
-    if (!adminUsers) return res.json({ synced: 0 });
+    if (!adminUsers) {
+      res.json({ synced: 0 });
+      return;
+    }
 
     const { data: authListData } = await supabaseAdmin.auth.admin.listUsers();
-    const authUsers = authListData?.users ?? [];
+    const authUsers: any[] = authListData?.users ?? [];
 
     let synced = 0;
-    for (const au of adminUsers) {
-      if (au.role?.toLowerCase() !== "admin") continue;
+    const usersList: any[] = adminUsers;
+    for (const au of usersList) {
+      const email = au.email as string | undefined;
+      const role = au.role as string | undefined;
+      
+      if (!email || role?.toLowerCase() !== "admin") continue;
+      
       const authUser = authUsers.find(
-        (u) => u.email?.toLowerCase() === au.email?.toLowerCase()
+        (u: any) => u.email?.toLowerCase() === email.toLowerCase()
       );
       if (!authUser) continue;
 
