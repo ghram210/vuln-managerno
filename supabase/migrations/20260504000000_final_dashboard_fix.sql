@@ -334,6 +334,16 @@ CROSS JOIN targets t
 LEFT JOIN finding_info f ON f.sev = sl.rating AND f.target = t.target
 GROUP BY t.target, sl.rating, sl.color, sl.sort_order, sl.allowed_days;
 
+-- 9. Vulnerability Status Overview
+CREATE OR REPLACE VIEW public.vuln_status_overview AS
+SELECT
+  md5(COALESCE(target, 'all') || status)::uuid AS id,
+  target,
+  status as label,
+  COUNT(DISTINCT id)::int AS value
+FROM public.scan_findings
+GROUP BY target, status;
+
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 
 COMMIT;

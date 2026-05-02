@@ -14,6 +14,7 @@ type RiskScore = Database["public"]["Tables"]["vuln_risk_score"]["Row"];
 type DailyTrend = Database["public"]["Tables"]["vuln_daily_open"]["Row"];
 type TopAsset = Database["public"]["Views"]["vuln_top_assets"]["Row"];
 type ByTool = Database["public"]["Views"]["vuln_by_tool"]["Row"];
+type StatusOverview = { id: string; target: string; label: string; value: number };
 
 const severityColors: Record<string, string> = {
   Critical: "hsl(0 84% 60%)",
@@ -94,6 +95,14 @@ const VulnDashboard = () => {
     },
   });
 
+  const { data: rawStatus } = useQuery({
+    queryKey: ["vuln-status"],
+    queryFn: async () => {
+      const { data } = await supabase.from("vuln_status_overview" as any).select("*");
+      return (data || []) as StatusOverview[];
+    },
+  });
+
   const { data: rawKPIs } = useQuery({
     queryKey: ["vuln-kpis", filterAsset],
     queryFn: async () => {
@@ -166,19 +175,21 @@ const VulnDashboard = () => {
   const aggregatedRemOpen = calculateRemediation(rawRemOpen || []);
   const aggregatedRemClosed = calculateRemediation(rawRemClosed || []);
 
-  const riskScores = (rawRiskScores || []).filter(r => filterAsset === "all" || r.target === filterAsset);
-  const aggregatedRiskScores = ["Base CVSS", "Exploitability", "Asset Criticality", "Exposure"].map(label => {
-    const matching = riskScores.filter(r => r.label === label);
-    const val = matching.reduce((s, r) => s + (r.value || 0), 0);
-    const color = (rawRiskScores || []).find(r => r.label === label)?.color || "hsl(215 20% 65%)";
-    return { label, value: val, color, id: label };
-  });
+  const rawRiskScoresFiltered = (rawRiskScores || []).filter(r => filterAsset === "all" || r.target === filterAsset);
+  const aggregatedRiskScores = filterAsset === "all"
+    ? ["Base CVSS", "Exploitability", "Asset Criticality", "Exposure"].map(label => {
+        const matching = rawRiskScoresFiltered.filter(r => r.label === label);
+        return {
+          label,
+          value: matching.reduce((s, r) => s + (r.value || 0), 0),
+          color: rawRiskScoresFiltered.find(r => r.label === label)?.color || "hsl(215 20% 65%)",
+          id: label
+        };
+      })
+    : rawRiskScoresFiltered;
 
   // Calculate weighted risk score for gauge (0-100 scale)
-  // We sum the raw values and then normalize it.
-  // In a real scenario, this would be a weighted average.
-  // For the gauge, we use a heuristic based on total volume.
-  const totalRiskVal = aggregatedRiskScores.reduce((s, r) => s + r.value, 0);
+  const totalRiskVal = aggregatedRiskScores.reduce((s, r) => s + (r.value || 0), 0);
   const gaugeValue = filterAsset === "all"
     ? Math.min(100, Math.round(totalRiskVal / (Math.max(1, (assets?.length || 1)) * 10)))
     : Math.min(100, Math.round(totalRiskVal / 10));
@@ -186,8 +197,17 @@ const VulnDashboard = () => {
   const kpis = {
     mttr: (rawKPIs?.mttr || []).filter(k => filterAsset === "all" || k.target === filterAsset).reduce((s, k) => s + (k.value || 0), 0),
     weaponized: (rawKPIs?.weaponized || []).filter(k => filterAsset === "all" || k.target === filterAsset).reduce((s, k) => s + (k.value || 0), 0),
-    compliance: filterAsset === "all" ? Math.round(aggregatedRemOpen.reduce((s, r) => s + r.in_compliance, 0) / 4) : ((rawKPIs?.compliance || []).find(k => k.target === filterAsset)?.value || 0)
+    compliance: filterAsset === "all" ? Math.round(aggregatedRemOpen.reduce((s, r) => s + r.in_compliance, 0) / 4) : ((rawKPIs?.compliance || []).find(k => k.target === filterAsset)?.value || 0),
+    totalRisk: gaugeValue
   };
+
+  const statusData = (rawStatus || []).filter(s => filterAsset === "all" || s.target === filterAsset);
+  const aggregatedStatus = ["open", "in_progress", "fixed", "suppressed"].map(status => {
+    const matching = statusData.filter(s => s.label === status);
+    const val = matching.reduce((sum, s) => sum + (s.value || 0), 0);
+    return { label: status, value: val };
+  });
+  const totalStatus = aggregatedStatus.reduce((s, st) => s + st.value, 0);
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -235,37 +255,30 @@ const VulnDashboard = () => {
           </div>
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-4 gap-4 mb-8">
              <KPICard title="Mean Time To Remediate" value={kpis.mttr} unit="Days" color="hsl(190 65% 58%)" />
              <KPICard title="Weaponized Risks" value={kpis.weaponized} unit="Risks" color="hsl(355 70% 62%)" />
              <KPICard title="SLA Compliance" value={kpis.compliance} unit="%" color="hsl(155 50% 55%)" />
+             <KPICard title="Total Risk" value={kpis.totalRisk} unit="" color="hsl(45 93% 47%)" />
           </div>
 
-          {/* Rating Overview */}
+          {/* Status Overview */}
           <div className="mb-8">
-            <h3 className="text-base font-semibold mb-1">Vulnerability Rating Overview</h3>
-            <p className="text-sm text-muted-foreground mb-4">Severity breakdown based on CVSS v3 standard.</p>
+            <h3 className="text-sm font-semibold mb-4">Vulnerability Status Overview</h3>
             <div className="grid grid-cols-4 gap-4">
-              {ratingsWithPercent.map((r) => {
-                const color = severityColors[r.label || ""] || r.color;
-                const descriptions: Record<string, string> = {
-                  Critical: "Urgent: Direct threat to system security. Score 9.0-10.0.",
-                  High: "Severe: Potential for significant data loss. Score 7.0-8.9.",
-                  Medium: "Moderate: Exploitable under specific conditions. Score 4.0-6.9.",
-                  Low: "Minor: Low impact or difficult to exploit. Score 0.1-3.9.",
-                };
+              {aggregatedStatus.map((s) => {
+                const colors: any = { open: "hsl(0 84% 60%)", in_progress: "hsl(35 90% 55%)", fixed: "hsl(142 71% 45%)", suppressed: "hsl(215 15% 55%)" };
+                const labels: any = { open: "Open", in_progress: "In Progress", fixed: "Closed", suppressed: "Suppressed" };
+                const pct = totalStatus === 0 ? 0 : Math.round((s.value / totalStatus) * 100);
                 return (
-                  <div key={r.id} className="bg-card border border-border rounded-xl p-4 group relative">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-sm font-medium" style={{ color }}>{r.label}</span>
-                      <span className="text-xs text-muted-foreground">{r.percentage}%</span>
+                  <div key={s.label} className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium" style={{ color: colors[s.label] }}>{labels[s.label]}</span>
+                      <span className="text-xs text-muted-foreground">{pct}%</span>
                     </div>
-                    <p className="text-3xl font-bold mb-3" style={{ color }}>{(r.value || 0).toLocaleString()}</p>
+                    <p className="text-3xl font-bold mb-3" style={{ color: colors[s.label] }}>{s.value.toLocaleString()}</p>
                     <div className="h-1 rounded-full bg-muted">
-                      <div className="h-1 rounded-full" style={{ width: `${r.percentage}%`, backgroundColor: color }} />
-                    </div>
-                    <div className="absolute top-full left-0 mt-2 p-2 bg-popover text-popover-foreground text-[10px] rounded border border-border opacity-0 group-hover:opacity-100 transition-opacity z-10 w-full pointer-events-none shadow-xl">
-                      {descriptions[r.label || ""]}
+                      <div className="h-1 rounded-full" style={{ width: `${pct}%`, backgroundColor: colors[s.label] }} />
                     </div>
                   </div>
                 );
@@ -273,7 +286,7 @@ const VulnDashboard = () => {
             </div>
           </div>
 
-          {/* Charts Row */}
+          {/* Charts Row 1 */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-card border border-border rounded-xl p-5">
               <h3 className="text-sm font-semibold mb-4">Open vulnerabilities by day · Last 45 days</h3>
@@ -287,7 +300,7 @@ const VulnDashboard = () => {
               </ResponsiveContainer>
             </div>
             <div className="bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold mb-4">Risk Score Breakdown</h3>
+              <h3 className="text-sm font-semibold mb-4">Risk Score · CVSS + Exploitability + Asset Criticality + Exposure</h3>
               <div className="flex flex-col items-center">
                 <GaugeChart value={gaugeValue} />
                 <div className="flex flex-wrap gap-4 mt-4 justify-center">
@@ -295,7 +308,7 @@ const VulnDashboard = () => {
                     <div key={r.id} className="flex items-center gap-1.5 text-xs">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
                       <span className="text-muted-foreground">{r.label}</span>
-                      <span className="font-medium" style={{ color: r.color }}>{r.value.toLocaleString()}</span>
+                      <span className="font-medium" style={{ color: r.color }}>{(r.value || 0).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -303,10 +316,33 @@ const VulnDashboard = () => {
             </div>
           </div>
 
-          {/* Bar Charts Row */}
+          {/* Charts Row 2 */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <BarSection title="Top 5 At-Risk Assets" data={topAssets || []} />
             <BarSection title="Vulnerabilities by Discovery Tool" data={aggregatedByTool} />
+          </div>
+
+          {/* Rating Overview */}
+          <div className="mb-8">
+            <h3 className="text-base font-semibold mb-1">Vulnerability Rating Overview</h3>
+            <p className="text-sm text-muted-foreground mb-4">Severity breakdown based on CVSS v3 standard.</p>
+            <div className="grid grid-cols-4 gap-4">
+              {ratingsWithPercent.map((r) => {
+                const color = severityColors[r.label || ""] || r.color;
+                return (
+                  <div key={r.id} className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-sm font-medium" style={{ color }}>{r.label}</span>
+                      <span className="text-xs text-muted-foreground">{r.percentage}%</span>
+                    </div>
+                    <p className="text-3xl font-bold mb-3" style={{ color }}>{(r.value || 0).toLocaleString()}</p>
+                    <div className="h-1 rounded-full bg-muted">
+                      <div className="h-1 rounded-full" style={{ width: `${r.percentage}%`, backgroundColor: color }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Remediation Compliance */}
