@@ -29,10 +29,10 @@ const DONUTS: DonutDef[] = [
   {
     view: "chart_exploitability_risk",
     title: "Exploitability risk",
-    subtitle: "Live correlation against ExploitDB",
+    subtitle: "Exploit potential of each matched CVE by severity",
     centerLabel: "CVEs",
     emptyHint:
-      "Awaiting scan data. Each finding is correlated with ExploitDB to show real-world risk.",
+      "No CVE matches yet. Once findings are correlated with NVD, exploit potential appears here.",
   },
   {
     view: "chart_attack_vector",
@@ -43,12 +43,12 @@ const DONUTS: DonutDef[] = [
       "No CVSS vectors yet. Network/Local/Physical reach will populate after the first matched CVE.",
   },
   {
-    view: "chart_exploit_types",
-    title: "Exploit types",
-    subtitle: "Distribution of available public exploits",
-    centerLabel: "Exploits",
+    view: "chart_asset_exposure",
+    title: "Asset exposure",
+    subtitle: "What types of assets are in your attack surface",
+    centerLabel: "Assets",
     emptyHint:
-      "No exploits indexed yet. Run scripts/index_exploitdb.py on your Kali agent — the donut populates as soon as the local ExploitDB mirror is loaded.",
+      "No assets scanned yet. Run a scan and each target will be classified by type and location.",
   },
   {
     view: "chart_top_vulnerable_products",
@@ -82,7 +82,7 @@ const DashboardDonuts = () => {
           Risk overview
         </h2>
         <span className="text-[11px] text-muted-foreground/70">
-          Computed live from scan_findings · NVD · ExploitDB
+          Computed live from scan_findings · NVD
         </span>
       </div>
       <div className="grid grid-cols-3 gap-4">

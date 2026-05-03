@@ -2,6 +2,7 @@ import { useState } from "react";
 import AppSidebar from "@/components/AppSidebar";
 import TopBar from "@/components/TopBar";
 import ScannedAssetsTable from "@/components/ScannedAssetsTable";
+import DashboardDonuts from "@/components/DashboardDonuts";
 
 const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -16,6 +17,7 @@ const Index = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
+          <DashboardDonuts />
           <ScannedAssetsTable />
         </main>
       </div>

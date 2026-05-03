@@ -85,28 +85,28 @@ const colorOverrides: Record<string, string> = {
   Low: "hsl(142 71% 45%)",
   Info: "hsl(215 20% 65%)",
 
-  // Exploitability
-  Weaponized: "hsl(0 84% 60%)",
-  "Public PoC": "hsl(24 95% 53%)",
-  "Known CVE": "hsl(45 93% 47%)",
-  Theoretical: "hsl(215 20% 65%)",
+  // Exploitability Risk (original buckets)
+  "Weaponized":  "hsl(0 84% 58%)",
+  "Public PoC":  "hsl(24 95% 55%)",
+  "Known CVE":   "hsl(45 90% 50%)",
+  "Theoretical": "hsl(215 20% 65%)",
 
   // Findings type
   Vuln: "hsl(0 84% 60%)",
   Misconf: "hsl(275 70% 60%)",
 
-  // Attack Vector
-  Network: "hsl(0 84% 60%)",
-  Adjacent: "hsl(24 95% 53%)",
-  Local: "hsl(45 93% 47%)",
-  Physical: "hsl(215 20% 65%)",
+  // Attack Vector — vivid green palette
+  Network: "hsl(142 85% 42%)",
+  Adjacent: "hsl(160 78% 48%)",
+  Local: "hsl(120 65% 52%)",
+  Physical: "hsl(90 55% 58%)",
 
-  // Exploit Types
-  Remote: "hsl(0 84% 60%)",
-  "Web App": "hsl(195 85% 50%)",
-  "Local Privilege": "hsl(24 95% 53%)",
-  "Denial of Service": "hsl(45 93% 47%)",
-  Shellcode: "hsl(275 70% 60%)",
+  // Asset Exposure — vivid pink/magenta palette
+  "Web Application":  "hsl(315 95% 52%)",
+  "External Host":    "hsl(335 88% 58%)",
+  "Internal Host":    "hsl(350 78% 65%)",
+  "Network Service":  "hsl(300 70% 60%)",
+  "Unknown":          "hsl(320 35% 72%)",
 };
 
 const DonutChart = ({

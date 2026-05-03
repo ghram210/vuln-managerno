@@ -7,7 +7,7 @@ export type ChartViewName =
   | "chart_findings_by_type"
   | "chart_exploitability_risk"
   | "chart_attack_vector"
-  | "chart_exploit_types"
+  | "chart_asset_exposure"
   | "chart_top_vulnerable_products";
 
 interface ChartRow {
