@@ -1,6 +1,0 @@
-
-> @workspace/api-server@0.0.0 start /app/artifacts/api-server
-> node --enable-source-maps ./dist/index.mjs
-
-[23:38:12.787] [32mINFO[39m (1009291): [36mServer listening[39m
-    [35mport[39m: 8081
