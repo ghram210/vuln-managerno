@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    "dev": "concurrently \"pnpm --filter @workspace/api-server run dev\" \"pnpm --filter @workspace/web-app run dev\"",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
@@ -11,6 +12,8 @@
   "devDependencies": {
     "@esbuild/win32-x64": "0.27.3",
     "@rollup/rollup-win32-x64-msvc": "4.60.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2"
   },
