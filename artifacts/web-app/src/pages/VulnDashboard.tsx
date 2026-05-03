@@ -99,7 +99,7 @@ const VulnDashboard = () => {
     queryKey: ["vuln-status"],
     queryFn: async () => {
       const { data } = await supabase.from("vuln_status_overview" as any).select("*");
-      return (data || []) as StatusOverview[];
+      return (data || []) as unknown as StatusOverview[];
     },
   });
 
