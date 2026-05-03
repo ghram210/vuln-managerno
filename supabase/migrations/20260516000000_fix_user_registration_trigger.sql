@@ -6,11 +6,19 @@
 -- This is needed for the ON CONFLICT clause to work on email as well.
 DO $$
 BEGIN
+    -- Check if the constraint or index with this name already exists
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'admin_users_email_key'
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'admin_users_email_key'
+        AND n.nspname = 'public'
     ) THEN
         ALTER TABLE public.admin_users ADD CONSTRAINT admin_users_email_key UNIQUE (email);
     END IF;
+EXCEPTION
+    WHEN duplicate_table OR duplicate_object THEN
+        -- Handle case where it might have been created concurrently or exists as different object type
+        NULL;
 END $$;
 
 -- 2. Update the handle_new_user function to be extremely robust
