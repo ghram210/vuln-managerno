@@ -1,11 +1,4 @@
-import { config as loadEnv } from "dotenv";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-// Load environment variables from the root .env file
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-loadEnv({ path: path.resolve(__dirname, "../../../.env") });
-
+import "./loadenv";
 import app from "./app";
 import { logger } from "./lib/logger";
 
