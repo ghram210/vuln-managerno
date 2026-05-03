@@ -116,16 +116,19 @@ const AdminPanel = () => {
 
   const removeUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      console.log(`Attempting to remove user: ${userId}`);
-      const { error: adminError } = await supabase.from("admin_users").delete().eq("id", userId);
-      if (adminError) {
-        console.error("Admin table deletion error:", adminError);
-        throw new Error(`Admin table error: ${adminError.message}`);
-      }
+      console.log(`Attempting to remove user via API: ${userId}`);
+      if (!session?.access_token) throw new Error("Not authenticated");
 
-      const { error: roleError } = await supabase.from("user_roles").delete().eq("user_id", userId);
-      if (roleError) {
-        console.warn("User roles table error (might be ignored):", roleError.message);
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: Failed to delete user`);
       }
     },
     onSuccess: () => {

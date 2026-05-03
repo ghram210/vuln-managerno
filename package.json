@@ -12,6 +12,7 @@
     "@esbuild/win32-x64": "0.27.3",
     "@rollup/rollup-win32-x64-msvc": "4.60.1",
     "prettier": "^3.8.1",
+    "tsx": "catalog:",
     "typescript": "~5.9.2"
   },
   "dependencies": {
