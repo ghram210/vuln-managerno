@@ -19,56 +19,62 @@ router.get("/:token/validate", async (req, res) => {
 
 // Create an invitation link (admin only)
 router.post("/", async (req, res): Promise<void> => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const token = authHeader.slice(7);
-
-  // Verify the user and check admin role
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData?.user) {
-    res.status(401).json({ error: "Invalid token" });
-    return;
-  }
-  const { user } = authData;
-
-  const { data: roleData } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (roleData?.role !== "admin") {
-    res.status(403).json({ error: "Admin access required" });
-    return;
-  }
-
-  const { email } = req.body as { email?: string };
-
-  const { data, error } = await supabaseAdmin
-    .from("invitation_links")
-    .insert({
-      created_by: user.id,
-      email: email ?? null,
-      max_uses: 1,
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    })
-    .select("token, id, email, expires_at")
-    .single();
-
-  if (error) {
-    console.error("Invitation insertion error:", error);
-    let message = error.message;
-    if (message.includes("is_active")) {
-      message = "Database schema mismatch: missing 'is_active' column. Please run the provided SQL migration in Supabase.";
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
     }
-    res.status(500).json({ error: message });
-    return;
-  }
+    const token = authHeader.slice(7);
 
-  res.json({ token: data.token, id: data.id, email: data.email, expires_at: data.expires_at });
+    // Verify the user and check admin role
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authData?.user) {
+      res.status(401).json({ error: "Invalid token" });
+      return;
+    }
+    const { user } = authData;
+
+    const { data: roleData } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (roleData?.role !== "admin") {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+
+    const { email } = req.body as { email?: string };
+
+    const { data, error } = await supabaseAdmin
+      .from("invitation_links")
+      .insert({
+        created_by: user.id,
+        email: email ?? null,
+        max_uses: 1,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        is_active: true, // explicitly set it
+      })
+      .select("token, id, email, expires_at")
+      .single();
+
+    if (error) {
+      console.error("Invitation insertion error:", error);
+      let message = error.message;
+      if (message.includes("is_active")) {
+        message = "Database schema mismatch: missing 'is_active' column. Please run the provided SQL migration in Supabase.";
+      }
+      res.status(500).json({ error: message });
+      return;
+    }
+
+    res.json({ token: data.token, id: data.id, email: data.email, expires_at: data.expires_at });
+  } catch (err: any) {
+    console.error("Invitation link creation crash:", err);
+    res.status(500).json({ error: err.message || "Internal server error during invitation" });
+  }
 });
 
 // Sync admin roles from admin_users to user_roles (admin bootstrap)
