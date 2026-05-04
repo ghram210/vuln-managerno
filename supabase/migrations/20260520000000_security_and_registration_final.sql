@@ -1,80 +1,50 @@
 -- ========================================================
--- FINAL BULLETPROOF User Management and Security Fix (v5)
+-- ULTIMATE User Management and Security Consolidation (v5)
 -- ========================================================
--- This migration addresses the following GENERICALLY for all users:
--- 1. SECURITY: Prevents accidental admin escalation by defaulting all new signups to 'User'.
--- 2. INVITATION LINKING: Strictly binds invitations to emails and enforces 'User' role.
--- 3. ROBUSTNESS: Proactive cleanup of orphaned records to prevent registration errors.
--- 4. CONSISTENCY: Ensures role capitalization is synced across all tables.
+-- This migration replaces and consolidates previous fixes (v4 and earlier)
+-- to ensure a clean, robust, and secure user management system.
+-- It addresses:
+-- 1. SECURITY: Defaults all signups to 'User' and tightens RLS.
+-- 2. INVITATION: Strictly links invitations to emails and 'User' role.
+-- 3. CLEANUP: Fixes specific users accidentally granted 'Admin' status.
+-- 4. STABILITY: Solves type-mismatch and ENUM errors (Error 42804/42883).
 
--- 1. Function to accept invitation and assign user role (STRICT & GENERIC)
--- This ensures that the user who uses the token is assigned the 'user' role
--- and validates their email against the invitation's recipient email.
-CREATE OR REPLACE FUNCTION public.use_invitation_token(token_param text, user_id_param uuid)
-RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
-AS $$
-DECLARE
-  inv RECORD;
-  user_email text;
+-- 1. Prerequisites (Types and Functions)
+DO $$
 BEGIN
-  -- Get the current user's email from auth.users
-  SELECT email INTO user_email FROM auth.users WHERE id = user_id_param;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+        CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+    END IF;
+END $$;
 
-  -- Validate the invitation exists and is active/not expired/not fully used
-  SELECT * INTO inv
-  FROM public.invitation_links
-  WHERE token = token_param
-    AND is_active = true
-    AND (expires_at IS NULL OR expires_at > now())
-    AND (max_uses IS NULL OR uses_count < max_uses);
+-- 2. Clean up specific accidental admins (Security Cleanup)
+DO $$
+BEGIN
+    -- List of emails to demote to 'User'
+    -- This handles the specific users you mentioned (and potential typos)
+    UPDATE public.user_roles
+    SET role = 'user'::public.app_role
+    WHERE user_id IN (
+        SELECT id FROM auth.users
+        WHERE lower(email) IN ('rhallhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com')
+    );
 
-  -- If no valid invitation found
-  IF inv IS NULL THEN
-    RETURN false;
-  END IF;
+    UPDATE public.admin_users
+    SET role = 'User'
+    WHERE lower(email) IN ('rhallhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com');
+END $$;
 
-  -- If the invitation was issued for a specific email, verify it matches the registering user
-  -- This "links the invitation code with the email" as requested.
-  IF inv.email IS NOT NULL AND lower(inv.email) <> lower(user_email) THEN
-    RETURN false;
-  END IF;
-
-  -- Log usage of the invitation
-  INSERT INTO public.invitation_usages (invitation_id, user_id)
-  VALUES (inv.id, user_id_param)
-  ON CONFLICT (invitation_id, user_id) DO NOTHING;
-
-  -- Increment the use count for the invitation link
-  UPDATE public.invitation_links
-  SET uses_count = uses_count + 1
-  WHERE id = inv.id;
-
-  -- FORCE the 'user' role for anyone registering via invitation.
-  -- This ensures they cannot be accidentally promoted during registration.
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (user_id_param, 'user'::public.app_role)
-  ON CONFLICT (user_id) DO UPDATE SET role = 'user'::public.app_role;
-
-  -- Sync to the admin_users table (used for UI display) with the capitalized 'User' role.
-  INSERT INTO public.admin_users (id, email, name, role, joined_at)
-  VALUES (
-    user_id_param,
-    user_email,
-    COALESCE((SELECT raw_user_meta_data->>'full_name' FROM auth.users WHERE id = user_id_param), user_email),
-    'User',
-    NOW()
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    email = EXCLUDED.email,
-    name = EXCLUDED.name,
-    role = 'User';
-
-  RETURN true;
-END;
+-- 3. Case-insensitive has_role function (handles ENUM casting correctly)
+CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND lower(role::text) = lower(_role)
+  );
 $$;
 
--- 2. Generic Trigger: Default ANY new user to 'User' and clean up stale data
--- This is the "safety net" that handles direct signups and prevents role-inheritance bugs.
+-- 4. Robust Trigger Function for ANY new user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
@@ -84,9 +54,8 @@ BEGIN
     -- A. Extract metadata
     user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
-    -- B. CLEANUP orphaned records:
-    -- Remove records from public tables if they have the same email but different ID.
-    -- This handles cases where a user was deleted from Auth but records stayed in admin_users/user_roles.
+    -- B. Proactive CLEANUP of orphaned records by email
+    -- This prevents unique constraint violations during re-registration
     DELETE FROM public.user_roles WHERE user_id IN (
         SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
     );
@@ -115,32 +84,116 @@ BEGIN
 
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
-    -- Don't block registration even if sync fails
     RETURN NEW;
 END;
 $$;
 
--- 3. Re-ensure the trigger is correctly attached to auth.users
+-- 5. Re-enable the trigger (CRITICAL FIX: Ensure it is actually attached)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 4. Global Data Standardization:
--- Standardize existing roles to ensure UI consistency.
+-- 6. Strict Invitation Fulfillment
+CREATE OR REPLACE FUNCTION public.use_invitation_token(token_param text, user_id_param uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  inv RECORD;
+  user_email text;
+BEGIN
+  -- Get the registering user's email
+  SELECT email INTO user_email FROM auth.users WHERE id = user_id_param;
+
+  -- Validate the invitation token
+  SELECT * INTO inv
+  FROM public.invitation_links
+  WHERE token = token_param
+    AND is_active = true
+    AND (expires_at IS NULL OR expires_at > now())
+    AND (max_uses IS NULL OR uses_count < max_uses);
+
+  IF inv IS NULL THEN RETURN false; END IF;
+
+  -- Enforce email match if the invitation was targeted
+  IF inv.email IS NOT NULL AND lower(inv.email) <> lower(user_email) THEN
+    RETURN false;
+  END IF;
+
+  -- Record usage
+  INSERT INTO public.invitation_usages (invitation_id, user_id)
+  VALUES (inv.id, user_id_param)
+  ON CONFLICT DO NOTHING;
+
+  UPDATE public.invitation_links SET uses_count = uses_count + 1 WHERE id = inv.id;
+
+  -- Force 'user' role assignment
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (user_id_param, 'user'::public.app_role)
+  ON CONFLICT (user_id) DO UPDATE SET role = 'user'::public.app_role;
+
+  -- Sync to admin_users UI table
+  UPDATE public.admin_users SET role = 'User' WHERE id = user_id_param;
+
+  RETURN true;
+END;
+$$;
+
+-- 7. Tighten RLS for scan_results (Security Fix)
+DROP POLICY IF EXISTS "Authenticated can view scan_results" ON public.scan_results;
+DROP POLICY IF EXISTS "Users can view own scan_results" ON public.scan_results;
+CREATE POLICY "Users can view own scan_results"
+  ON public.scan_results FOR SELECT TO authenticated
+  USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
+
+-- 8. Standardization and Duplication Cleanup
 UPDATE public.admin_users SET role = 'Admin' WHERE lower(role) = 'admin';
 UPDATE public.admin_users SET role = 'User' WHERE lower(role) = 'user' OR role IS NULL;
 
--- 5. Cleanup remaining duplicates (if any)
+-- Remove duplicate emails if any remain (keeps Admin, then newest)
 DELETE FROM public.admin_users a
 WHERE a.id IN (
     SELECT id FROM (
         SELECT id, row_number() OVER (
             PARTITION BY lower(email)
             ORDER BY
-                CASE WHEN lower(role) = 'admin' THEN 1 ELSE 2 END,
+                CASE WHEN role = 'Admin' THEN 1 ELSE 2 END,
                 joined_at DESC
         ) as rn
         FROM public.admin_users
     ) t WHERE t.rn > 1
 );
+
+-- Ensure Unique Email Constraint
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'admin_users_email_key'
+        AND n.nspname = 'public'
+    ) THEN
+        ALTER TABLE public.admin_users ADD CONSTRAINT admin_users_email_key UNIQUE (email);
+    END IF;
+END $$;
+
+-- 9. Backfill Missing Users (Fixes current broken accounts)
+-- Sync to user_roles
+INSERT INTO public.user_roles (user_id, role)
+SELECT id, 'user'::public.app_role FROM auth.users
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Sync to admin_users
+INSERT INTO public.admin_users (id, email, name, role, joined_at)
+SELECT
+    u.id,
+    u.email,
+    COALESCE(u.raw_user_meta_data->>'full_name', u.email),
+    'User',
+    u.created_at
+FROM auth.users u
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.admin_users a
+    WHERE a.id = u.id OR lower(a.email) = lower(u.email)
+)
+ON CONFLICT DO NOTHING;
