@@ -12,10 +12,14 @@ const TopBar = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
+  const { userRole } = useAuth();
+
   const displayName =
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "User";
+
+  const roleLabel = userRole ? (userRole.charAt(0).toUpperCase() + userRole.slice(1)) : "";
 
   const handleLogout = async () => {
     await signOut();
@@ -49,13 +53,24 @@ const TopBar = () => {
               <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
                 <User className="w-4 h-4 text-muted-foreground" />
               </div>
-              <span className="text-sm text-foreground font-medium">{displayName}</span>
+              <div className="flex flex-col items-start leading-none">
+                <span className="text-sm text-foreground font-medium">{displayName}</span>
+                {roleLabel && (
+                  <span className="text-[10px] text-muted-foreground font-normal mt-0.5 uppercase tracking-wider">
+                    {roleLabel}
+                  </span>
+                )}
+              </div>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-56">
+            <div className="px-2 py-1.5 border-b border-border mb-1">
+              <p className="text-xs font-medium text-foreground truncate">{user?.email}</p>
+              <p className="text-[10px] text-muted-foreground uppercase mt-0.5">{roleLabel || 'Loading role...'}</p>
+            </div>
             <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
               <User className="w-4 h-4 mr-2" />
-              Profile
+              Profile Settings
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleLogout}

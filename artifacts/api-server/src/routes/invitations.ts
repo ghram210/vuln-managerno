@@ -46,20 +46,37 @@ router.post("/", async (req, res): Promise<void> => {
       return;
     }
 
-    const { email } = req.body as { email?: string };
+    const { email: rawEmail } = req.body as { email?: string };
+    const email = rawEmail ? rawEmail.trim().toLowerCase() : null;
 
     // PRE-REGISTRATION: Create a placeholder in admin_users so the UI shows the invited user immediately.
     // Note: We use a random UUID because 'id' is a required UUID column.
     // The 'handle_new_user' trigger in Postgres will handle 'adopting' this record
     // by deleting the placeholder and creating the real record during signup.
     if (email) {
+      const cleanEmail = email;
+      
+      // 1. PERMANENT FIX FOR DUPLICATION: Delete any existing invitation records for this email.
+      // This ensures that the JOIN in the database views will always find exactly ONE (or zero) rows per email,
+      // ending the row duplication issue forever regardless of the email address.
+      const { error: deleteInviteError } = await supabaseAdmin
+        .from("invitation_links")
+        .delete()
+        .eq("email", cleanEmail);
+      
+      if (deleteInviteError) {
+        console.warn("Failed to clean up old invitation records:", deleteInviteError.message);
+      }
+
+      // 2. PRE-REGISTRATION: Create/Update a placeholder in admin_users so the UI shows the invited user immediately.
+      // Note: We use a random UUID if not exists. The 'handle_new_user' trigger handles adoption.
       const { error: preUserError } = await supabaseAdmin
         .from("admin_users")
         .upsert(
           {
             id: crypto.randomUUID(),
-            email: email.toLowerCase(),
-            name: email.split("@")[0],
+            email: cleanEmail,
+            name: cleanEmail.split("@")[0],
             role: "User",
             joined_at: new Date().toISOString()
           },
@@ -75,7 +92,7 @@ router.post("/", async (req, res): Promise<void> => {
       .from("invitation_links")
       .insert({
         created_by: user.id,
-        email: email ?? null,
+        email: email,
         max_uses: 1,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         is_active: true, // explicitly set it

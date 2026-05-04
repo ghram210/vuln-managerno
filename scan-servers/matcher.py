@@ -49,6 +49,7 @@ class Fingerprint:
     vendor: str
     product: str
     version: str | None = None
+    path: str | None = None
     source: str | None = None      # e.g. "nmap", "nikto", "sqlmap"
     evidence: str | None = None    # raw text the fingerprint was derived from
 
@@ -57,6 +58,7 @@ class Fingerprint:
             vendor=(self.vendor or "").strip().lower(),
             product=(self.product or "").strip().lower(),
             version=(self.version or "").strip() or None,
+            path=self.path,
             source=self.source,
             evidence=self.evidence,
         )
