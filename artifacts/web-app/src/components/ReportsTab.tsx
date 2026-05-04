@@ -470,6 +470,17 @@ const ReportsTab = () => {
                 The analysis identified a total of <strong>${severityCounts.Total}</strong> security findings with varying risk levels.
             </p>
 
+            <div style="margin-bottom: 40px;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 15px; letter-spacing: 0.05em;">Risk Distribution</div>
+                <div style="display: flex; height: 32px; border-radius: 8px; overflow: hidden; background: #f1f5f9;">
+                    ${severityCounts.Critical > 0 ? `<div style="width: ${(severityCounts.Critical / severityCounts.Total) * 100}%; background: var(--critical); border-right: 2px solid white;"></div>` : ''}
+                    ${severityCounts.High > 0 ? `<div style="width: ${(severityCounts.High / severityCounts.Total) * 100}%; background: var(--high); border-right: 2px solid white;"></div>` : ''}
+                    ${severityCounts.Medium > 0 ? `<div style="width: ${(severityCounts.Medium / severityCounts.Total) * 100}%; background: var(--medium); border-right: 2px solid white;"></div>` : ''}
+                    ${severityCounts.Low > 0 ? `<div style="width: ${(severityCounts.Low / severityCounts.Total) * 100}%; background: var(--low); border-right: 2px solid white;"></div>` : ''}
+                    ${(severityCounts.Total === 0) ? `<div style="width: 100%; background: #e2e8f0;"></div>` : ''}
+                </div>
+            </div>
+
             <div class="stats-grid">
                 <div class="stat-card stat-total">
                     <span class="count">${severityCounts.Total}</span>
@@ -499,7 +510,7 @@ const ReportsTab = () => {
         ${reportData.length === 0 ? (severityCounts.Total > 0 ? `
             <div class="no-findings">
                 <h3>Technical Details Limited</h3>
-                <p>The scan identified <strong>${severityCounts.Total}</strong> items, but deep metadata (CVE descriptions) is not mapped for this specific tool output in the report view. Please check the dashboard for raw evidence.</p>
+                <p>The scan identified <strong>${severityCounts.Total}</strong> findings, but detailed report data is still being processed or RLS policies are restricting access. Please ensure you have permission to view these findings.</p>
             </div>
         ` : `
             <div class="no-findings">
@@ -517,7 +528,9 @@ const ReportsTab = () => {
               .replace(/'/g, "&#039;");
           };
 
-          const primarySev = f.cve_details?.[0]?.cvss_v3_severity || 'INFO';
+          const severityLabels = ['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+          const primarySev = severityLabels[f.severity_score] || 'INFO';
+
           const remediationDays =
             primarySev === 'CRITICAL' ? 7 :
             primarySev === 'HIGH' ? 30 :

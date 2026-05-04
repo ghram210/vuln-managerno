@@ -1,9 +1,12 @@
 -- =============================================================
--- Target Specific Report View (v2 - Aggregated)
+-- Target Specific Report View (v3 - Robust & Inclusive)
 -- =============================================================
 -- This view consolidates all data needed for a professional,
--- target-specific vulnerability report, grouping by finding
--- to prevent row duplication when multiple CVEs exist.
+-- target-specific vulnerability report.
+-- v3 Fixes:
+-- 1. Uses finding.severity as a fallback for severity_score.
+-- 2. Ensures all findings are returned even without CVE metadata.
+-- 3. Robust joining with scan_results.
 -- =============================================================
 
 BEGIN;
@@ -16,7 +19,7 @@ SELECT
   f.scan_id,
   f.target,
   f.tool,
-  f.title AS vulnerability_name,
+  COALESCE(f.title, f.service, 'Unknown Finding') AS vulnerability_name,
   f.path AS finding_path,
   f.service AS service_info,
   f.evidence AS finding_evidence,
@@ -44,27 +47,37 @@ SELECT
     JOIN public.cve_catalog c ON c.cve_id = fc.cve_id
     WHERE fc.finding_id = f.id
   ) AS cve_details,
-  -- Calculate a numeric severity score for sorting/aggregating in the frontend
-  (
-    SELECT MAX(
-      CASE
-        WHEN c2.cvss_v3_severity = 'CRITICAL' THEN 4
-        WHEN c2.cvss_v3_severity = 'HIGH' THEN 3
-        WHEN c2.cvss_v3_severity = 'MEDIUM' THEN 2
-        WHEN c2.cvss_v3_severity = 'LOW' THEN 1
-        ELSE 0
-      END
-    )
-    FROM public.finding_cves fc2
-    JOIN public.cve_catalog c2 ON c2.cve_id = fc2.cve_id
-    WHERE fc2.finding_id = f.id
+  -- Calculate a numeric severity score
+  -- Priority: CVSS Severity > Finding Severity
+  COALESCE(
+    (
+      SELECT MAX(
+        CASE
+          WHEN c2.cvss_v3_severity = 'CRITICAL' THEN 4
+          WHEN c2.cvss_v3_severity = 'HIGH' THEN 3
+          WHEN c2.cvss_v3_severity = 'MEDIUM' THEN 2
+          WHEN c2.cvss_v3_severity = 'LOW' THEN 1
+          ELSE 0
+        END
+      )
+      FROM public.finding_cves fc2
+      JOIN public.cve_catalog c2 ON c2.cve_id = fc2.cve_id
+      WHERE fc2.finding_id = f.id
+    ),
+    CASE
+      WHEN lower(f.severity) = 'critical' THEN 4
+      WHEN lower(f.severity) = 'high' THEN 3
+      WHEN lower(f.severity) = 'medium' THEN 2
+      WHEN lower(f.severity) = 'low' THEN 1
+      ELSE 0
+    END
   ) AS severity_score,
   sr.name AS scan_name,
   sr.started_at AS scan_start,
   sr.completed_at AS scan_end,
   sr.user_id
 FROM public.scan_findings f
-JOIN public.scan_results sr ON sr.id = f.scan_id;
+LEFT JOIN public.scan_results sr ON sr.id = f.scan_id;
 
 -- Grant access
 ALTER VIEW public.target_report_data OWNER TO postgres;
