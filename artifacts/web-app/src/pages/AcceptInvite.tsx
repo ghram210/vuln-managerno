@@ -54,19 +54,36 @@ const AcceptInvite = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
+    if (!token || loading) return;
+
     setLoading(true);
     try {
+      console.log("Starting registration for:", email);
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { full_name: `${firstName} ${lastName}`.trim() },
+          data: {
+            full_name: `${firstName} ${lastName}`.trim(),
+            source: 'invitation_page'
+          },
         },
       });
 
-      if (signUpError) throw signUpError;
-      if (!data.user) throw new Error("Registration failed");
+      if (signUpError) {
+        console.error("SignUp Error:", signUpError);
+        // Special handling for the "Database error saving new user" to make it more descriptive
+        let msg = signUpError.message;
+        if (msg.includes("Database error saving new user")) {
+          msg = "Database synchronization error (the user might already exist or there is a trigger conflict). Please contact support or try a different email.";
+        }
+        throw new Error(msg);
+      }
+
+      if (!data.user) throw new Error("Registration failed - no user returned");
+
+      console.log("Registration successful, linking invitation...");
 
       // Accept invitation and assign 'user' role
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,16 +92,22 @@ const AcceptInvite = () => {
         user_id_param: data.user.id,
       });
 
-      if (inviteError) throw inviteError;
-      if (inviteResult === false) throw new Error("Failed to link invitation to your account");
+      if (inviteError) {
+        console.error("Invitation linking error:", inviteError);
+        // We don't throw here to avoid blocking the user if they actually registered
+        toast.warning("Account created, but there was an issue linking your invitation. You may need an admin to check your permissions.");
+      } else if (inviteResult === false) {
+        toast.warning("Account created, but the invitation link could not be verified.");
+      }
 
       // Sign out after registration so they go to login
       await supabase.auth.signOut();
 
-      toast.success("Account created! Please sign in.");
+      toast.success("Account created successfully! Please sign in with your new credentials.");
       navigate("/login", { replace: true });
     } catch (err: any) {
-      toast.error(err.message || "Registration failed");
+      console.error("Registration flow crash:", err);
+      toast.error(err.message || "An unexpected error occurred during registration");
     } finally {
       setLoading(false);
     }
