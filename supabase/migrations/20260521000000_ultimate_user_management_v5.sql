@@ -110,6 +110,8 @@ RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
     user_full_name text;
+    target_role public.app_role := 'user'::public.app_role;
+    target_role_label text := 'User';
 BEGIN
     -- A. Extract metadata
     user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
@@ -128,26 +130,29 @@ BEGIN
     );
     DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id;
 
-    -- C. SYNC: ALWAYS default new users to 'user' role for security.
-    -- STRICT: Even if there was a conflict, we force it to 'user'.
+    -- C. SYNC: Default to 'user' role for security, EXCEPT for protected admins
+    IF lower(NEW.email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com') THEN
+        target_role := 'admin'::public.app_role;
+        target_role_label := 'Admin';
+    END IF;
 
     INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'user'::public.app_role)
+    VALUES (NEW.id, target_role)
     ON CONFLICT (user_id) DO UPDATE SET
-        role = 'user'::public.app_role;
+        role = EXCLUDED.role;
 
     INSERT INTO public.admin_users (id, email, name, role, joined_at)
     VALUES (
         NEW.id,
         NEW.email,
         user_full_name,
-        'User',
+        target_role_label,
         NOW()
     )
     ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         name = EXCLUDED.name,
-        role = 'User';
+        role = EXCLUDED.role;
 
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
@@ -250,13 +255,20 @@ INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'user'::public.app_role FROM auth.users
 ON CONFLICT (user_id) DO NOTHING;
 
+-- Explicitly ensure protected admins have correct role
+UPDATE public.user_roles SET role = 'admin'::public.app_role
+WHERE user_id IN (SELECT id FROM auth.users WHERE lower(email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com'));
+
+UPDATE public.admin_users SET role = 'Admin'
+WHERE lower(email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com');
+
 -- Sync to admin_users
 INSERT INTO public.admin_users (id, email, name, role, joined_at)
 SELECT
     u.id,
     u.email,
     COALESCE(u.raw_user_meta_data->>'full_name', u.email),
-    'User',
+    CASE WHEN lower(u.email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com') THEN 'Admin' ELSE 'User' END,
     u.created_at
 FROM auth.users u
 WHERE NOT EXISTS (
