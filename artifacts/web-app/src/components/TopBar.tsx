@@ -10,12 +10,12 @@ import {
 
 const TopBar = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, signOut, userRole } = useAuth();
 
-  const displayName =
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    "User";
+  const displayName = user?.user_metadata?.full_name || "User";
+  const userEmail = user?.email || "";
+
+  const roleLabel = userRole === "admin" ? "Admin" : "User";
 
   const handleLogout = async () => {
     await signOut();
@@ -49,7 +49,17 @@ const TopBar = () => {
               <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
                 <User className="w-4 h-4 text-muted-foreground" />
               </div>
-              <span className="text-sm text-foreground font-medium">{displayName}</span>
+              <div className="flex flex-col items-start">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-foreground font-medium leading-none">{displayName}</span>
+                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                    userRole === 'admin' ? 'bg-primary/20 text-primary' : 'bg-green-500/20 text-green-400'
+                  }`}>
+                    {roleLabel}
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground mt-1">{userEmail}</span>
+              </div>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
