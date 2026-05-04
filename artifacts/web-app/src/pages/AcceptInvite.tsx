@@ -99,7 +99,7 @@ const AcceptInvite = () => {
         // Display the raw error message to help identify the exact Postgres failure
         let msg = signUpError.message;
         if (msg.includes("Database error saving new user")) {
-          msg = `Database synchronization error: ${signUpError.message}. (Trigger conflict or existing placeholder with different ID).`;
+          msg = `Database synchronization error: ${signUpError.message}. This usually happens if there is a conflict with an existing record for ${email}. The v10 migration should fix this automatically for future signups.`;
         }
         throw new Error(msg);
       }

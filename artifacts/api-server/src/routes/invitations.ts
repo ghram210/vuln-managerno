@@ -46,14 +46,15 @@ router.post("/", async (req, res): Promise<void> => {
       return;
     }
 
-    const { email } = req.body as { email?: string };
+    const { email: rawEmail } = req.body as { email?: string };
+    const email = rawEmail ? rawEmail.trim().toLowerCase() : null;
 
     // PRE-REGISTRATION: Create a placeholder in admin_users so the UI shows the invited user immediately.
     // Note: We use a random UUID because 'id' is a required UUID column.
     // The 'handle_new_user' trigger in Postgres will handle 'adopting' this record
     // by deleting the placeholder and creating the real record during signup.
     if (email) {
-      const cleanEmail = email.trim().toLowerCase();
+      const cleanEmail = email;
       const { error: preUserError } = await supabaseAdmin
         .from("admin_users")
         .upsert(
@@ -76,7 +77,7 @@ router.post("/", async (req, res): Promise<void> => {
       .from("invitation_links")
       .insert({
         created_by: user.id,
-        email: email ?? null,
+        email: email,
         max_uses: 1,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         is_active: true, // explicitly set it
