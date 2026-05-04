@@ -310,7 +310,7 @@ const AdminPanel = () => {
                     <td className="py-3 px-2">
                       <span
                         className={`text-xs px-2.5 py-1 rounded font-medium ${
-                          user.role === "Admin"
+                          user.role?.toLowerCase() === "admin"
                             ? "bg-primary/20 text-primary"
                             : "bg-green-500/20 text-green-400"
                         }`}
@@ -321,7 +321,7 @@ const AdminPanel = () => {
                     <td className="py-3 px-2 text-muted-foreground">{formatDate(user.joined_at)}</td>
                     {userRole === "admin" && (
                       <td className="py-3 px-2">
-                        {user.role === "User" && (
+                        {user.role?.toLowerCase() === "user" && (
                           <button
                             onClick={() => setUserToDelete({ id: user.id, name: user.name || user.email })}
                             className="flex items-center gap-1.5 text-muted-foreground hover:text-red-400 transition-colors text-sm"
