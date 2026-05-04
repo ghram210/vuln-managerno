@@ -398,7 +398,7 @@ def run_sqlmap(req: ScanRequest):
         "--keep-alive",
         "--timeout=30",
         "--retries=2",
-    ]
+    ])
 
     if req.stealth:
         cmd = common + [
