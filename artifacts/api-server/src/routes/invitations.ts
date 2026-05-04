@@ -48,6 +48,25 @@ router.post("/", async (req, res): Promise<void> => {
 
     const { email } = req.body as { email?: string };
 
+    // Pre-store the user in admin_users if email is provided
+    if (email) {
+      const { error: preUserError } = await supabaseAdmin
+        .from("admin_users")
+        .upsert(
+          {
+            email: email.toLowerCase(),
+            name: email.split("@")[0],
+            role: "User",
+          },
+          { onConflict: "email" }
+        );
+
+      if (preUserError) {
+        console.warn("Pre-storing invited user failed:", preUserError.message);
+        // We continue anyway, as the invitation itself is more important
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from("invitation_links")
       .insert({

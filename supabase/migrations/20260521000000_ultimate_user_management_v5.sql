@@ -114,7 +114,14 @@ BEGIN
     -- A. Extract metadata
     user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
-    -- B. Proactive CLEANUP of orphaned records by email
+    -- B. Proactive CLEANUP and Migration of orphaned records by email
+    -- Update existing scan results to link to the new authenticated user ID
+    UPDATE public.scan_results
+    SET user_id = NEW.id
+    WHERE user_id IN (
+        SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
+    );
+
     -- This prevents unique constraint violations during re-registration
     DELETE FROM public.user_roles WHERE user_id IN (
         SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
