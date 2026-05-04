@@ -70,10 +70,13 @@ const AcceptInvite = () => {
 
       // Accept invitation and assign 'user' role
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.rpc as any)("use_invitation_token", {
+      const { data: inviteResult, error: inviteError } = await (supabase.rpc as any)("use_invitation_token", {
         token_param: token,
         user_id_param: data.user.id,
       });
+
+      if (inviteError) throw inviteError;
+      if (inviteResult === false) throw new Error("Failed to link invitation to your account");
 
       // Sign out after registration so they go to login
       await supabase.auth.signOut();
