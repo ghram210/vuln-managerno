@@ -53,13 +53,14 @@ router.post("/", async (req, res): Promise<void> => {
     // The 'handle_new_user' trigger in Postgres will handle 'adopting' this record
     // by deleting the placeholder and creating the real record during signup.
     if (email) {
+      const cleanEmail = email.trim().toLowerCase();
       const { error: preUserError } = await supabaseAdmin
         .from("admin_users")
         .upsert(
           {
             id: crypto.randomUUID(),
-            email: email.toLowerCase(),
-            name: email.split("@")[0],
+            email: cleanEmail,
+            name: cleanEmail.split("@")[0],
             role: "User",
             joined_at: new Date().toISOString()
           },
