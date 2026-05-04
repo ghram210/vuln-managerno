@@ -1,15 +1,24 @@
 -- =============================================================
--- Target Specific Report View (v3 - Robust & Inclusive)
+-- Target Specific Report View (v4 - Bulletproof & Inclusive)
 -- =============================================================
 -- This view consolidates all data needed for a professional,
 -- target-specific vulnerability report.
--- v3 Fixes:
--- 1. Uses finding.severity as a fallback for severity_score.
--- 2. Ensures all findings are returned even without CVE metadata.
--- 3. Robust joining with scan_results.
+-- v4 Fixes:
+-- 1. Explicitly ensures all required columns exist in scan_findings.
+-- 2. Uses finding.severity as a fallback for severity_score.
+-- 3. Ensures all findings are returned even without CVE metadata.
 -- =============================================================
 
 BEGIN;
+
+-- Ensure scan_findings has all necessary columns for the report
+ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS title    TEXT;
+ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS path     TEXT;
+ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS severity TEXT DEFAULT 'info';
+ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS status   TEXT DEFAULT 'open';
+ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS tool     TEXT;
+ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS service  TEXT;
+ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS evidence TEXT;
 
 DROP VIEW IF EXISTS public.target_report_data CASCADE;
 
