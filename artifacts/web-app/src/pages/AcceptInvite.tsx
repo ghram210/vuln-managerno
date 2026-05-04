@@ -12,6 +12,7 @@ const AcceptInvite = () => {
   const [valid, setValid] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [error, setError] = useState("");
+  const [dbStatus, setDbStatus] = useState<"checking" | "connected" | "failed">("checking");
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -28,6 +29,28 @@ const AcceptInvite = () => {
         return;
       }
       try {
+        console.log("Checking database connectivity...");
+
+        // 1. Check DB Connectivity via RPC to bypass table RLS
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: healthError } = await (supabase.rpc as any)("validate_invitation_token", {
+          token_param: "connectivity-check-dummy",
+        });
+
+        // Even if the token is invalid, a successful RPC call proves we are connected to the DB.
+        // We only mark it as failed if we get a network error or 404 on the RPC itself.
+        if (healthError && healthError.code === 'PGRST116') {
+           // PGRST116 means function not found or similar, but still connected to PostgREST
+           setDbStatus("connected");
+        } else if (healthError && (healthError.message.includes('fetch') || healthError.status === 404)) {
+          console.error("DB connectivity check failed:", healthError);
+          setDbStatus("failed");
+        } else {
+          console.log("DB connectivity verified successfully.");
+          setDbStatus("connected");
+        }
+
+        // 2. Validate Token
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await (supabase.rpc as any)("validate_invitation_token", {
           token_param: token,
@@ -72,11 +95,11 @@ const AcceptInvite = () => {
       });
 
       if (signUpError) {
-        console.error("SignUp Error:", signUpError);
-        // Special handling for the "Database error saving new user" to make it more descriptive
+        console.error("SignUp Error details:", signUpError);
+        // Display the raw error message to help identify the exact Postgres failure
         let msg = signUpError.message;
         if (msg.includes("Database error saving new user")) {
-          msg = "Database synchronization error (the user might already exist or there is a trigger conflict). Please contact support or try a different email.";
+          msg = `Database synchronization error: ${signUpError.message}. (Trigger conflict or existing placeholder with different ID).`;
         }
         throw new Error(msg);
       }
@@ -130,12 +153,29 @@ const AcceptInvite = () => {
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-3">Invalid Invitation</h1>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <button
-            onClick={() => navigate("/login")}
-            className="text-primary hover:underline text-sm"
-          >
-            Go to Login
-          </button>
+
+          <div className="mb-8 p-4 rounded-lg bg-card border border-border inline-flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2 text-xs">
+              <div className={`w-2 h-2 rounded-full ${dbStatus === 'connected' ? 'bg-green-500' : dbStatus === 'failed' ? 'bg-red-500' : 'bg-yellow-500'}`} />
+              <span className="text-muted-foreground uppercase tracking-wider">
+                System Link: {dbStatus === 'connected' ? 'Established' : dbStatus === 'failed' ? 'Not Found' : 'Verifying...'}
+              </span>
+            </div>
+            {dbStatus === 'failed' && (
+              <p className="text-[10px] text-destructive mt-1">
+                Unable to reach the database tables. This might be why registration is failing.
+              </p>
+            )}
+          </div>
+
+          <div className="block">
+            <button
+              onClick={() => navigate("/login")}
+              className="text-primary hover:underline text-sm"
+            >
+              Go to Login
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -167,6 +207,14 @@ const AcceptInvite = () => {
           <p className="text-muted-foreground text-base leading-relaxed max-w-md mx-auto mt-3">
             You've been invited to join the platform. Create your account below to get started.
           </p>
+          <div className="mt-8 pt-8 border-t border-primary/20">
+            <div className="flex items-center justify-center gap-2 text-xs">
+              <div className={`w-2 h-2 rounded-full ${dbStatus === 'connected' ? 'bg-green-500' : dbStatus === 'failed' ? 'bg-red-500' : 'bg-yellow-500'}`} />
+              <span className="text-muted-foreground uppercase tracking-wider">
+                Database Status: {dbStatus === 'connected' ? 'Connected' : dbStatus === 'failed' ? 'Offline' : 'Checking...'}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

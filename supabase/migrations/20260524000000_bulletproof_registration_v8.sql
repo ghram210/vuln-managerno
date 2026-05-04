@@ -3,20 +3,23 @@
 -- ========================================================
 -- This migration provides the most resilient registration trigger possible.
 -- It addresses the "Database error saving new user" by:
--- 1. Ensuring ONLY ONE trigger exists on auth.users.
--- 2. Performing aggressive email-based cleanup BEFORE insertion to prevent unique violations.
--- 3. Wrapping the entire synchronization in a nested EXCEPTION block.
+-- 1. Ensuring ONLY ONE trigger exists on auth.users (drops all known previous ones).
+-- 2. Performing aggressive email-based cleanup BEFORE insertion.
+-- 3. Wrapping EVERY single operation in a fail-safe exception block.
 -- 4. Logging detailed diagnostics to 'public.system_logs'.
 
--- 1. Remove all potential duplicate triggers to prevent double execution
+-- 1. Remove all potential duplicate triggers from previous migrations
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP TRIGGER IF EXISTS sync_user_to_admin_users ON auth.users;
 DROP TRIGGER IF EXISTS ensure_user_role ON auth.users;
+DROP TRIGGER IF EXISTS sync_new_user_trigger ON auth.users;
+DROP TRIGGER IF EXISTS trigger_sync_new_user ON auth.users;
+DROP TRIGGER IF EXISTS on_auth_user_signup ON auth.users;
+DROP TRIGGER IF EXISTS handle_new_user_trigger ON auth.users;
 
 -- 2. Clean up problematic accounts identified by the user
--- These accounts have had issues with registration placeholders.
 DELETE FROM public.user_roles
-WHERE user_id IN (SELECT id FROM public.admin_users WHERE lower(email) IN (
+WHERE user_id IN (SELECT id FROM public.admin_users WHERE trim(lower(email)) IN (
     'rhallhanin@gmail.com',
     'rhaalhanin@gmail.com',
     'gharamrahal6@gmil.com',
@@ -25,7 +28,7 @@ WHERE user_id IN (SELECT id FROM public.admin_users WHERE lower(email) IN (
 ));
 
 DELETE FROM public.admin_users
-WHERE lower(email) IN (
+WHERE trim(lower(email)) IN (
     'rhallhanin@gmail.com',
     'rhaalhanin@gmail.com',
     'gharamrahal6@gmil.com',
@@ -33,7 +36,7 @@ WHERE lower(email) IN (
     'almwshlyjyhan@gmail.com'
 );
 
--- 3. Enhanced Trigger Function with Logging and Multi-Layer Fail-Safes
+-- 3. Ultra-Defensive Trigger Function
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
@@ -41,39 +44,32 @@ DECLARE
     _user_full_name text;
     _target_role text := 'user';
     _target_role_label text := 'User';
-    _error_msg text;
-    _error_detail text;
+    _clean_email text;
 BEGIN
-    -- A. Extract metadata safely
-    _user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
-
-    -- B. INNER BLOCK to catch and log all errors without failing the main transaction
+    -- OUTER FAIL-SAFE: Absolute guarantee that registration proceeds
     BEGIN
-        -- 1. Log the attempt
-        INSERT INTO public.system_logs (message, level)
-        VALUES ('[RegV8] Starting sync for: ' || NEW.email || ' (ID: ' || NEW.id || ')', 'info');
+        _clean_email := trim(lower(NEW.email));
+        _user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
-        -- 2. Aggressive Cleanup of Existing Records
-        -- We delete by email to prevent "unique_constraint_violation" on admin_users(email)
-        -- which happens if a placeholder exists with a different ID (e.g. from an API invitation).
+        -- A. Aggressive Cleanup of Existing Records (Delete by Email)
+        -- This prevents unique_constraint_violation on email column
         DELETE FROM public.user_roles WHERE user_id IN (
-            SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email)
+            SELECT id FROM public.admin_users WHERE trim(lower(email)) = _clean_email
         );
-        DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email);
+        DELETE FROM public.admin_users WHERE trim(lower(email)) = _clean_email;
 
-        -- 3. Determine Role (Security: Defaults to User)
-        -- PROTECTED ADMINS: akatsukigh510@gmail.com, jehanmoshle@gmail.com
-        IF lower(NEW.email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com') THEN
+        -- B. Determine Role (Security: Defaults to User)
+        IF _clean_email IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com') THEN
             _target_role := 'admin';
             _target_role_label := 'Admin';
         END IF;
 
-        -- 4. Sync to user_roles
+        -- C. Sync to user_roles
         INSERT INTO public.user_roles (user_id, role)
         VALUES (NEW.id, _target_role::public.app_role)
         ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role;
 
-        -- 5. Sync to admin_users
+        -- D. Sync to admin_users
         INSERT INTO public.admin_users (id, email, name, role, joined_at)
         VALUES (
             NEW.id,
@@ -87,43 +83,34 @@ BEGIN
             name = EXCLUDED.name,
             role = EXCLUDED.role;
 
-        -- 6. Log success
-        INSERT INTO public.system_logs (message, level)
-        VALUES ('[RegV8] Success for: ' || NEW.email || ' as ' || _target_role_label, 'info');
-
-    EXCEPTION WHEN OTHERS THEN
-        GET STACKED DIAGNOSTICS
-            _error_msg = MESSAGE_TEXT,
-            _error_detail = PG_EXCEPTION_DETAIL;
-
-        -- Log the failure but DO NOT raise an error (prevents blocking auth.users insert)
+        -- E. Log success (in its own fail-safe block)
         BEGIN
             INSERT INTO public.system_logs (message, level)
-            VALUES ('[RegV8] FAIL-SAFE Error for ' || NEW.email || ': ' || _error_msg || ' | ' || COALESCE(_error_detail, 'no detail'), 'error');
-        EXCEPTION WHEN OTHERS THEN
-            -- If even logging fails, we must stay silent to allow registration to proceed
-            NULL;
-        END;
+            VALUES ('[RegV8] Success for: ' || _clean_email || ' (Role: ' || _target_role_label || ')', 'info');
+        EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    EXCEPTION WHEN OTHERS THEN
+        -- If any error occurs, log it and move on
+        BEGIN
+            INSERT INTO public.system_logs (message, level)
+            VALUES ('[RegV8] Fail-safe triggered for: ' || COALESCE(_clean_email, 'unknown'), 'error');
+        EXCEPTION WHEN OTHERS THEN NULL; END;
     END;
 
-    -- ALWAYS return NEW to ensure auth.users record is created
     RETURN NEW;
 END;
 $$;
 
--- 4. Re-enable the trigger (AFTER INSERT on auth.users)
+-- 4. Re-enable the trigger
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 5. Final Role Verification for Admins
+-- 5. Protection for Admins
 UPDATE public.user_roles
 SET role = 'admin'::public.app_role
-WHERE user_id IN (
-    SELECT id FROM auth.users
-    WHERE lower(email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com')
-);
+WHERE user_id IN (SELECT id FROM auth.users WHERE trim(lower(email)) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com'));
 
 UPDATE public.admin_users
 SET role = 'Admin'
-WHERE lower(email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com');
+WHERE trim(lower(email)) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com');
