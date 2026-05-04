@@ -79,34 +79,39 @@ const CustomTooltip = ({ active, payload, total }: any) => {
 
 const colorOverrides: Record<string, string> = {
   // Severity / Ratings
-  Critical: "hsl(0 84% 60%)",
-  High: "hsl(24 95% 53%)",
-  Medium: "hsl(45 93% 47%)",
-  Low: "hsl(142 71% 45%)",
-  Info: "hsl(215 20% 65%)",
+  Critical:   "hsl(0 84% 60%)",
+  High:       "hsl(24 95% 53%)",
+  Medium:     "hsl(45 93% 47%)",
+  Low:        "hsl(142 71% 45%)",
+  Info:       "hsl(215 20% 65%)",
+  CRITICAL:   "hsl(0 84% 60%)",
+  HIGH:       "hsl(24 95% 53%)",
+  MEDIUM:     "hsl(45 93% 47%)",
+  LOW:        "hsl(142 71% 45%)",
+  NONE:       "hsl(215 20% 65%)",
+  UNKNOWN:    "hsl(250 18% 58%)",
 
-  // Exploitability Risk (original buckets)
+  // Exploitability Risk
   "Weaponized":  "hsl(0 84% 58%)",
   "Public PoC":  "hsl(24 95% 55%)",
   "Known CVE":   "hsl(45 90% 50%)",
   "Theoretical": "hsl(215 20% 65%)",
 
   // Findings type
-  Vuln: "hsl(0 84% 60%)",
+  Vuln:    "hsl(0 84% 60%)",
   Misconf: "hsl(275 70% 60%)",
 
   // Attack Vector — vivid green palette
-  Network: "hsl(142 85% 42%)",
+  Network:  "hsl(142 85% 42%)",
   Adjacent: "hsl(160 78% 48%)",
-  Local: "hsl(120 65% 52%)",
+  Local:    "hsl(120 65% 52%)",
   Physical: "hsl(90 55% 58%)",
 
   // Asset Exposure — vivid pink/magenta palette
-  "Web Application":  "hsl(315 95% 52%)",
-  "External Host":    "hsl(335 88% 58%)",
-  "Internal Host":    "hsl(350 78% 65%)",
-  "Network Service":  "hsl(300 70% 60%)",
-  "Unknown":          "hsl(320 35% 72%)",
+  "Web Application": "hsl(315 95% 52%)",
+  "External Host":   "hsl(335 88% 58%)",
+  "Internal Host":   "hsl(350 78% 65%)",
+  "Network Service": "hsl(300 70% 60%)",
 };
 
 const DonutChart = ({
@@ -136,7 +141,8 @@ const DonutChart = ({
   );
 
   const isEmpty = !loading && total === 0;
-  const focused = activeIndex !== undefined ? data[activeIndex] : undefined;
+  const activeColor =
+    activeIndex !== undefined ? data[activeIndex]?.color : undefined;
 
   const gradId = (i: number) => `donutgrad-${safeId}-${i}`;
 
@@ -161,7 +167,7 @@ const DonutChart = ({
         </p>
       )}
 
-      <div className="relative h-[200px] flex items-center justify-center">
+      <div className="relative h-[190px] flex items-center justify-center">
         {loading ? (
           <div className="text-xs text-muted-foreground animate-pulse">
             Loading chart…
@@ -205,8 +211,8 @@ const DonutChart = ({
                   data={data}
                   cx="50%"
                   cy="50%"
-                  innerRadius={62}
-                  outerRadius={88}
+                  innerRadius={58}
+                  outerRadius={82}
                   paddingAngle={data.length > 1 ? 2 : 0}
                   cornerRadius={data.length > 1 ? 6 : 0}
                   dataKey="value"
@@ -227,25 +233,25 @@ const DonutChart = ({
               </PieChart>
             </ResponsiveContainer>
 
-            {/* Center label */}
+            {/* Center — always shows the grand total, color shifts on hover */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span
-                className="text-[26px] font-bold tracking-tight transition-colors leading-none"
-                style={{ color: focused?.color ?? "hsl(var(--foreground))" }}
+                className="text-[26px] font-bold tracking-tight leading-none transition-colors duration-150"
+                style={{ color: activeColor ?? "hsl(var(--foreground))" }}
               >
-                {formatValue(focused?.value ?? total)}
+                {formatValue(total)}
               </span>
               <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mt-1.5">
-                {focused?.name ?? centerLabel}
+                {centerLabel}
               </span>
             </div>
           </>
         )}
       </div>
 
-      {/* Legend */}
+      {/* Legend — always at bottom, outside the donut */}
       {!isEmpty && !loading && (
-        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1">
           {data.map((d, i) => {
             const pct = total > 0 ? (d.value / total) * 100 : 0;
             const isActive = activeIndex === i;
@@ -255,13 +261,13 @@ const DonutChart = ({
                 type="button"
                 onMouseEnter={() => setActiveIndex(i)}
                 onMouseLeave={() => setActiveIndex(undefined)}
-                className={`flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-[12.5px] transition-colors ${
+                className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[12px] transition-colors ${
                   isActive ? "bg-secondary/60" : "hover:bg-secondary/40"
                 }`}
               >
-                <span className="flex items-center gap-2 min-w-0">
+                <span className="flex items-center gap-1.5 min-w-0">
                   <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0 transition-shadow"
+                    className="w-2 h-2 rounded-full shrink-0 transition-shadow"
                     style={{
                       backgroundColor: d.color,
                       boxShadow: isActive
@@ -276,11 +282,11 @@ const DonutChart = ({
                     {d.name}
                   </span>
                 </span>
-                <span className="flex items-baseline gap-1.5 shrink-0">
+                <span className="flex items-baseline gap-1 shrink-0">
                   <span className="text-foreground font-semibold tabular-nums">
                     {formatValue(d.value)}
                   </span>
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
                     {pct.toFixed(0)}%
                   </span>
                 </span>

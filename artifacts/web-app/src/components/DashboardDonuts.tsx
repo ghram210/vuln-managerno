@@ -1,5 +1,7 @@
 import DonutChart from "@/components/DonutChart";
 import { useChartView, type ChartViewName } from "@/hooks/useChartView";
+import { useCveCatalogChart } from "@/hooks/useCveCatalogChart";
+import { useAttackVectorChart } from "@/hooks/useAttackVectorChart";
 
 interface DonutDef {
   view: ChartViewName;
@@ -10,14 +12,6 @@ interface DonutDef {
 }
 
 const DONUTS: DonutDef[] = [
-  {
-    view: "chart_vulns_by_exprt",
-    title: "Vulnerabilities by ExPRT rating",
-    subtitle: "Severity distribution of matched CVEs",
-    centerLabel: "Vulns",
-    emptyHint:
-      "No CVE matches yet. Run a vulnerability scan to populate severity data from NVD.",
-  },
   {
     view: "chart_findings_by_type",
     title: "Vulnerabilities by type",
@@ -33,14 +27,6 @@ const DONUTS: DonutDef[] = [
     centerLabel: "CVEs",
     emptyHint:
       "No CVE matches yet. Once findings are correlated with NVD, exploit potential appears here.",
-  },
-  {
-    view: "chart_attack_vector",
-    title: "Attack vector",
-    subtitle: "How an attacker can reach the vulnerability (CVSS)",
-    centerLabel: "CVEs",
-    emptyHint:
-      "No CVSS vectors yet. Network/Local/Physical reach will populate after the first matched CVE.",
   },
   {
     view: "chart_asset_exposure",
@@ -59,6 +45,34 @@ const DONUTS: DonutDef[] = [
       "No fingerprints yet. Detected vendor/product combinations from scans will rank here.",
   },
 ];
+
+const CveCatalogCard = () => {
+  const { data, isLoading } = useCveCatalogChart();
+  return (
+    <DonutChart
+      title="CVE Catalog — Severity"
+      subtitle="All CVEs in your NVD database by CVSS v3 severity"
+      centerLabel="CVEs"
+      emptyHint="No CVEs imported yet. Run the NVD/Exploit-DB sync scripts to populate your local database."
+      data={data ?? []}
+      loading={isLoading}
+    />
+  );
+};
+
+const AttackVectorCard = () => {
+  const { data, isLoading } = useAttackVectorChart();
+  return (
+    <DonutChart
+      title="Attack vector"
+      subtitle="How attackers can reach CVEs across your full NVD database"
+      centerLabel="CVEs"
+      emptyHint="No CVSS vectors yet. Network/Local/Physical reach will populate after CVE data is imported."
+      data={data ?? []}
+      loading={isLoading}
+    />
+  );
+};
 
 const DonutCard = ({ def }: { def: DonutDef }) => {
   const { data: result, isLoading } = useChartView(def.view);
@@ -82,13 +96,15 @@ const DashboardDonuts = () => {
           Risk overview
         </h2>
         <span className="text-[11px] text-muted-foreground/70">
-          Computed live from scan_findings · NVD
+          Computed live from scan_findings · NVD · cve_catalog
         </span>
       </div>
       <div className="grid grid-cols-3 gap-4">
+        <CveCatalogCard />
         {DONUTS.map((d) => (
           <DonutCard key={d.view} def={d} />
         ))}
+        <AttackVectorCard />
       </div>
     </div>
   );

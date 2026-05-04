@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { DonutSegment } from "@/components/DonutChart";
 
 export type ChartViewName =
-  | "chart_vulns_by_exprt"
+  | "chart_cve_catalog_severity"
   | "chart_findings_by_type"
   | "chart_exploitability_risk"
   | "chart_attack_vector"
