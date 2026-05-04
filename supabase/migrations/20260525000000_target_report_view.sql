@@ -37,13 +37,21 @@ SELECT
   ) AS exploits,
   sr.name AS scan_name,
   sr.started_at AS scan_start,
-  sr.completed_at AS scan_end
+  sr.completed_at AS scan_end,
+  sr.user_id
 FROM public.scan_findings f
 JOIN public.scan_results sr ON sr.id = f.scan_id
 LEFT JOIN public.finding_cves fc ON fc.finding_id = f.id
 LEFT JOIN public.cve_catalog c ON c.cve_id = fc.cve_id;
 
 -- Grant access
-GRANT SELECT ON public.target_report_data TO anon, authenticated;
+ALTER VIEW public.target_report_data OWNER TO postgres;
+GRANT SELECT ON public.target_report_data TO authenticated;
+
+-- Enable RLS by using the underlying table's security via user_id
+-- Since it's a VIEW, we can't enable RLS directly, but Supabase views
+-- inherit the permissions of the owner OR can be filtered in the query.
+-- Best practice: Create a security definer function or use RLS on the tables.
+-- The underlying scan_results table ALREADY has RLS in strict_rbac.sql.
 
 COMMIT;

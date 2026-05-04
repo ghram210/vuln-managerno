@@ -26,10 +26,14 @@ const ReportsTab = () => {
     queryKey: ["target_report_data", selectedTarget],
     queryFn: async () => {
       if (selectedTarget === "all") return [];
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
       const { data, error } = await supabase
         .from("target_report_data")
         .select("*")
-        .eq("target", selectedTarget);
+        .eq("target", selectedTarget)
+        .eq("user_id", user.id);
       if (error) throw error;
       return data;
     },
@@ -168,10 +172,21 @@ const ReportsTab = () => {
         </div>
 
         <h1>Detailed Findings</h1>
-        ${reportData.map((f, i) => `
+        ${reportData.map((f, i) => {
+          const escapeHtml = (unsafe: string) => {
+            if (!unsafe) return '';
+            return unsafe
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+          };
+
+          return `
             <div class="finding">
                 <div class="finding-header">
-                    <span class="finding-title">${i + 1}. ${f.vulnerability_name}</span>
+                    <span class="finding-title">${i + 1}. ${escapeHtml(f.vulnerability_name)}</span>
                     <span class="severity-badge" style="background: ${
                       f.cvss_v3_severity === 'CRITICAL' ? 'var(--critical)' :
                       f.cvss_v3_severity === 'HIGH' ? 'var(--high)' :
@@ -197,17 +212,17 @@ const ReportsTab = () => {
                 </div>
 
                 <span class="label">Description</span>
-                <p class="value">${f.cve_description || 'No description available.'}</p>
+                <p class="value">${escapeHtml(f.cve_description) || 'No description available.'}</p>
 
                 ${f.finding_evidence ? `
                     <span class="label">Evidence / Technical Details</span>
-                    <div class="code-block">${f.finding_evidence}</div>
+                    <div class="code-block">${escapeHtml(f.finding_evidence)}</div>
                 ` : ''}
 
                 ${f.exploits && f.exploits.length > 0 ? `
                     <span class="label">Available Exploits</span>
                     <ul class="value">
-                        ${f.exploits.map(e => `<li>${e.title} (${e.verified ? 'Verified' : 'Unverified'}) - <a href="${e.url}">${e.url}</a></li>`).join('')}
+                        ${f.exploits.map(e => `<li>${escapeHtml(e.title)} (${e.verified ? 'Verified' : 'Unverified'}) - <a href="${escapeHtml(e.url)}">${escapeHtml(e.url)}</a></li>`).join('')}
                     </ul>
                 ` : ''}
 
@@ -218,20 +233,20 @@ const ReportsTab = () => {
                     </ul>
                 ` : ''}
             </div>
-        `).join('')}
+          `;
+        }).join('')}
     </div>
     <script>window.onload = () => { setTimeout(() => { window.print(); }, 500); }</script>
 </body>
 </html>`;
-      // We serve it as HTML but name it .pdf to hint at its purpose,
-      // or better, keep .html but the UI only says PDF.
-      // Actually, browsers might struggle if it's named .pdf but is HTML.
-      // I'll name it .html but the button will say "Export PDF".
-      const blob = new Blob([html], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = `report_${selectedTarget.replace(/[^a-z0-9]/gi, '_')}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-      toast.success("PDF report generated (Please save/print as PDF)");
+      const reportWindow = window.open('', '_blank');
+      if (reportWindow) {
+        reportWindow.document.write(html);
+        reportWindow.document.close();
+        toast.success("Report generated! Use the print dialog to Save as PDF.");
+      } else {
+        toast.error("Popup blocked! Please allow popups to view the report.");
+      }
     }
   };
 
