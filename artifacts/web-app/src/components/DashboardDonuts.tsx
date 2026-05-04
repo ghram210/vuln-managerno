@@ -50,10 +50,10 @@ const CveCatalogCard = () => {
   const { data, isLoading } = useCveCatalogChart();
   return (
     <DonutChart
-      title="CVE Catalog — Severity"
-      subtitle="All CVEs in your NVD database by CVSS v3 severity"
+      title="Matched CVE Severity"
+      subtitle="Severity distribution of CVEs found in your scans"
       centerLabel="CVEs"
-      emptyHint="No CVEs imported yet. Run the NVD/Exploit-DB sync scripts to populate your local database."
+      emptyHint="No CVE matches yet. Run a scan and results will be classified by severity."
       data={data ?? []}
       loading={isLoading}
     />
@@ -64,10 +64,10 @@ const AttackVectorCard = () => {
   const { data, isLoading } = useAttackVectorChart();
   return (
     <DonutChart
-      title="Attack vector"
-      subtitle="How attackers can reach CVEs across your full NVD database"
+      title="Attack Vectors"
+      subtitle="How attackers can reach the vulnerabilities in your environment"
       centerLabel="CVEs"
-      emptyHint="No CVSS vectors yet. Network/Local/Physical reach will populate after CVE data is imported."
+      emptyHint="No vector data. Results appear once scans identify reachable vulnerabilities."
       data={data ?? []}
       loading={isLoading}
     />
@@ -96,7 +96,7 @@ const DashboardDonuts = () => {
           Risk overview
         </h2>
         <span className="text-[11px] text-muted-foreground/70">
-          Computed live from scan_findings · NVD · cve_catalog
+          Computed live from your scan discoveries
         </span>
       </div>
       <div className="grid grid-cols-3 gap-4">
