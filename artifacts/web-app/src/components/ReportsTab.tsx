@@ -1,42 +1,54 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { FileText, Download, Calendar, Circle, Target, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 const ReportsTab = () => {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [selectedScanId, setSelectedScanId] = useState<string>("all");
+  const { userRole } = useAuth();
 
   const { data: scans = [] } = useQuery({
-    queryKey: ["report_scans"],
+    queryKey: ["report_scans", userRole],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("scan_results")
         .select("id, name, target, created_at, status")
         .eq("status", "completed")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
+
+      if (userRole !== 'admin') {
+        query = query.eq("user_id", user.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
 
   const { data: reportData = [] } = useQuery({
-    queryKey: ["target_report_data", selectedScanId],
+    queryKey: ["target_report_data", selectedScanId, userRole],
     queryFn: async () => {
       if (selectedScanId === "all") return [];
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("target_report_data")
         .select("*")
-        .eq("scan_id", selectedScanId)
-        .eq("user_id", user.id);
+        .eq("scan_id", selectedScanId);
+
+      if (userRole !== 'admin') {
+        query = query.eq("user_id", user.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -281,7 +293,7 @@ const ReportsTab = () => {
                 <option value="all">Select Scan Result...</option>
                 {scans.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.target}) - {new Date(s.created_at).toLocaleDateString()}
+                    {s.name} ({s.target}) - {new Date(s.created_at).toLocaleDateString("en-US")}
                   </option>
                 ))}
               </select>
