@@ -55,6 +55,20 @@ router.post("/", async (req, res): Promise<void> => {
     // by deleting the placeholder and creating the real record during signup.
     if (email) {
       const cleanEmail = email;
+
+      // 1. PRE-CLEANUP: Deactivate any existing active tokens for this email to prevent "code spam"
+      const { error: deactivationError } = await supabaseAdmin
+        .from("invitation_links")
+        .update({ is_active: false })
+        .eq("email", cleanEmail)
+        .eq("is_active", true);
+
+      if (deactivationError) {
+        console.warn("Failed to deactivate old invitation tokens:", deactivationError.message);
+      }
+
+      // 2. PRE-REGISTRATION: Create/Update a placeholder in admin_users so the UI shows the invited user immediately.
+      // Note: We use a random UUID if not exists. The 'handle_new_user' trigger handles adoption.
       const { error: preUserError } = await supabaseAdmin
         .from("admin_users")
         .upsert(
