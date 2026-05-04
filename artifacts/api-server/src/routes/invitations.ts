@@ -48,25 +48,26 @@ router.post("/", async (req, res): Promise<void> => {
 
     const { email } = req.body as { email?: string };
 
-    // Restoration: Pre-store the invited user in admin_users if email is provided.
-    // The user requested that the email must exist in the database for signup to work.
-    // We use a random UUID as a placeholder; the handle_new_user trigger will update it
-    // to the real auth.users ID during signup.
+    // PRE-REGISTRATION: Create a placeholder in admin_users so the UI shows the invited user immediately.
+    // Note: We use a random UUID because 'id' is a required UUID column.
+    // The 'handle_new_user' trigger in Postgres will handle 'adopting' this record
+    // by deleting the placeholder and creating the real record during signup.
     if (email) {
       const { error: preUserError } = await supabaseAdmin
         .from("admin_users")
         .upsert(
           {
+            id: crypto.randomUUID(),
             email: email.toLowerCase(),
             name: email.split("@")[0],
             role: "User",
-            // We provide a temporary ID so it doesn't violate NULL constraint if one exists
+            joined_at: new Date().toISOString()
           },
           { onConflict: "email" }
         );
 
       if (preUserError) {
-        console.warn("Pre-storing invited user failed:", preUserError.message);
+        console.warn("Pre-storing invited user placeholder failed:", preUserError.message);
       }
     }
 

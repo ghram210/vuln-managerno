@@ -54,7 +54,7 @@ BEGIN
 END $$;
 
 -- 2. Clean up specific accidental admins (Security Cleanup)
--- User requested to delete these specifically so they can re-register correctly.
+-- User requested to handle these specifically.
 DELETE FROM auth.users WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com');
 
 -- Explicitly delete from public tables just in case CASCADE isn't there
@@ -105,51 +105,42 @@ DECLARE
     user_full_name text;
     target_role public.app_role := 'user'::public.app_role;
     target_role_label text := 'User';
-    rows_affected int;
 BEGIN
     -- A. Extract metadata
     user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
-    -- B. Adoption / Sync Logic
-    -- Instead of deleting, we try to adopt existing placeholder records created by the API server.
+    -- B. Proactive CLEANUP of orphaned records by email
+    -- This prevents unique constraint (email) violations when a placeholder exists with a different ID
+    -- This is critical for users who were invited and already exist in admin_users as placeholders.
+    DELETE FROM public.user_roles WHERE user_id IN (
+        SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
+    );
+    DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id;
 
-    -- Sync Role: Default to 'user' role for security, EXCEPT for protected admins
+    -- C. Sync Role: Default to 'user' role for security, EXCEPT for protected admins
     IF lower(NEW.email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com') THEN
         target_role := 'admin'::public.app_role;
         target_role_label := 'Admin';
     END IF;
 
-    -- Adopt or Insert user_roles
+    -- D. Sync to user_roles
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, target_role)
     ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role;
 
-    -- Adopt or Insert admin_users
-    -- 1. Try to update an existing record by email (adoption)
-    UPDATE public.admin_users
-    SET id = NEW.id,
-        name = user_full_name,
-        role = target_role_label,
-        joined_at = NOW()
-    WHERE lower(email) = lower(NEW.email);
-
-    GET DIAGNOSTICS rows_affected = ROW_COUNT;
-
-    -- 2. If no record was updated, insert a new one
-    IF rows_affected = 0 THEN
-        INSERT INTO public.admin_users (id, email, name, role, joined_at)
-        VALUES (
-            NEW.id,
-            NEW.email,
-            user_full_name,
-            target_role_label,
-            NOW()
-        )
-        ON CONFLICT (id) DO UPDATE SET
-            email = EXCLUDED.email,
-            name = EXCLUDED.name,
-            role = EXCLUDED.role;
-    END IF;
+    -- E. Sync to admin_users
+    INSERT INTO public.admin_users (id, email, name, role, joined_at)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        user_full_name,
+        target_role_label,
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        name = EXCLUDED.name,
+        role = EXCLUDED.role;
 
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
