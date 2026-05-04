@@ -25,9 +25,9 @@ function classifyVector(vec: string | null): string {
 
 export function useAttackVectorChart() {
   return useQuery<DonutSegment[]>({
-    queryKey: ["attack_vector_user_scans"],
+    queryKey: ["attack_vector_global"],
     queryFn: async () => {
-      // Fetch from the new user-specific view that includes zero-value buckets
+      // Restore Global context for Attack Vector (distribution of all known CVEs)
       const { data, error } = await (supabase as any)
         .from("chart_attack_vector")
         .select("*")
@@ -49,6 +49,6 @@ export function useAttackVectorChart() {
         color: r.segment_color,
       }));
     },
-    staleTime: 60_000,
+    staleTime: 120_000,
   });
 }

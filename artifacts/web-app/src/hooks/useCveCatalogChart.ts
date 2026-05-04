@@ -26,11 +26,11 @@ function scoreBucket(score: number | null): { name: string; color: string; order
 
 export function useCveCatalogChart() {
   return useQuery<DonutSegment[]>({
-    queryKey: ["cve_catalog_severity_user"],
+    queryKey: ["cve_catalog_severity_global"],
     queryFn: async () => {
-      // Use the user-specific severity view instead of raw catalog
+      // Restore Global context for the Catalog chart
       const { data, error } = await (supabase as any)
-        .from("chart_vulns_by_exprt")
+        .from("chart_cve_catalog_severity")
         .select("*")
         .order("sort_order", { ascending: true });
 
@@ -50,6 +50,6 @@ export function useCveCatalogChart() {
         color: r.segment_color,
       }));
     },
-    staleTime: 60_000,
+    staleTime: 120_000,
   });
 }
