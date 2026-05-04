@@ -1,5 +1,0 @@
-
-> @workspace/web-app@0.0.0 dev
-> vite --config vite.config.ts --host 0.0.0.0
-
-sh: 1: vite: not found

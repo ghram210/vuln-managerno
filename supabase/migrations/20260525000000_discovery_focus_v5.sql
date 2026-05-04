@@ -1,14 +1,14 @@
 -- =============================================================
--- Dashboard Chart Views v4 — Mixed Context (Global + User)
+-- Dashboard Chart Views v5 — Pure Discovery (User-Specific)
 -- =============================================================
--- This migration restores the Global context for Catalog-related
--- charts (as requested in the first message) while keeping
--- discovery-related charts user-specific.
+-- This migration ensures ALL charts reflect ONLY the findings
+-- discovered by the current user. All "Global" views are
+-- repurposed to filter by auth.uid().
 
 BEGIN;
 
--- 1. chart_attack_vector (Global)
-DROP VIEW IF EXISTS public.chart_attack_vector;
+-- 1. chart_attack_vector (USER DISCOVERY)
+DROP VIEW IF EXISTS public.chart_attack_vector CASCADE;
 CREATE OR REPLACE VIEW public.chart_attack_vector AS
 WITH buckets (bucket, sort_order, color) AS (
   VALUES
@@ -18,7 +18,15 @@ WITH buckets (bucket, sort_order, color) AS (
     ('Physical', 4, 'hsl(290 70% 65%)'),
     ('Unknown',  5, 'hsl(300 50% 65%)')
 ),
-classified AS (
+user_cves AS (
+  SELECT DISTINCT fc.cve_id, c.cvss_v3_vector
+  FROM public.scan_results sr
+  JOIN public.scan_findings f ON f.scan_id = sr.id
+  JOIN public.finding_cves fc ON fc.finding_id = f.id
+  JOIN public.cve_catalog c ON c.cve_id = fc.cve_id
+  WHERE sr.user_id = auth.uid()
+),
+parsed AS (
   SELECT
     CASE
       WHEN cvss_v3_vector ~* '/AV:N(/|$)' THEN 'Network'
@@ -27,21 +35,20 @@ classified AS (
       WHEN cvss_v3_vector ~* '/AV:P(/|$)' THEN 'Physical'
       ELSE 'Unknown'
     END AS bucket
-  FROM public.cve_catalog
-  WHERE cvss_v3_vector IS NOT NULL AND cvss_v3_vector <> ''
+  FROM user_cves
 )
 SELECT
   b.bucket AS segment_name,
-  COUNT(c.bucket)::int AS segment_value,
+  COUNT(p.bucket)::int AS segment_value,
   b.color AS segment_color,
   b.sort_order
 FROM buckets b
-LEFT JOIN classified c ON c.bucket = b.bucket
+LEFT JOIN parsed p ON p.bucket = b.bucket
 GROUP BY b.bucket, b.sort_order, b.color
 ORDER BY b.sort_order;
 
--- 2. chart_cve_catalog_severity (Global)
-DROP VIEW IF EXISTS public.chart_cve_catalog_severity;
+-- 2. chart_cve_catalog_severity (USER DISCOVERY)
+DROP VIEW IF EXISTS public.chart_cve_catalog_severity CASCADE;
 CREATE OR REPLACE VIEW public.chart_cve_catalog_severity AS
 WITH buckets (sev, segment_name, sort_order, color) AS (
   VALUES
@@ -51,18 +58,27 @@ WITH buckets (sev, segment_name, sort_order, color) AS (
     ('LOW',      'Low',      4, 'hsl(160 65% 46%)'),
     ('NONE',     'None',     5, 'hsl(220 18% 62%)'),
     ('UNKNOWN',  'Unknown',  6, 'hsl(250 18% 58%)')
+),
+user_cves AS (
+  SELECT DISTINCT fc.cve_id, UPPER(COALESCE(c.cvss_v3_severity, 'UNKNOWN')) as sev
+  FROM public.scan_results sr
+  JOIN public.scan_findings f ON f.scan_id = sr.id
+  JOIN public.finding_cves fc ON fc.finding_id = f.id
+  JOIN public.cve_catalog c ON c.cve_id = fc.cve_id
+  WHERE sr.user_id = auth.uid()
 )
 SELECT
   b.segment_name,
-  COUNT(c.cve_id)::int AS segment_value,
+  COUNT(u.sev)::int AS segment_value,
   b.color AS segment_color,
   b.sort_order
 FROM buckets b
-LEFT JOIN public.cve_catalog c ON UPPER(COALESCE(c.cvss_v3_severity, 'UNKNOWN')) = b.sev
+LEFT JOIN user_cves u ON u.sev = b.sev
 GROUP BY b.segment_name, b.sort_order, b.color
 ORDER BY b.sort_order;
 
--- 3. chart_vulns_by_exprt (User-specific)
+-- 3. chart_vulns_by_exprt (USER DISCOVERY)
+DROP VIEW IF EXISTS public.chart_vulns_by_exprt CASCADE;
 CREATE OR REPLACE VIEW public.chart_vulns_by_exprt AS
 WITH buckets (sev, segment_name, sort_order, color) AS (
   VALUES
@@ -90,7 +106,8 @@ LEFT JOIN user_matched m ON m.sev = b.sev
 GROUP BY b.segment_name, b.sort_order, b.color
 ORDER BY b.sort_order;
 
--- 4. chart_findings_by_type (User-specific)
+-- 4. chart_findings_by_type (USER DISCOVERY)
+DROP VIEW IF EXISTS public.chart_findings_by_type CASCADE;
 CREATE OR REPLACE VIEW public.chart_findings_by_type AS
 WITH buckets (bucket, sort_order, color) AS (
   VALUES
@@ -121,14 +138,15 @@ LEFT JOIN bucketed bd ON bd.bucket = b.bucket
 GROUP BY b.bucket, b.sort_order, b.color
 ORDER BY b.sort_order;
 
--- 5. chart_exploitability_risk (User-specific)
+-- 5. chart_exploitability_risk (USER DISCOVERY)
+DROP VIEW IF EXISTS public.chart_exploitability_risk CASCADE;
 CREATE OR REPLACE VIEW public.chart_exploitability_risk AS
 WITH buckets (bucket, sort_order, color) AS (
   VALUES
-    ('Weaponized',  1, 'hsl(140 75% 45%)'),
-    ('Public PoC',  2, 'hsl(155 70% 50%)'),
-    ('Known CVE',   3, 'hsl(120 60% 55%)'),
-    ('Theoretical', 4, 'hsl(95 60% 60%)')
+    ('Weaponized',  1, 'hsl(0 84% 58%)'),
+    ('Public PoC',  2, 'hsl(24 95% 55%)'),
+    ('Known CVE',   3, 'hsl(45 90% 50%)'),
+    ('Theoretical', 4, 'hsl(215 20% 65%)')
 ),
 user_cves AS (
   SELECT DISTINCT fc.cve_id, UPPER(COALESCE(c.cvss_v3_severity,'NONE')) AS sev
@@ -168,54 +186,43 @@ LEFT JOIN classified c ON c.bucket = b.bucket
 GROUP BY b.bucket, b.sort_order, b.color
 ORDER BY b.sort_order;
 
--- 6. chart_exploit_types (User-specific)
-CREATE OR REPLACE VIEW public.chart_exploit_types AS
-WITH buckets (label, sort_order, color) AS (
+-- 6. chart_asset_exposure (USER DISCOVERY)
+DROP VIEW IF EXISTS public.chart_asset_exposure CASCADE;
+CREATE OR REPLACE VIEW public.chart_asset_exposure AS
+WITH buckets (exposure_type, sort_order, color) AS (
   VALUES
-    ('Remote',            1, 'hsl(0 85% 58%)'),
-    ('Web App',           2, 'hsl(195 90% 55%)'),
-    ('Local Privilege',   3, 'hsl(20 95% 60%)'),
-    ('Denial of Service', 4, 'hsl(45 95% 58%)'),
-    ('Shellcode',         5, 'hsl(275 75% 65%)'),
-    ('Hardware',          6, 'hsl(335 85% 60%)'),
-    ('Other',             9, 'hsl(160 70% 50%)')
+    ('Web Application', 1, 'hsl(315 95% 52%)'),
+    ('External Host',   2, 'hsl(335 88% 58%)'),
+    ('Internal Host',   3, 'hsl(350 78% 65%)'),
+    ('Network Service', 4, 'hsl(300 70% 60%)'),
+    ('Other',           5, 'hsl(320 35% 72%)')
 ),
-user_exploits AS (
-  SELECT DISTINCT e.exploit_db_id, e.type
-  FROM public.scan_results sr
-  JOIN public.scan_findings f ON f.scan_id = sr.id
-  JOIN public.finding_cves fc ON fc.finding_id = f.id
-  JOIN public.exploits e ON e.cve_id = fc.cve_id
-  WHERE sr.user_id = auth.uid()
-),
-typed AS (
-  SELECT LOWER(COALESCE(NULLIF(TRIM(type), ''), 'unknown')) AS t
-  FROM user_exploits
-),
-labelled AS (
-  SELECT
-    CASE t
-      WHEN 'remote'    THEN 'Remote'
-      WHEN 'local'     THEN 'Local Privilege'
-      WHEN 'webapps'   THEN 'Web App'
-      WHEN 'dos'       THEN 'Denial of Service'
-      WHEN 'shellcode' THEN 'Shellcode'
-      WHEN 'hardware'  THEN 'Hardware'
-      ELSE 'Other'
-    END AS label
-  FROM typed
+classified AS (
+  SELECT DISTINCT ON (target)
+    target,
+    CASE
+      WHEN target ~* '^https?://' THEN 'Web Application'
+      WHEN target ~* '^[a-zA-Z].*\.[a-zA-Z]{2,}' AND target !~ '^\d{1,3}\.' THEN 'Web Application'
+      WHEN target ~ '^10\.' OR target ~ '^192\.168\.' OR target ~ '^172\.(1[6-9]|2[0-9]|3[01])\.' OR target ~ '^127\.' THEN 'Internal Host'
+      WHEN target ~ '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}' THEN 'External Host'
+      ELSE 'Network Service'
+    END AS exposure_type
+  FROM public.scan_results
+  WHERE user_id = auth.uid()
+  ORDER BY target, created_at DESC
 )
 SELECT
-  b.label AS segment_name,
-  COUNT(l.label)::int AS segment_value,
+  b.exposure_type AS segment_name,
+  COUNT(c.exposure_type)::int AS segment_value,
   b.color AS segment_color,
   b.sort_order
 FROM buckets b
-LEFT JOIN labelled l ON l.label = b.label
-GROUP BY b.label, b.sort_order, b.color
+LEFT JOIN classified c ON c.exposure_type = b.exposure_type
+GROUP BY b.exposure_type, b.sort_order, b.color
 ORDER BY b.sort_order;
 
--- 7. chart_top_vulnerable_products (User-specific)
+-- 7. chart_top_vulnerable_products (USER DISCOVERY)
+DROP VIEW IF EXISTS public.chart_top_vulnerable_products CASCADE;
 CREATE OR REPLACE VIEW public.chart_top_vulnerable_products AS
 WITH product_cves AS (
   SELECT
@@ -260,62 +267,15 @@ JOIN palette p ON p.idx = LEAST(r.rn, 7)
 WHERE r.rn <= 7
 ORDER BY r.rn;
 
--- 8. chart_asset_exposure (User-specific)
-CREATE OR REPLACE VIEW public.chart_asset_exposure AS
-WITH buckets (exposure_type, sort_order, color) AS (
-  VALUES
-    ('Web Application', 1, 'hsl(315 95% 52%)'),
-    ('External Host',   2, 'hsl(335 88% 58%)'),
-    ('Internal Host',   3, 'hsl(350 78% 65%)'),
-    ('Network Service', 4, 'hsl(300 70% 60%)'),
-    ('Other',           5, 'hsl(320 35% 72%)')
-),
-classified AS (
-  SELECT DISTINCT ON (target)
-    target,
-    CASE
-      -- Full URL targets (http / https scheme)
-      WHEN target ~* '^https?://'
-        THEN 'Web Application'
-      -- Domain-style targets that contain at least one letter before a TLD
-      WHEN target ~* '^[a-zA-Z].*\.[a-zA-Z]{2,}'
-        AND target !~ '^\d{1,3}\.'
-        THEN 'Web Application'
-      -- Internal / private IP ranges
-      WHEN target ~ '^10\.'
-        OR target ~ '^192\.168\.'
-        OR target ~ '^172\.(1[6-9]|2[0-9]|3[01])\.'
-        OR target ~ '^127\.'
-        THEN 'Internal Host'
-      -- Public IPv4
-      WHEN target ~ '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
-        THEN 'External Host'
-      ELSE
-        'Network Service'
-    END AS exposure_type
-  FROM public.scan_results
-  WHERE user_id = auth.uid()
-  ORDER BY target, created_at DESC
-)
-SELECT
-  b.exposure_type AS segment_name,
-  COUNT(c.exposure_type)::int AS segment_value,
-  b.color AS segment_color,
-  b.sort_order
-FROM buckets b
-LEFT JOIN classified c ON c.exposure_type = b.exposure_type
-GROUP BY b.exposure_type, b.sort_order, b.color
-ORDER BY b.sort_order;
-
+-- Re-grant permissions
 GRANT SELECT ON
   public.chart_vulns_by_exprt,
   public.chart_findings_by_type,
   public.chart_exploitability_risk,
   public.chart_attack_vector,
-  public.chart_cve_catalog_severity,
-  public.chart_exploit_types,
+  public.chart_asset_exposure,
   public.chart_top_vulnerable_products,
-  public.chart_asset_exposure
+  public.chart_cve_catalog_severity
 TO anon, authenticated;
 
 COMMIT;
