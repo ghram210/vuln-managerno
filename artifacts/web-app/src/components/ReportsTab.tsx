@@ -6,38 +6,41 @@ import { toast } from "sonner";
 
 const ReportsTab = () => {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
-  const [selectedTarget, setSelectedTarget] = useState<string>("all");
+  const [selectedScanId, setSelectedScanId] = useState<string>("all");
 
-  const { data: targets = [] } = useQuery({
-    queryKey: ["report_targets"],
+  const { data: scans = [] } = useQuery({
+    queryKey: ["report_scans"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
       const { data, error } = await supabase
         .from("scan_results")
-        .select("target")
-        .order("target", { ascending: true });
+        .select("id, name, target, created_at, status")
+        .eq("status", "completed")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
       if (error) throw error;
-
-      const uniqueTargets = Array.from(new Set(data.map(d => d.target)));
-      return uniqueTargets;
+      return data;
     },
   });
 
   const { data: reportData = [] } = useQuery({
-    queryKey: ["target_report_data", selectedTarget],
+    queryKey: ["target_report_data", selectedScanId],
     queryFn: async () => {
-      if (selectedTarget === "all") return [];
+      if (selectedScanId === "all") return [];
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
       const { data, error } = await supabase
         .from("target_report_data")
         .select("*")
-        .eq("target", selectedTarget)
+        .eq("scan_id", selectedScanId)
         .eq("user_id", user.id);
       if (error) throw error;
       return data;
     },
-    enabled: selectedTarget !== "all"
+    enabled: selectedScanId !== "all"
   });
 
   const { data: globalVulnerabilities = [] } = useQuery({
@@ -62,33 +65,39 @@ const ReportsTab = () => {
   });
 
   // Calculate filtered summary stats
+  const severityCounts = {
+    Critical: reportData.filter(v => v.severity_score === 4).length,
+    High: reportData.filter(v => v.severity_score === 3).length,
+    Medium: reportData.filter(v => v.severity_score === 2).length,
+    Low: reportData.filter(v => v.severity_score === 1).length,
+  };
+
   const filteredSummary = [
     { label: "Total Findings", value: reportData.length, id: "total", sort_order: 1 },
-    { label: "Critical", value: reportData.filter(v => v.cvss_v3_severity === 'CRITICAL').length, id: "crit", sort_order: 2 },
-    { label: "High", value: reportData.filter(v => v.cvss_v3_severity === 'HIGH').length, id: "high", sort_order: 3 },
-    { label: "Medium", value: reportData.filter(v => v.cvss_v3_severity === 'MEDIUM').length, id: "med", sort_order: 4 },
-    { label: "Low", value: reportData.filter(v => v.cvss_v3_severity === 'LOW').length, id: "low", sort_order: 5 },
+    { label: "Critical", value: severityCounts.Critical, id: "crit", sort_order: 2 },
+    { label: "High", value: severityCounts.High, id: "high", sort_order: 3 },
+    { label: "Medium", value: severityCounts.Medium, id: "med", sort_order: 4 },
+    { label: "Low", value: severityCounts.Low, id: "low", sort_order: 5 },
   ];
 
-  const criticalCount = reportData.filter(v => v.cvss_v3_severity === 'CRITICAL').length;
-  const displayCriticalCount = selectedTarget === "all"
+  const displayCriticalCount = selectedScanId === "all"
     ? globalVulnerabilities.filter((v) => v.exprt_rating === "Critical").length
-    : criticalCount;
+    : severityCounts.Critical;
 
   // Top 5 vulnerabilities
-  const top5 = selectedTarget === "all"
+  const top5 = selectedScanId === "all"
     ? globalVulnerabilities
         .sort((a, b) => (b.vulnerability_count || 0) - (a.vulnerability_count || 0))
         .slice(0, 5)
         .map(v => ({ id: v.id, label: v.cve_id, sublabel: `${v.vulnerability_count} assets` }))
     : [...reportData]
-        .sort((a, b) => (Number(b.cvss_v3_score) || 0) - (Number(a.cvss_v3_score) || 0))
+        .sort((a, b) => (b.severity_score || 0) - (a.severity_score || 0))
         .slice(0, 5)
-        .map(v => ({ id: v.finding_id, label: v.vulnerability_name, sublabel: v.cvss_v3_severity || 'Info' }));
+        .map(v => ({ id: v.finding_id, label: v.vulnerability_name, sublabel: v.severity_score === 4 ? 'Critical' : v.severity_score === 3 ? 'High' : 'Info' }));
 
   const handleDownload = async (format: string) => {
-    if (selectedTarget === "all" || reportData.length === 0) {
-      toast.error("Please select a target with findings to generate a report");
+    if (selectedScanId === "all" || reportData.length === 0) {
+      toast.error("Please select a scan with findings to generate a report");
       return;
     }
 
@@ -97,20 +106,13 @@ const ReportsTab = () => {
       year: 'numeric', month: 'long', day: 'numeric'
     });
 
-    const severityCounts = {
-      Critical: reportData.filter(v => v.cvss_v3_severity === 'CRITICAL').length,
-      High: reportData.filter(v => v.cvss_v3_severity === 'HIGH').length,
-      Medium: reportData.filter(v => v.cvss_v3_severity === 'MEDIUM').length,
-      Low: reportData.filter(v => v.cvss_v3_severity === 'LOW').length,
-    };
-
     if (format === "PDF") {
       const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Security Scan Report - ${selectedTarget}</title>
+    <title>Security Scan Report - ${targetInfo.scan_name}</title>
     <style>
         :root {
             --primary: #06b6d4;
@@ -150,7 +152,8 @@ const ReportsTab = () => {
 <body>
     <div class="cover">
         <h1>SECURITY SCAN REPORT</h1>
-        <h2>Target: ${selectedTarget}</h2>
+        <h2>Target: ${targetInfo.target}</h2>
+        <h3>Scan: ${targetInfo.scan_name}</h3>
         <p>Generated on ${dateStr}</p>
         <p style="margin-top: 50px;">Scan Tool: ${targetInfo.tool}</p>
     </div>
@@ -158,11 +161,11 @@ const ReportsTab = () => {
     <div class="page">
         <div class="header">
             <h1>Executive Summary</h1>
-            <span style="color: var(--muted)">${selectedTarget}</span>
+            <span style="color: var(--muted)">${targetInfo.target}</span>
         </div>
 
         <div class="summary-box">
-            <p>This report summarizes the security findings for the target <strong>${selectedTarget}</strong>. A total of <strong>${reportData.length}</strong> vulnerabilities were identified.</p>
+            <p>This report summarizes the security findings for the target <strong>${targetInfo.target}</strong>. A total of <strong>${reportData.length}</strong> vulnerabilities were identified.</p>
             <div class="stats-grid">
                 <div class="stat-card" style="background: var(--critical)">${severityCounts.Critical} Critical</div>
                 <div class="stat-card" style="background: var(--high)">${severityCounts.High} High</div>
@@ -174,7 +177,7 @@ const ReportsTab = () => {
         <h1>Detailed Findings</h1>
         ${reportData.map((f, i) => {
           const escapeHtml = (unsafe: string) => {
-            if (!unsafe) return '';
+            if (!unsafe || typeof unsafe !== 'string') return '';
             return unsafe
               .replace(/&/g, "&amp;")
               .replace(/</g, "&lt;")
@@ -183,54 +186,51 @@ const ReportsTab = () => {
               .replace(/'/g, "&#039;");
           };
 
+          const primarySev = f.cve_details?.[0]?.cvss_v3_severity || 'INFO';
+
           return `
             <div class="finding">
                 <div class="finding-header">
                     <span class="finding-title">${i + 1}. ${escapeHtml(f.vulnerability_name)}</span>
                     <span class="severity-badge" style="background: ${
-                      f.cvss_v3_severity === 'CRITICAL' ? 'var(--critical)' :
-                      f.cvss_v3_severity === 'HIGH' ? 'var(--high)' :
-                      f.cvss_v3_severity === 'MEDIUM' ? 'var(--medium)' : 'var(--low)'
-                    }">${f.cvss_v3_severity || 'INFO'}</span>
+                      primarySev === 'CRITICAL' ? 'var(--critical)' :
+                      primarySev === 'HIGH' ? 'var(--high)' :
+                      primarySev === 'MEDIUM' ? 'var(--medium)' : 'var(--low)'
+                    }">${primarySev}</span>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div>
-                        <span class="label">CVE ID</span>
-                        <span class="value">${f.cve_id || 'N/A'}</span>
-
-                        <span class="label">CVSS Score</span>
-                        <span class="value">${f.cvss_v3_score || 'N/A'} (${f.cvss_v3_vector || ''})</span>
+                        <span class="label">Service / Path</span>
+                        <span class="value">${escapeHtml(f.service_info) || escapeHtml(f.finding_path) || 'N/A'}</span>
                     </div>
                     <div>
                         <span class="label">Status</span>
                         <span class="value">${f.finding_status}</span>
-
-                        <span class="label">Detected</span>
-                        <span class="value">${new Date(f.detection_date).toLocaleDateString()}</span>
                     </div>
                 </div>
 
-                <span class="label">Description</span>
-                <p class="value">${escapeHtml(f.cve_description) || 'No description available.'}</p>
+                ${f.cve_details ? f.cve_details.map((cve: any) => `
+                    <div style="margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                        <span class="label" style="color: var(--primary)">${cve.cve_id}</span>
+                        <p class="value" style="font-size: 12px; margin-bottom: 5px;">${escapeHtml(cve.description)}</p>
+                        <div style="font-size: 11px; color: #64748b;">
+                            <strong>Score:</strong> ${cve.cvss_v3_score || 'N/A'} |
+                            <strong>Vector:</strong> ${cve.cvss_v3_vector || 'N/A'}
+                        </div>
+
+                        ${cve.exploits ? `
+                            <span class="label" style="font-size: 11px;">Known Exploits:</span>
+                            <ul class="value" style="font-size: 11px;">
+                                ${cve.exploits.map((e: any) => `<li>${escapeHtml(e.title)} - <a href="${escapeHtml(e.url)}">${escapeHtml(e.url)}</a></li>`).join('')}
+                            </ul>
+                        ` : ''}
+                    </div>
+                `).join('') : '<p class="value">No CVE details available.</p>'}
 
                 ${f.finding_evidence ? `
-                    <span class="label">Evidence / Technical Details</span>
+                    <span class="label">Technical Evidence</span>
                     <div class="code-block">${escapeHtml(f.finding_evidence)}</div>
-                ` : ''}
-
-                ${f.exploits && f.exploits.length > 0 ? `
-                    <span class="label">Available Exploits</span>
-                    <ul class="value">
-                        ${f.exploits.map(e => `<li>${escapeHtml(e.title)} (${e.verified ? 'Verified' : 'Unverified'}) - <a href="${escapeHtml(e.url)}">${escapeHtml(e.url)}</a></li>`).join('')}
-                    </ul>
-                ` : ''}
-
-                ${f.references_urls && f.references_urls.length > 0 ? `
-                    <span class="label">References & Remediation</span>
-                    <ul class="value" style="font-size: 12px;">
-                        ${f.references_urls.slice(0, 3).map(url => `<li><a href="${url}">${url}</a></li>`).join('')}
-                    </ul>
                 ` : ''}
             </div>
           `;
@@ -274,14 +274,14 @@ const ReportsTab = () => {
                 <Target className="h-4 w-4 text-muted-foreground" />
               </div>
               <select
-                value={selectedTarget}
-                onChange={(e) => setSelectedTarget(e.target.value)}
+                value={selectedScanId}
+                onChange={(e) => setSelectedScanId(e.target.value)}
                 className="w-full pl-10 pr-10 py-1.5 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
               >
-                <option value="all">Global (All Targets)</option>
-                {targets.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                <option value="all">Select Scan Result...</option>
+                {scans.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.target}) - {new Date(s.created_at).toLocaleDateString()}
                   </option>
                 ))}
               </select>
@@ -307,7 +307,7 @@ const ReportsTab = () => {
 
         <div className="bg-secondary/50 rounded-lg p-4">
           <p className="text-sm text-muted-foreground">
-            {selectedTarget === "all" ? (
+            {selectedScanId === "all" ? (
               <>
                 Global executive summary:{" "}
                 <strong className="text-foreground">{displayCriticalCount} critical vulnerabilities</strong>,{" "}
@@ -315,7 +315,7 @@ const ReportsTab = () => {
               </>
             ) : (
               <>
-                Target summary:{" "}
+                Scan summary:{" "}
                 <strong className="text-foreground">{displayCriticalCount} critical vulnerabilities</strong>,{" "}
                 <strong className="text-foreground">{reportData.length} total findings</strong>. Full report available via export.
               </>
@@ -328,7 +328,7 @@ const ReportsTab = () => {
             </span>
             <span className="flex items-center gap-1">
               <Circle className="w-3 h-3" />
-              {targets.length} assets
+              {scans.length} scans available
             </span>
           </div>
         </div>
@@ -351,10 +351,10 @@ const ReportsTab = () => {
 
         <div className="bg-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">
-            {selectedTarget === "all" ? "Global Summary" : `Summary for ${selectedTarget}`}
+            {selectedScanId === "all" ? "Global Summary" : `Summary for Scan Result`}
           </h3>
           <div className="space-y-3">
-            {(selectedTarget === "all" ? globalSummary : filteredSummary).map((s) => (
+            {(selectedScanId === "all" ? globalSummary : filteredSummary).map((s) => (
               <div key={s.id} className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{s.label}</span>
                 <span className={`text-sm font-bold ${summaryColors[s.label] || "text-foreground"}`}>
