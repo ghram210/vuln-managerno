@@ -1,13 +1,14 @@
 -- ========================================================
--- ULTIMATE User Management and Security Consolidation (v5)
+-- ULTIMATE User Management and Security Fix (Consolidated v6)
 -- ========================================================
--- This migration replaces and consolidates previous fixes (v4 and earlier)
--- to ensure a clean, robust, and secure user management system.
+-- This migration ensures that user registration NEVER fails due to
+-- synchronization issues and enforces strict security policies.
 -- It addresses:
--- 1. SECURITY: Defaults all signups to 'User' and tightens RLS.
--- 2. INVITATION: Strictly links invitations to emails and 'User' role.
--- 3. CLEANUP: Fixes specific users accidentally granted 'Admin' status.
--- 4. STABILITY: Solves type-mismatch and ENUM errors (Error 42804/42883).
+-- 1. SECURITY: Defaults all signups to 'User' unless already 'Admin'.
+-- 2. STABILITY: Uses EXCEPTION handling to prevent blocking signups.
+-- 3. TYPE SAFETY: Correctly handles UUID vs TEXT (Fixes Error 42804).
+-- 4. PRESERVATION: Keeps existing Admin accounts safe.
+-- 5. CLEANUP: Demotes specific accidental admins.
 
 -- 1. Prerequisites (Types and Functions)
 DO $$
@@ -21,7 +22,6 @@ END $$;
 DO $$
 BEGIN
     -- List of emails to demote to 'User'
-    -- This handles the specific users you mentioned (and potential typos)
     UPDATE public.user_roles
     SET role = 'user'::public.app_role
     WHERE user_id IN (
@@ -44,52 +44,67 @@ AS $$
   );
 $$;
 
--- 4. Robust Trigger Function for ANY new user signup
+-- 4. BULLETPROOF Trigger Function for ANY new user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
+    existing_role text;
     user_full_name text;
 BEGIN
     -- A. Extract metadata
     user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
-    -- B. Proactive CLEANUP of orphaned records by email
-    -- This prevents unique constraint violations during re-registration
+    -- B. Check if this email was ALREADY an Admin in our system
+    -- This ensures legitimate admins don't lose access if they re-register.
+    SELECT role INTO existing_role
+    FROM public.admin_users
+    WHERE lower(email) = lower(NEW.email)
+    ORDER BY CASE WHEN lower(role) = 'admin' THEN 1 ELSE 2 END
+    LIMIT 1;
+
+    -- C. CLEANUP Orphaned records
+    -- We delete by email to prevent "duplicate key" errors on email unique constraint.
+    -- Crucial: Delete from user_roles first to satisfy potential FKs.
     DELETE FROM public.user_roles WHERE user_id IN (
         SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
     );
     DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id;
 
-    -- C. SYNC: ALWAYS default new users to 'user' role for security.
-    -- This ensures that even if stale data existed, the new account starts with zero admin privileges.
-
+    -- D. SYNC to user_roles
+    -- Native UUID (NEW.id) is used. Role is preserved or defaulted to 'user'.
     INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'user'::public.app_role)
+    VALUES (
+        NEW.id,
+        CASE WHEN lower(existing_role) = 'admin' THEN 'admin'::public.app_role ELSE 'user'::public.app_role END
+    )
     ON CONFLICT (user_id) DO UPDATE SET
-        role = CASE WHEN public.user_roles.role = 'admin' THEN 'admin'::public.app_role ELSE 'user'::public.app_role END;
+        role = EXCLUDED.role;
 
+    -- E. SYNC to admin_users (UI table)
     INSERT INTO public.admin_users (id, email, name, role, joined_at)
     VALUES (
         NEW.id,
         NEW.email,
         user_full_name,
-        'User',
+        CASE WHEN lower(existing_role) = 'admin' THEN 'Admin' ELSE 'User' END,
         NOW()
     )
     ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         name = EXCLUDED.name,
-        role = CASE WHEN public.admin_users.role = 'Admin' THEN 'Admin' ELSE 'User' END;
+        role = EXCLUDED.role;
 
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
+    -- Ensure user creation in auth.users is never blocked.
     RETURN NEW;
 END;
 $$;
 
--- 5. Re-enable the trigger (CRITICAL FIX: Ensure it is actually attached)
+-- 5. Re-enable the trigger
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP TRIGGER IF EXISTS on_auth_user_created_sync ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -127,13 +142,14 @@ BEGIN
 
   UPDATE public.invitation_links SET uses_count = uses_count + 1 WHERE id = inv.id;
 
-  -- Force 'user' role assignment
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (user_id_param, 'user'::public.app_role)
-  ON CONFLICT (user_id) DO UPDATE SET role = 'user'::public.app_role;
+  -- Assign 'user' role ONLY if they aren't already an admin.
+  IF NOT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = user_id_param AND lower(role::text) = 'admin') THEN
+      INSERT INTO public.user_roles (user_id, role)
+      VALUES (user_id_param, 'user'::public.app_role)
+      ON CONFLICT (user_id) DO UPDATE SET role = 'user'::public.app_role;
 
-  -- Sync to admin_users UI table
-  UPDATE public.admin_users SET role = 'User' WHERE id = user_id_param;
+      UPDATE public.admin_users SET role = 'User' WHERE id = user_id_param;
+  END IF;
 
   RETURN true;
 END;
@@ -177,13 +193,11 @@ BEGIN
     END IF;
 END $$;
 
--- 9. Backfill Missing Users (Fixes current broken accounts)
--- Sync to user_roles
+-- 9. Backfill Missing Users
 INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'user'::public.app_role FROM auth.users
 ON CONFLICT (user_id) DO NOTHING;
 
--- Sync to admin_users
 INSERT INTO public.admin_users (id, email, name, role, joined_at)
 SELECT
     u.id,
