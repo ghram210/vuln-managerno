@@ -1,22 +1,31 @@
 -- ========================================================
--- BULLETPROOF User Management and Security Fix (v2)
+-- BULLETPROOF User Management and Security Fix (v3)
 -- ========================================================
 -- This migration addresses:
 -- 1. "Invalid login credentials" after registration by ensuring roles are assigned correctly.
 -- 2. Data leakage by tightening scan_results RLS policies.
 -- 3. Registration failures by robustly cleaning up orphaned email records.
--- 4. Case-insensitivity in role checks.
+-- 4. Case-insensitivity in role checks and handling of ENUM vs TEXT types.
 
--- 1. Standardize existing roles and clean up potential duplicates
+-- 1. Ensure the app_role ENUM exists if it's being used by the system
 DO $$
 BEGIN
-    -- Standardize roles to capitalized for UI
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+        CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+    END IF;
+END $$;
+
+-- 2. Standardize existing roles and clean up potential duplicates
+DO $$
+BEGIN
+    -- Standardize roles to capitalized for UI in admin_users (TEXT)
     UPDATE public.admin_users SET role = 'Admin' WHERE lower(role) = 'admin';
     UPDATE public.admin_users SET role = 'User' WHERE lower(role) = 'user' OR role IS NULL;
 
-    -- Standardize user_roles to lowercase for logic
-    UPDATE public.user_roles SET role = 'admin' WHERE lower(role) = 'admin';
-    UPDATE public.user_roles SET role = 'user' WHERE lower(role) = 'user' OR role IS NULL;
+    -- Standardize user_roles (Handles potential ENUM or TEXT)
+    -- We use explicit casting to text for lower() function compatibility
+    UPDATE public.user_roles SET role = 'admin'::public.app_role WHERE lower(role::text) = 'admin';
+    UPDATE public.user_roles SET role = 'user'::public.app_role WHERE lower(role::text) = 'user' OR role IS NULL;
 
     -- Clean up duplicate emails in admin_users (keep Admin if exists, else newest)
     DELETE FROM public.admin_users a
@@ -43,17 +52,17 @@ BEGIN
     END IF;
 END $$;
 
--- 2. Case-insensitive has_role function
+-- 3. Case-insensitive has_role function (handles ENUM casting)
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.user_roles
-    WHERE user_id = _user_id AND lower(role) = lower(_role)
+    WHERE user_id = _user_id AND lower(role::text) = lower(_role)
   );
 $$;
 
--- 3. Robust Trigger Function for new users
+-- 4. Robust Trigger Function for new users
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
@@ -65,7 +74,6 @@ BEGIN
     user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
     -- B. Determine target role: Check if this email was pre-registered as Admin in admin_users
-    -- We use a subquery to avoid potential issues if there are still temp duplicates
     SELECT role INTO target_role
     FROM public.admin_users
     WHERE lower(email) = lower(NEW.email)
@@ -76,21 +84,20 @@ BEGIN
     target_role := COALESCE(target_role, 'User');
 
     -- C. CLEANUP orphaned records with same email but different ID
-    -- We cast IDs explicitly to avoid type errors
     DELETE FROM public.user_roles WHERE user_id IN (
         SELECT id::uuid FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id::uuid <> NEW.id
     );
     DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id::uuid <> NEW.id;
 
-    -- D. SYNC: user_roles (lowercase)
+    -- D. SYNC: user_roles (lowercase, cast to ENUM if needed)
     INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, lower(target_role))
+    VALUES (NEW.id, lower(target_role)::public.app_role)
     ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role;
 
     -- E. SYNC: admin_users (capitalized)
     INSERT INTO public.admin_users (id, email, name, role, joined_at)
     VALUES (
-        NEW.id::text, -- Cast to text if needed by Drizzle schema, though DB might be UUID
+        NEW.id::text,
         NEW.email,
         user_full_name,
         CASE WHEN lower(target_role) = 'admin' THEN 'Admin' ELSE 'User' END,
@@ -108,23 +115,21 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
--- 4. Re-enable the trigger
+-- 5. Re-enable the trigger
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 5. Tighten RLS for scan_results (Security Fix)
--- Users should only see their own scans. Admins see everything.
+-- 6. Tighten RLS for scan_results (Security Fix)
 DROP POLICY IF EXISTS "Authenticated can view scan_results" ON public.scan_results;
 CREATE POLICY "Users can view own scan_results"
   ON public.scan_results FOR SELECT TO authenticated
   USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
 
--- 6. Backfill missing users
--- Ensure everyone in auth.users has at least a 'user' role
+-- 7. Backfill missing users
 INSERT INTO public.user_roles (user_id, role)
-SELECT id, 'user' FROM auth.users
+SELECT id, 'user'::public.app_role FROM auth.users
 ON CONFLICT (user_id) DO NOTHING;
 
 INSERT INTO public.admin_users (id, email, name, role, joined_at)
