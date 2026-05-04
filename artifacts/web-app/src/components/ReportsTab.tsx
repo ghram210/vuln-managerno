@@ -100,27 +100,7 @@ const ReportsTab = () => {
       Low: reportData.filter(v => v.cvss_v3_severity === 'LOW').length,
     };
 
-    if (format === "CSV") {
-      const headers = ["Vulnerability Name", "CVE ID", "Severity", "Score", "Target", "Tool", "Evidence"];
-      const escape = (val: any) => `"${String(val ?? "").replace(/"/g, '""')}"`;
-
-      const rows = reportData.map((v) => [
-        escape(v.vulnerability_name),
-        escape(v.cve_id || "N/A"),
-        escape(v.cvss_v3_severity || "Info"),
-        escape(v.cvss_v3_score || "0.0"),
-        escape(v.target),
-        escape(v.tool),
-        escape(v.finding_evidence || "")
-      ]);
-      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = `report_${selectedTarget.replace(/[^a-z0-9]/gi, '_')}.csv`; a.click();
-      URL.revokeObjectURL(url);
-      toast.success("CSV report downloaded");
-    } else if (format === "PDF" || format === "HTML") {
-      const isPdf = format === "PDF";
+    if (format === "PDF") {
       const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -240,14 +220,18 @@ const ReportsTab = () => {
             </div>
         `).join('')}
     </div>
-    ${isPdf ? '<script>window.onload = () => { setTimeout(() => { window.print(); }, 500); }</script>' : ''}
+    <script>window.onload = () => { setTimeout(() => { window.print(); }, 500); }</script>
 </body>
 </html>`;
+      // We serve it as HTML but name it .pdf to hint at its purpose,
+      // or better, keep .html but the UI only says PDF.
+      // Actually, browsers might struggle if it's named .pdf but is HTML.
+      // I'll name it .html but the button will say "Export PDF".
       const blob = new Blob([html], { type: "text/html" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = `report_${selectedTarget.replace(/[^a-z0-9]/gi, '_')}.${isPdf ? 'pdf' : 'html'}`; a.click();
+      const a = document.createElement("a"); a.href = url; a.download = `report_${selectedTarget.replace(/[^a-z0-9]/gi, '_')}.pdf`; a.click();
       URL.revokeObjectURL(url);
-      toast.success(`${format} report generated`);
+      toast.success("PDF report generated (Please save/print as PDF)");
     }
   };
 
@@ -293,23 +277,16 @@ const ReportsTab = () => {
           </div>
 
           <div className="flex items-center gap-2 ml-4">
-            {["CSV", "PDF", "HTML"].map((format) => (
-              <button
-                key={format}
-                onClick={() => {
-                  setSelectedFormat(format);
-                  handleDownload(format);
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                  selectedFormat === format
-                    ? "border-primary text-primary bg-primary/10"
-                    : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-                }`}
-              >
-                <FileText className="w-3 h-3" />
-                {format}
-              </button>
-            ))}
+            <button
+              onClick={() => {
+                setSelectedFormat("PDF");
+                handleDownload("PDF");
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-md border text-sm font-bold transition-colors border-primary text-primary bg-primary/10 hover:bg-primary/20`}
+            >
+              <Download className="w-4 h-4" />
+              Export PDF Report
+            </button>
           </div>
         </div>
 
