@@ -48,24 +48,11 @@ router.post("/", async (req, res): Promise<void> => {
 
     const { email } = req.body as { email?: string };
 
-    // Pre-store the user in admin_users if email is provided
-    if (email) {
-      const { error: preUserError } = await supabaseAdmin
-        .from("admin_users")
-        .upsert(
-          {
-            email: email.toLowerCase(),
-            name: email.split("@")[0],
-            role: "User",
-          },
-          { onConflict: "email" }
-        );
-
-      if (preUserError) {
-        console.warn("Pre-storing invited user failed:", preUserError.message);
-        // We continue anyway, as the invitation itself is more important
-      }
-    }
+    // NOTE: Pre-storing the user in admin_users here is discouraged because
+    // it creates a record with a NULL ID or a placeholder ID that conflicts
+    // with the real auth.users ID created later.
+    // The handle_new_user trigger in the database now handles the sync
+    // and cleanup of any existing email records during the actual signup.
 
     const { data, error } = await supabaseAdmin
       .from("invitation_links")

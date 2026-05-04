@@ -57,16 +57,9 @@ END $$;
 -- User requested to delete these specifically so they can re-register correctly.
 DELETE FROM auth.users WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com');
 
--- Cascading delete should handle user_roles and admin_users if foreign keys are set up,
--- but let's be explicit to be safe.
-DELETE FROM public.user_roles WHERE user_id IN (
-    SELECT id FROM auth.users WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com')
-);
-DELETE FROM public.admin_users WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com');
-
--- CLEANUP ORPHANS: Remove records that don't have a corresponding auth.users entry
+-- Explicitly delete from public tables just in case CASCADE isn't there
 DELETE FROM public.user_roles WHERE user_id NOT IN (SELECT id FROM auth.users);
-DELETE FROM public.admin_users WHERE id NOT IN (SELECT id FROM auth.users);
+DELETE FROM public.admin_users WHERE id NOT IN (SELECT id FROM auth.users) OR id IS NULL;
 
 -- 3. Case-insensitive has_role function (handles ENUM casting correctly)
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role text)
@@ -116,19 +109,17 @@ BEGIN
     -- A. Extract metadata
     user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
-    -- B. Proactive CLEANUP and Migration of orphaned records by email
-    -- Update existing scan results to link to the new authenticated user ID
-    UPDATE public.scan_results
-    SET user_id = NEW.id
-    WHERE user_id IN (
-        SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
-    );
+    -- B. Proactive CLEANUP of problematic existing records by email
+    -- This handles the "Database error saving new user" by removing potential email conflicts
+    -- and orphaned records (like the ones with NULL IDs seen in the logs).
 
-    -- This prevents unique constraint violations during re-registration
-    DELETE FROM public.user_roles WHERE user_id IN (
-        SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
-    );
-    DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id;
+    -- Cleanup user_roles by finding IDs associated with this email
+    DELETE FROM public.user_roles
+    WHERE user_id IN (SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email))
+       OR user_id = NEW.id;
+
+    -- Cleanup admin_users by email or ID
+    DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) OR id = NEW.id;
 
     -- C. SYNC: Default to 'user' role for security, EXCEPT for protected admins
     IF lower(NEW.email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com') THEN
@@ -136,11 +127,11 @@ BEGIN
         target_role_label := 'Admin';
     END IF;
 
+    -- Insert into user_roles
     INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, target_role)
-    ON CONFLICT (user_id) DO UPDATE SET
-        role = EXCLUDED.role;
+    VALUES (NEW.id, target_role);
 
+    -- Insert into admin_users
     INSERT INTO public.admin_users (id, email, name, role, joined_at)
     VALUES (
         NEW.id,
@@ -148,14 +139,12 @@ BEGIN
         user_full_name,
         target_role_label,
         NOW()
-    )
-    ON CONFLICT (id) DO UPDATE SET
-        email = EXCLUDED.email,
-        name = EXCLUDED.name,
-        role = EXCLUDED.role;
+    );
 
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
+    -- Log error details if possible (PostgreSQL 9.6+)
+    -- RAISE WARNING 'Error in handle_new_user for %: %', NEW.email, SQLERRM;
     RETURN NEW;
 END;
 $$;
