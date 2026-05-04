@@ -1,8 +1,8 @@
-import { pgTable, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const scanResultsTable = pgTable("scan_results", {
-  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   target: text("target").notNull(),
   tool: text("tool").notNull(),
@@ -11,7 +11,7 @@ export const scanResultsTable = pgTable("scan_results", {
   options: text("options"),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
-  userId: text("user_id"),
+  userId: uuid("user_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   criticalCount: integer("critical_count").notNull().default(0),
   highCount: integer("high_count").notNull().default(0),

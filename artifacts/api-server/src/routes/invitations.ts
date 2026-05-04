@@ -48,6 +48,29 @@ router.post("/", async (req, res): Promise<void> => {
 
     const { email } = req.body as { email?: string };
 
+    // PRE-REGISTRATION: Create a placeholder in admin_users so the UI shows the invited user immediately.
+    // Note: We use a random UUID because 'id' is a required UUID column.
+    // The 'handle_new_user' trigger in Postgres will handle 'adopting' this record
+    // by deleting the placeholder and creating the real record during signup.
+    if (email) {
+      const { error: preUserError } = await supabaseAdmin
+        .from("admin_users")
+        .upsert(
+          {
+            id: crypto.randomUUID(),
+            email: email.toLowerCase(),
+            name: email.split("@")[0],
+            role: "User",
+            joined_at: new Date().toISOString()
+          },
+          { onConflict: "email" }
+        );
+
+      if (preUserError) {
+        console.warn("Pre-storing invited user placeholder failed:", preUserError.message);
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from("invitation_links")
       .insert({

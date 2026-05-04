@@ -1,8 +1,8 @@
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const adminUsersTable = pgTable("admin_users", {
-  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name"),
   email: text("email").notNull(),
   role: text("role").notNull().default("user"),
