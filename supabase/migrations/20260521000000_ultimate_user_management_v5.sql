@@ -55,7 +55,14 @@ END $$;
 
 -- 2. Clean up specific accidental admins (Security Cleanup)
 -- User requested to handle these specifically.
-DELETE FROM auth.users WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com');
+-- We also delete these from auth.users so they can re-register correctly.
+DELETE FROM auth.users WHERE lower(email) IN (
+    'rhallhanin@gmail.com',
+    'rhaalhanin@gmail.com',
+    'gharamrahal6@gmil.com',
+    'gharamrahal6@gmail.com',
+    'almwshlyjyhan@gmail.com'
+);
 
 -- Explicitly delete from public tables just in case CASCADE isn't there
 DELETE FROM public.user_roles WHERE user_id NOT IN (SELECT id FROM auth.users);
@@ -106,45 +113,48 @@ DECLARE
     target_role public.app_role := 'user'::public.app_role;
     target_role_label text := 'User';
 BEGIN
-    -- A. Extract metadata
-    user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
+    BEGIN
+        -- A. Extract metadata
+        user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
-    -- B. Proactive CLEANUP of orphaned records by email
-    -- This prevents unique constraint (email) violations when a placeholder exists with a different ID
-    -- This is critical for users who were invited and already exist in admin_users as placeholders.
-    DELETE FROM public.user_roles WHERE user_id IN (
-        SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
-    );
-    DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id;
+        -- B. Proactive CLEANUP of orphaned records or placeholders by email
+        -- This prevents unique constraint (email) violations when a placeholder exists with a different ID
+        DELETE FROM public.user_roles WHERE user_id IN (
+            SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
+        );
+        DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id;
 
-    -- C. Sync Role: Default to 'user' role for security, EXCEPT for protected admins
-    IF lower(NEW.email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com') THEN
-        target_role := 'admin'::public.app_role;
-        target_role_label := 'Admin';
-    END IF;
+        -- C. Sync Role: Default to 'user' role for security, EXCEPT for protected admins
+        IF lower(NEW.email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com') THEN
+            target_role := 'admin'::public.app_role;
+            target_role_label := 'Admin';
+        END IF;
 
-    -- D. Sync to user_roles
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, target_role)
-    ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role;
+        -- D. Sync to user_roles
+        INSERT INTO public.user_roles (user_id, role)
+        VALUES (NEW.id, target_role)
+        ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role;
 
-    -- E. Sync to admin_users
-    INSERT INTO public.admin_users (id, email, name, role, joined_at)
-    VALUES (
-        NEW.id,
-        NEW.email,
-        user_full_name,
-        target_role_label,
-        NOW()
-    )
-    ON CONFLICT (id) DO UPDATE SET
-        email = EXCLUDED.email,
-        name = EXCLUDED.name,
-        role = EXCLUDED.role;
+        -- E. Sync to admin_users
+        INSERT INTO public.admin_users (id, email, name, role, joined_at)
+        VALUES (
+            NEW.id,
+            NEW.email,
+            user_full_name,
+            target_role_label,
+            NOW()
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            email = EXCLUDED.email,
+            name = EXCLUDED.name,
+            role = EXCLUDED.role;
 
-    RETURN NEW;
-EXCEPTION WHEN OTHERS THEN
-    -- We MUST return NEW even on failure to avoid blocking the registration transaction
+    EXCEPTION WHEN OTHERS THEN
+        -- We catch all errors here so the main registration in auth.users is NEVER blocked.
+        -- If syncing fails, the user can still register, and we can backfill later.
+        NULL;
+    END;
+
     RETURN NEW;
 END;
 $$;
