@@ -17,33 +17,56 @@ BEGIN
     END IF;
 END $$;
 
--- Ensure user_roles uses the enum
+-- FIX DATA TYPES: Ensure tables use UUID for foreign keys to match auth.users
+DO $$
+BEGIN
+    -- admin_users.id
+    IF (SELECT data_type FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'admin_users' AND column_name = 'id') = 'text' THEN
+        ALTER TABLE public.admin_users ALTER COLUMN id TYPE uuid USING id::uuid;
+    END IF;
+
+    -- user_roles.user_id
+    IF (SELECT data_type FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'user_roles' AND column_name = 'user_id') = 'text' THEN
+        ALTER TABLE public.user_roles ALTER COLUMN user_id TYPE uuid USING user_id::uuid;
+    END IF;
+
+    -- scan_results.user_id
+    IF (SELECT data_type FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'scan_results' AND column_name = 'user_id') = 'text' THEN
+        ALTER TABLE public.scan_results ALTER COLUMN user_id TYPE uuid USING user_id::uuid;
+    END IF;
+END $$;
+
+-- Ensure user_roles uses the enum and fix casing
 DO $$
 BEGIN
     -- Check if the column is already of the enum type
     IF (SELECT data_type FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'user_roles' AND column_name = 'role') = 'text' THEN
 
+        -- Lowercase everything first to ensure casting to ENUM (which is lowercase 'admin'/'user') works
+        UPDATE public.user_roles SET role = lower(role);
+
         ALTER TABLE public.user_roles ALTER COLUMN role TYPE public.app_role USING role::public.app_role;
     END IF;
 END $$;
 
 -- 2. Clean up specific accidental admins (Security Cleanup)
-DO $$
-BEGIN
-    -- List of emails to demote to 'User'
-    -- This handles the specific users you mentioned (and potential typos)
-    UPDATE public.user_roles
-    SET role = 'user'::public.app_role
-    WHERE user_id IN (
-        SELECT id FROM auth.users
-        WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com')
-    );
+-- User requested to delete these specifically so they can re-register correctly.
+DELETE FROM auth.users WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com');
 
-    UPDATE public.admin_users
-    SET role = 'User'
-    WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com');
-END $$;
+-- Cascading delete should handle user_roles and admin_users if foreign keys are set up,
+-- but let's be explicit to be safe.
+DELETE FROM public.user_roles WHERE user_id IN (
+    SELECT id FROM auth.users WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com')
+);
+DELETE FROM public.admin_users WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhanin@gmail.com', 'gharamrahal6@gmil.com', 'gharamrahal6@gmail.com');
+
+-- CLEANUP ORPHANS: Remove records that don't have a corresponding auth.users entry
+DELETE FROM public.user_roles WHERE user_id NOT IN (SELECT id FROM auth.users);
+DELETE FROM public.admin_users WHERE id NOT IN (SELECT id FROM auth.users);
 
 -- 3. Case-insensitive has_role function (handles ENUM casting correctly)
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role text)
@@ -53,6 +76,32 @@ AS $$
     SELECT 1 FROM public.user_roles
     WHERE user_id = _user_id AND lower(role::text) = lower(_role)
   );
+$$;
+
+-- Improved Validation Function to return email (used by AcceptInvite.tsx)
+CREATE OR REPLACE FUNCTION public.validate_invitation_token(token_param text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  invitation_record RECORD;
+BEGIN
+  SELECT * INTO invitation_record
+  FROM public.invitation_links
+  WHERE token = token_param
+    AND is_active = true
+    AND (expires_at IS NULL OR expires_at > now())
+    AND (max_uses IS NULL OR uses_count < max_uses);
+
+  IF invitation_record IS NULL THEN
+    RETURN jsonb_build_object('valid', false, 'error', 'Invalid or expired invitation link');
+  END IF;
+
+  RETURN jsonb_build_object(
+    'valid', true,
+    'invitation_id', invitation_record.id,
+    'email', invitation_record.email
+  );
+END;
 $$;
 
 -- 4. Robust Trigger Function for ANY new user signup
@@ -73,12 +122,12 @@ BEGIN
     DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id;
 
     -- C. SYNC: ALWAYS default new users to 'user' role for security.
-    -- This ensures that even if stale data existed, the new account starts with zero admin privileges.
+    -- STRICT: Even if there was a conflict, we force it to 'user'.
 
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, 'user'::public.app_role)
     ON CONFLICT (user_id) DO UPDATE SET
-        role = CASE WHEN public.user_roles.role = 'admin' THEN 'admin'::public.app_role ELSE 'user'::public.app_role END;
+        role = 'user'::public.app_role;
 
     INSERT INTO public.admin_users (id, email, name, role, joined_at)
     VALUES (
@@ -91,7 +140,7 @@ BEGIN
     ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         name = EXCLUDED.name,
-        role = CASE WHEN public.admin_users.role = 'Admin' THEN 'Admin' ELSE 'User' END;
+        role = 'User';
 
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
