@@ -59,7 +59,7 @@ DELETE FROM auth.users WHERE lower(email) IN ('rhallhanin@gmail.com', 'rhaalhani
 
 -- Explicitly delete from public tables just in case CASCADE isn't there
 DELETE FROM public.user_roles WHERE user_id NOT IN (SELECT id FROM auth.users);
-DELETE FROM public.admin_users WHERE id NOT IN (SELECT id FROM auth.users) OR id IS NULL;
+DELETE FROM public.admin_users WHERE id NOT IN (SELECT id FROM auth.users) AND email NOT IN (SELECT email FROM public.invitation_links);
 
 -- 3. Case-insensitive has_role function (handles ENUM casting correctly)
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role text)
@@ -105,46 +105,55 @@ DECLARE
     user_full_name text;
     target_role public.app_role := 'user'::public.app_role;
     target_role_label text := 'User';
+    rows_affected int;
 BEGIN
     -- A. Extract metadata
     user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
 
-    -- B. Proactive CLEANUP of problematic existing records by email
-    -- This handles the "Database error saving new user" by removing potential email conflicts
-    -- and orphaned records (like the ones with NULL IDs seen in the logs).
+    -- B. Adoption / Sync Logic
+    -- Instead of deleting, we try to adopt existing placeholder records created by the API server.
 
-    -- Cleanup user_roles by finding IDs associated with this email
-    DELETE FROM public.user_roles
-    WHERE user_id IN (SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email))
-       OR user_id = NEW.id;
-
-    -- Cleanup admin_users by email or ID
-    DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) OR id = NEW.id;
-
-    -- C. SYNC: Default to 'user' role for security, EXCEPT for protected admins
+    -- Sync Role: Default to 'user' role for security, EXCEPT for protected admins
     IF lower(NEW.email) IN ('akatsukigh510@gmail.com', 'jehanmoshle@gmail.com') THEN
         target_role := 'admin'::public.app_role;
         target_role_label := 'Admin';
     END IF;
 
-    -- Insert into user_roles
+    -- Adopt or Insert user_roles
     INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, target_role);
+    VALUES (NEW.id, target_role)
+    ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role;
 
-    -- Insert into admin_users
-    INSERT INTO public.admin_users (id, email, name, role, joined_at)
-    VALUES (
-        NEW.id,
-        NEW.email,
-        user_full_name,
-        target_role_label,
-        NOW()
-    );
+    -- Adopt or Insert admin_users
+    -- 1. Try to update an existing record by email (adoption)
+    UPDATE public.admin_users
+    SET id = NEW.id,
+        name = user_full_name,
+        role = target_role_label,
+        joined_at = NOW()
+    WHERE lower(email) = lower(NEW.email);
+
+    GET DIAGNOSTICS rows_affected = ROW_COUNT;
+
+    -- 2. If no record was updated, insert a new one
+    IF rows_affected = 0 THEN
+        INSERT INTO public.admin_users (id, email, name, role, joined_at)
+        VALUES (
+            NEW.id,
+            NEW.email,
+            user_full_name,
+            target_role_label,
+            NOW()
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            email = EXCLUDED.email,
+            name = EXCLUDED.name,
+            role = EXCLUDED.role;
+    END IF;
 
     RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
-    -- Log error details if possible (PostgreSQL 9.6+)
-    -- RAISE WARNING 'Error in handle_new_user for %: %', NEW.email, SQLERRM;
+    -- We MUST return NEW even on failure to avoid blocking the registration transaction
     RETURN NEW;
 END;
 $$;
