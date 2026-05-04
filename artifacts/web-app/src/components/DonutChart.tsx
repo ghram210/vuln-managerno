@@ -140,7 +140,9 @@ const DonutChart = ({
     [data],
   );
 
-  const isEmpty = !loading && total === 0;
+  const isEmpty = !loading && data.length === 0;
+  const isZeroTotal = !loading && !isEmpty && total === 0;
+
   const activeColor =
     activeIndex !== undefined ? data[activeIndex]?.color : undefined;
 
@@ -206,29 +208,34 @@ const DonutChart = ({
                   content={<CustomTooltip total={total} />}
                   cursor={false}
                   wrapperStyle={{ outline: "none" }}
+                  active={!isZeroTotal}
                 />
                 <Pie
-                  data={data}
+                  data={isZeroTotal ? [{ name: "No data", value: 1, color: "hsl(var(--muted-foreground)/0.2)" }] : data}
                   cx="50%"
                   cy="50%"
                   innerRadius={58}
                   outerRadius={82}
-                  paddingAngle={data.length > 1 ? 2 : 0}
-                  cornerRadius={data.length > 1 ? 6 : 0}
+                  paddingAngle={!isZeroTotal && data.length > 1 ? 2 : 0}
+                  cornerRadius={!isZeroTotal && data.length > 1 ? 6 : 0}
                   dataKey="value"
                   stroke="hsl(var(--card))"
-                  strokeWidth={data.length > 1 ? 2 : 0}
-                  activeIndex={activeIndex}
-                  activeShape={renderActiveShape}
-                  onMouseEnter={(_, i) => setActiveIndex(i)}
-                  onMouseLeave={() => setActiveIndex(undefined)}
+                  strokeWidth={!isZeroTotal && data.length > 1 ? 2 : 0}
+                  activeIndex={isZeroTotal ? undefined : activeIndex}
+                  activeShape={isZeroTotal ? undefined : renderActiveShape}
+                  onMouseEnter={isZeroTotal ? undefined : (_, i) => setActiveIndex(i)}
+                  onMouseLeave={isZeroTotal ? undefined : () => setActiveIndex(undefined)}
                   isAnimationActive
                   animationDuration={650}
                   animationEasing="ease-out"
                 >
-                  {data.map((d, i) => (
-                    <Cell key={i} fill={`url(#${gradId(i)})`} />
-                  ))}
+                  {isZeroTotal ? (
+                    <Cell fill="hsl(var(--muted-foreground)/0.1)" stroke="none" />
+                  ) : (
+                    data.map((d, i) => (
+                      <Cell key={i} fill={`url(#${gradId(i)})`} />
+                    ))
+                  )}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
