@@ -7,11 +7,16 @@ UPDATE public.admin_users SET role = 'Admin' WHERE lower(role) = 'admin';
 UPDATE public.admin_users SET role = 'User' WHERE lower(role) = 'user' OR role IS NULL;
 
 -- 2. Clean up duplicate emails in admin_users
--- Keeps the most recently joined entry for each email address
+-- Keeps the 'Admin' record if exists, otherwise the most recently joined entry
 DELETE FROM public.admin_users a
 WHERE a.id IN (
     SELECT id FROM (
-        SELECT id, row_number() OVER (PARTITION BY lower(email) ORDER BY joined_at DESC) as rn
+        SELECT id, row_number() OVER (
+            PARTITION BY lower(email)
+            ORDER BY
+                CASE WHEN role = 'Admin' THEN 1 ELSE 2 END,
+                joined_at DESC
+        ) as rn
         FROM public.admin_users
     ) t WHERE t.rn > 1
 );
