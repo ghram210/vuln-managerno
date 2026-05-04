@@ -1,11 +1,11 @@
 -- ========================================================
--- BULLETPROOF User Management and Security Fix (v3)
+-- BULLETPROOF User Management and Security Fix (v4)
 -- ========================================================
 -- This migration addresses:
 -- 1. "Invalid login credentials" after registration by ensuring roles are assigned correctly.
 -- 2. Data leakage by tightening scan_results RLS policies.
 -- 3. Registration failures by robustly cleaning up orphaned email records.
--- 4. Case-insensitivity in role checks and handling of ENUM vs TEXT types.
+-- 4. Case-insensitivity and strict type handling for UUIDs and ENUMs.
 
 -- 1. Ensure the app_role ENUM exists if it's being used by the system
 DO $$
@@ -84,10 +84,11 @@ BEGIN
     target_role := COALESCE(target_role, 'User');
 
     -- C. CLEANUP orphaned records with same email but different ID
+    -- We ensure all ID comparisons use the native UUID type
     DELETE FROM public.user_roles WHERE user_id IN (
-        SELECT id::uuid FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id::uuid <> NEW.id
+        SELECT id FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id
     );
-    DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id::uuid <> NEW.id;
+    DELETE FROM public.admin_users WHERE lower(email) = lower(NEW.email) AND id <> NEW.id;
 
     -- D. SYNC: user_roles (lowercase, cast to ENUM if needed)
     INSERT INTO public.user_roles (user_id, role)
@@ -97,7 +98,7 @@ BEGIN
     -- E. SYNC: admin_users (capitalized)
     INSERT INTO public.admin_users (id, email, name, role, joined_at)
     VALUES (
-        NEW.id::text,
+        NEW.id,
         NEW.email,
         user_full_name,
         CASE WHEN lower(target_role) = 'admin' THEN 'Admin' ELSE 'User' END,
@@ -134,7 +135,7 @@ ON CONFLICT (user_id) DO NOTHING;
 
 INSERT INTO public.admin_users (id, email, name, role, joined_at)
 SELECT
-    u.id::text,
+    u.id,
     u.email,
     COALESCE(u.raw_user_meta_data->>'full_name', u.email),
     'User',
@@ -142,6 +143,6 @@ SELECT
 FROM auth.users u
 WHERE NOT EXISTS (
     SELECT 1 FROM public.admin_users a
-    WHERE a.id::text = u.id::text OR lower(a.email) = lower(u.email)
+    WHERE a.id = u.id OR lower(a.email) = lower(u.email)
 )
 ON CONFLICT DO NOTHING;
