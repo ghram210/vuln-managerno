@@ -78,6 +78,10 @@ def _pairs_from_line(line: str, source: str) -> list[Fingerprint]:
     out: list[Fingerprint] = []
     seen: set[tuple[str, str, str]] = set()
 
+    # Path extraction for all tools
+    path_match = re.search(r"(/[A-Za-z0-9_\-./%]+)", line)
+    path = path_match.group(1) if path_match else None
+
     # 1) "Product/Version" form (most common in HTTP Server header)
     for m in re.finditer(r"([A-Za-z][\w.+ ]{1,30}?)/(\d[\w.\-]*)", line):
         prod_text, version = m.group(1).strip(), m.group(2).strip()
@@ -90,6 +94,7 @@ def _pairs_from_line(line: str, source: str) -> list[Fingerprint]:
         seen.add(key)
         out.append(Fingerprint(
             vendor=cpe[0], product=cpe[1], version=version,
+            path=path,
             source=source, evidence=line.strip()[:300],
         ))
 
@@ -114,6 +119,7 @@ def _pairs_from_line(line: str, source: str) -> list[Fingerprint]:
         seen.add(key)
         out.append(Fingerprint(
             vendor=cpe[0], product=cpe[1], version=version,
+            path=path,
             source=source, evidence=line.strip()[:300],
         ))
 

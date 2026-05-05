@@ -60,7 +60,8 @@ def build_payload(
             "target": target,
             "title": title[:200],
             "service": service[:200],
-            "evidence": (fp.evidence or "")[:1000] or None,
+            "path": fp.path,
+            "evidence": fp.evidence or None,  # Removed truncation
             "metadata": {
                 "vendor": fp.vendor,
                 "product": fp.product,
@@ -75,19 +76,19 @@ def build_payload(
             if c.cve_id not in cve_map:
                 cve_map[c.cve_id] = {
                     "cve_id": c.cve_id,
-                    "description": (c.description or "")[:500] or None,
+                    "description": c.description or None, # Removed truncation
                     "cvss_v3_score": c.cvss_score,
                     "cvss_v3_severity": (c.cvss_severity or "").upper() or None,
                     "cvss_v3_vector": c.cvss_vector,
                     "published_date": (c.published_date or "")[:10] or None,
-                    "references_urls": c.references[:5],
+                    "references_urls": c.references, # Removed limit
                     "affected_products": [],
                 }
             links.append({
                 "client_id": client_id,        # internal — translated to UUID later
                 "cve_id": c.cve_id,
                 "match_confidence": "version" if fp.version else "fingerprint",
-                "match_evidence": (fp.evidence or "")[:300] or None,
+                "match_evidence": fp.evidence or None, # Removed truncation
             })
             for ex in c.exploits:
                 if ex.edb_id in exploit_map:
@@ -96,6 +97,7 @@ def build_payload(
                     "exploit_db_id": ex.edb_id,
                     "cve_id": c.cve_id,
                     "title": (ex.description or f"EDB-{ex.edb_id}")[:200],
+                    "description": ex.description, # Added full description
                     "type": ex.type,
                     "platform": ex.platform,
                     "date_published": (ex.date_published or "")[:10] or None,

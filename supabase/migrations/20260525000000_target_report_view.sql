@@ -1,17 +1,17 @@
 -- =============================================================
--- Target Specific Report View (v4 - Bulletproof & Inclusive)
+-- Target Specific Report View (v5 - Technical Deep Dive)
 -- =============================================================
 -- This view consolidates all data needed for a professional,
 -- target-specific vulnerability report.
--- v4 Fixes:
--- 1. Explicitly ensures all required columns exist in scan_findings.
--- 2. Uses finding.severity as a fallback for severity_score.
--- 3. Ensures all findings are returned even without CVE metadata.
+-- v5 Fixes:
+-- 1. Adds 'description' and 'platform' to public.exploits.
+-- 2. Ensures 'scan_findings' has 'path' for Nikto/FFUF.
+-- 3. Aggregates full technical metadata for the report.
 -- =============================================================
 
 BEGIN;
 
--- Ensure scan_findings has all necessary columns for the report
+-- 1. Infrastructure Upgrades
 ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS title    TEXT;
 ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS path     TEXT;
 ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS severity TEXT DEFAULT 'info';
@@ -20,6 +20,11 @@ ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS tool     TEXT;
 ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS service  TEXT;
 ALTER TABLE public.scan_findings ADD COLUMN IF NOT EXISTS evidence TEXT;
 
+ALTER TABLE public.exploits ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.exploits ADD COLUMN IF NOT EXISTS platform    TEXT;
+ALTER TABLE public.exploits ADD COLUMN IF NOT EXISTS type        TEXT;
+
+-- 2. The View
 DROP VIEW IF EXISTS public.target_report_data CASCADE;
 
 CREATE OR REPLACE VIEW public.target_report_data WITH (security_invoker = true) AS
@@ -45,6 +50,9 @@ SELECT
       'exploits', (
         SELECT json_agg(json_build_object(
           'title', e.title,
+          'description', e.description,
+          'platform', e.platform,
+          'type', e.type,
           'url', e.exploit_url,
           'verified', e.verified
         ))
@@ -57,7 +65,6 @@ SELECT
     WHERE fc.finding_id = f.id
   ) AS cve_details,
   -- Calculate a numeric severity score
-  -- Priority: CVSS Severity > Finding Severity
   COALESCE(
     (
       SELECT MAX(

@@ -589,22 +589,41 @@ const ReportsTab = () => {
                                 ${escapeHtml(cve.description)}
                             </p>
 
-                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                ${cve.exploits && cve.exploits.length > 0 ? `
-                                    <div class="exploit-tag">
-                                        Exploit Available (${cve.exploits.length})
-                                    </div>
-                                ` : ''}
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
                                 <div style="font-size: 11px; color: var(--text-muted); background: white; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border);">
                                     <strong>Vector:</strong> ${cve.cvss_v3_vector || 'N/A'}
                                 </div>
                             </div>
 
+                            ${cve.exploits && cve.exploits.length > 0 ? `
+                                <div style="margin-top: 20px; padding: 15px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px;">
+                                    <div style="font-size: 12px; font-weight: 800; color: #be123c; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                        <span style="display: inline-block; width: 8px; height: 8px; background: #be123c; border-radius: 50%;"></span>
+                                        Real Exploit Intelligence Identified
+                                    </div>
+
+                                    ${cve.exploits.map((ex: any) => `
+                                        <div style="margin-bottom: 15px; last-child: margin-bottom: 0;">
+                                            <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+                                                <span style="font-size: 11px; font-weight: 700; background: #be123c; color: white; padding: 2px 6px; border-radius: 4px;">${escapeHtml(ex.type || 'EXPLOIT')}</span>
+                                                <span style="font-size: 11px; font-weight: 700; background: #475569; color: white; padding: 2px 6px; border-radius: 4px;">${escapeHtml(ex.platform || 'General')}</span>
+                                                ${ex.verified ? '<span style="font-size: 11px; font-weight: 700; background: #16a34a; color: white; padding: 2px 6px; border-radius: 4px;">VERIFIED</span>' : ''}
+                                            </div>
+                                            <p style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 5px 0;">${escapeHtml(ex.title)}</p>
+                                            ${ex.description ? `
+                                                <div style="font-size: 12px; color: #475569; background: white; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 5px; font-family: 'JetBrains Mono', monospace; white-space: pre-wrap;">${escapeHtml(ex.description)}</div>
+                                            ` : ''}
+                                            <a href="${escapeHtml(ex.url)}" style="font-size: 11px; color: #be123c; text-decoration: underline; margin-top: 5px; display: inline-block;">View technical proof on ExploitDB</a>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+
                             ${cve.references_urls && cve.references_urls.length > 0 ? `
                                 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border);">
-                                    <span class="label">References</span>
+                                    <span class="label">Technical References</span>
                                     <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px;">
-                                        ${cve.references_urls.slice(0, 3).map((url: string) => {
+                                        ${cve.references_urls.slice(0, 5).map((url: string) => {
                                             let hostname = "Reference";
                                             try { hostname = new URL(url).hostname; } catch(e) {}
                                             return `
