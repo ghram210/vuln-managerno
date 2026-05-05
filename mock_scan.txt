@@ -1,0 +1,3 @@
++ Server: Jetty/9.4.44.v20210922
++ GitLab version 14.1.0 detected
++ SSH-2.0-OpenSSH_8.4p1 Debian-5+deb11u1

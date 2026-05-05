@@ -32,22 +32,45 @@ PRODUCT_MAP: dict[str, tuple[str, str]] = {
     "iis":             ("microsoft", "iis"),
     "lighttpd":        ("lighttpd",  "lighttpd"),
     "tomcat":          ("apache",    "tomcat"),
-    # CMSs
+    "jetty":           ("eclipse",   "jetty"),
+    "caddy":           ("caddyserver","caddy"),
+
+    # CMSs & Web Apps
     "wordpress":       ("wordpress", "wordpress"),
     "drupal":          ("drupal",    "drupal"),
     "joomla":          ("joomla",    "joomla!"),
     "magento":         ("magento",   "magento"),
+    "ghost":           ("ghost",     "ghost"),
+    "strapi":          ("strapi",    "strapi"),
+    "nextcloud":       ("nextcloud", "nextcloud"),
+    "owncloud":        ("owncloud",  "owncloud"),
+    "roundcube":       ("roundcube", "roundcube_webmail"),
+
+    # Dev & CI/CD
+    "gitlab":          ("gitlab",    "gitlab"),
+    "jenkins":         ("jenkins",   "jenkins"),
+    "gitea":           ("gitea",     "gitea"),
+    "confluence":      ("atlassian", "confluence_server"),
+    "jira":            ("atlassian", "jira"),
+
     # Languages / runtimes
     "php":             ("php",       "php"),
     "python":          ("python",    "python"),
     "node.js":         ("nodejs",    "node.js"),
     "nodejs":          ("nodejs",    "node.js"),
-    # Crypto
+    "ruby":            ("ruby-lang", "ruby"),
+
+    # Crypto & Auth
     "openssl":         ("openssl",   "openssl"),
+    "keycloak":        ("keycloak",  "keycloak"),
+
     # JS libraries
     "jquery":          ("jquery",    "jquery"),
     "bootstrap":       ("getbootstrap", "bootstrap"),
     "angularjs":       ("angularjs", "angular.js"),
+    "react":           ("facebook",  "react"),
+    "vue":             ("vuejs",     "vue.js"),
+
     # Databases
     "mysql":           ("mysql",     "mysql"),
     "mariadb":         ("mariadb",   "mariadb"),
@@ -56,6 +79,21 @@ PRODUCT_MAP: dict[str, tuple[str, str]] = {
     "mssql":           ("microsoft", "sql_server"),
     "microsoft sql server": ("microsoft", "sql_server"),
     "oracle":          ("oracle",    "database"),
+    "redis":           ("redislabs", "redis"),
+    "mongodb":         ("mongodb",   "mongodb"),
+
+    # Mail Servers
+    "exim":            ("exim",      "exim"),
+    "postfix":         ("postfix",   "postfix"),
+    "dovecot":         ("dovecot",   "dovecot"),
+
+    # Infrastructure & Networking
+    "openssh":         ("openbsd",   "openssh"),
+    "ssh":             ("openbsd",   "openssh"),
+    "samba":           ("samba",     "samba"),
+    "fortios":         ("fortinet",  "fortios"),
+    "fortigate":       ("fortinet",  "fortios"),
+    "pan-os":          ("paloaltonetworks", "pan-os"),
 }
 
 # Sorted longest-first so "apache httpd" matches before "apache" etc.
