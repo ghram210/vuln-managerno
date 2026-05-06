@@ -153,7 +153,7 @@ const ScannedAssetsTable = () => {
                     {(a as any).tool ?? "—"}
                   </td>
                   <td className={`${bodyCellClass} text-foreground/85 font-mono text-[15px] truncate`}>
-                    {a.open_ports ?? "—"}
+                    {a.open_ports && a.open_ports !== "" ? a.open_ports : "—"}
                   </td>
                   <td className={bodyCellClass}>
                     <span
