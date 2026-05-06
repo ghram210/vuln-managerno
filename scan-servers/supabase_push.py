@@ -46,11 +46,24 @@ def build_payload(
     links: list[dict] = []
 
     for r in results:
-        if not r.cves:
-            continue
         fp = r.fingerprint
         client_id = f"{fp.vendor}:{fp.product}:{fp.version or '*'}"
-        title = f"{fp.product} {fp.version or '*'} ({fp.vendor})"
+
+        # Smart Title Generation
+        if fp.vendor == "generic":
+            if "port-" in fp.product:
+                title = f"Open Port: {fp.product.replace('port-','')}"
+            elif fp.product == "discovered-path":
+                title = f"Discovered Path: {fp.version}"
+            elif fp.product == "sql-injection":
+                title = f"SQL Injection: {fp.version}"
+            elif fp.product == "nikto-finding":
+                title = f"Nikto: {fp.evidence[:50]}..."
+            else:
+                title = f"{fp.product} ({fp.vendor})"
+        else:
+            title = f"{fp.product} {fp.version or '*'} ({fp.vendor})"
+
         service = f"{fp.vendor}/{fp.product}@{fp.version or '*'}"
 
         findings.append({
@@ -62,6 +75,7 @@ def build_payload(
             "service": service[:200],
             "path": fp.path,
             "evidence": fp.evidence or None,  # Removed truncation
+            "status": "open",
             "metadata": {
                 "vendor": fp.vendor,
                 "product": fp.product,
@@ -69,6 +83,7 @@ def build_payload(
                 "source": fp.source,
                 "cve_count": r.total_cves,
                 "exploit_count": r.total_exploits,
+                "suggested_severity": fp.suggested_severity,
             },
         })
 
@@ -126,26 +141,46 @@ def build_payload(
 
 def severity_counts(payload: dict) -> dict[str, int]:
     counts = {f"{s.lower()}_count": 0 for s in SEVERITIES}
-    counts["total_findings"] = len(payload.get("scan_findings", []))
+    findings = payload.get("scan_findings", [])
+    counts["total_findings"] = len(findings)
 
-    # Per-finding severity = max severity across its linked CVEs
+    # 1. Map CVEs to their severities
     cve_sev = {c["cve_id"]: (c.get("cvss_v3_severity") or "").upper()
                for c in payload.get("cve_catalog", [])}
     sev_order = {s: i for i, s in enumerate(SEVERITIES)}  # 0 = highest
 
+    # 2. Assign severity to each finding
     by_finding: dict[str, str] = {}
+
+    # Initialize with suggested_severity from metadata (Smart Classification)
+    for f in findings:
+        cid = f["client_id"]
+        suggested = (f.get("metadata", {}).get("suggested_severity") or "").upper()
+        if suggested in sev_order:
+            by_finding[cid] = suggested
+
+    # Overwrite/Upgrade with NVD severity if CVEs are linked (Priority to NVD)
     for link in payload.get("finding_cves", []):
         sev = cve_sev.get(link["cve_id"], "")
         if sev not in sev_order:
             continue
         cur = by_finding.get(link["client_id"])
+        # If no severity yet, or this CVE is more severe than current
         if cur is None or sev_order[sev] < sev_order[cur]:
             by_finding[link["client_id"]] = sev
 
+    # 3. Roll up totals
     for sev in by_finding.values():
         key = f"{sev.lower()}_count"
         if key in counts:
             counts[key] += 1
+
+    # Any findings still without a severity? Default them to LOW if they exist
+    # but aren't in by_finding (safety fallback)
+    assigned_count = sum(counts[f"{s.lower()}_count"] for s in SEVERITIES)
+    if assigned_count < counts["total_findings"]:
+        counts["low_count"] += (counts["total_findings"] - assigned_count)
+
     return counts
 
 
