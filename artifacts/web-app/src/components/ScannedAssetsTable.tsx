@@ -107,7 +107,7 @@ const ScannedAssetsTable = () => {
             <tr className="bg-secondary/30">
               <th className={headerCellClass}>IP</th>
               <th className={headerCellClass}>Hostname</th>
-              <th className={headerCellClass}>OS</th>
+              <th className={headerCellClass}>Tool</th>
               <th className={headerCellClass}>Open Ports</th>
               <th className={headerCellClass}>Risk</th>
               <th className={headerCellClass}>Last Scan</th>
