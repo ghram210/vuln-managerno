@@ -1,10 +1,14 @@
 -- =============================================================
--- Final Scanned Assets View: Fix Tool Column and SQL Ambiguity
+-- Final Scanned Assets View: Fix Tool Column, SQL Ambiguity and Schema Conflicts
 -- =============================================================
 
 BEGIN;
 
-CREATE OR REPLACE VIEW public.scanned_assets AS
+-- We MUST drop the view because CREATE OR REPLACE does not allow
+-- changing column names, order, or types in an existing view.
+DROP VIEW IF EXISTS public.scanned_assets CASCADE;
+
+CREATE VIEW public.scanned_assets AS
 WITH raw_data AS (
   SELECT
     id,
@@ -42,7 +46,7 @@ per_target_ports AS (
   SELECT
     regexp_replace(
       regexp_replace(
-        lower(trim(f.target)), -- Fixed ambiguity by adding table alias
+        lower(trim(f.target)), -- Resolved SQL ambiguity
         '^https?://',
         ''
       ),
@@ -59,7 +63,7 @@ SELECT
   md5('asset|' || ls.normalized_target || '|' || ls.clean_tool)::uuid AS id,
   ls.normalized_target AS ip_address,
   ls.normalized_target AS hostname,
-  ls.clean_tool AS os,
+  'unknown'::text AS os,
   ls.clean_tool AS tool, -- Explicit tool column for UI
   COALESCE(ptp.port_list, '') AS open_ports,
   CASE
@@ -74,7 +78,8 @@ SELECT
 FROM latest_scans ls
 LEFT JOIN per_target_ports ptp ON ptp.normalized_target = ls.normalized_target;
 
--- Grant permissions
+-- Grant permissions back
 GRANT SELECT ON public.scanned_assets TO authenticated;
+GRANT SELECT ON public.scanned_assets TO anon;
 
 COMMIT;
