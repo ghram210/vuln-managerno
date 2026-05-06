@@ -1,5 +1,5 @@
 -- =============================================================
--- Final Scanned Assets View: Explicit Tool Column and Deduplication
+-- Final Scanned Assets View: Fix Tool Column and SQL Ambiguity
 -- =============================================================
 
 BEGIN;
@@ -9,8 +9,8 @@ WITH raw_data AS (
   SELECT
     id,
     user_id,
-    -- Extract tool name directly from scan_results
-    UPPER(TRIM(COALESCE(NULLIF(tool, ''), 'OTHER'))) AS tool_name,
+    -- Ensure tool is uppercase and trimmed
+    UPPER(TRIM(COALESCE(NULLIF(tool, ''), 'OTHER'))) AS clean_tool,
     -- Normalize target: trim, lowercase, strip protocol, strip trailing slash
     regexp_replace(
       regexp_replace(
@@ -33,34 +33,34 @@ WITH raw_data AS (
 ),
 latest_scans AS (
   -- Pick only the most recent scan for each (target, tool)
-  SELECT DISTINCT ON (normalized_target, tool_name)
+  SELECT DISTINCT ON (normalized_target, clean_tool)
     *
   FROM raw_data
-  ORDER BY normalized_target, tool_name, COALESCE(completed_at, started_at, created_at) DESC
+  ORDER BY normalized_target, clean_tool, COALESCE(completed_at, started_at, created_at) DESC
 ),
 per_target_ports AS (
   SELECT
     regexp_replace(
       regexp_replace(
-        lower(trim(target)),
+        lower(trim(f.target)), -- Fixed ambiguity by adding table alias
         '^https?://',
         ''
       ),
       '/$',
       ''
     ) AS normalized_target,
-    string_agg(DISTINCT NULLIF(split_part(trim(target), ':', 2), ''), ',') AS port_list
+    string_agg(DISTINCT NULLIF(split_part(trim(f.target), ':', 2), ''), ',') AS port_list
   FROM public.scan_findings f
   JOIN public.scan_results sr ON sr.id = f.scan_id
   WHERE sr.user_id = auth.uid()
   GROUP BY 1
 )
 SELECT
-  md5('asset|' || ls.normalized_target || '|' || ls.tool_name)::uuid AS id,
+  md5('asset|' || ls.normalized_target || '|' || ls.clean_tool)::uuid AS id,
   ls.normalized_target AS ip_address,
   ls.normalized_target AS hostname,
-  'unknown'::text AS os, -- Restore OS to its original purpose (or keep it neutral)
-  ls.tool_name AS tool,   -- ADD NEW EXPLICIT TOOL COLUMN
+  ls.clean_tool AS os,
+  ls.clean_tool AS tool, -- Explicit tool column for UI
   COALESCE(ptp.port_list, '') AS open_ports,
   CASE
     WHEN ls.critical_count > 0 THEN 'Critical'
@@ -73,5 +73,8 @@ SELECT
   ls.created_at AS created_at
 FROM latest_scans ls
 LEFT JOIN per_target_ports ptp ON ptp.normalized_target = ls.normalized_target;
+
+-- Grant permissions
+GRANT SELECT ON public.scanned_assets TO authenticated;
 
 COMMIT;
