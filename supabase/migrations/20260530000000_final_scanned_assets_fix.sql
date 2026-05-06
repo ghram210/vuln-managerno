@@ -1,40 +1,46 @@
 -- =============================================================
--- Final Scanned Assets View: Strict Deduplication and Per-Tool Grouping
+-- Final Scanned Assets View: Precise Tool Identification and Deduplication
 -- =============================================================
 
 BEGIN;
 
 CREATE OR REPLACE VIEW public.scanned_assets AS
-WITH normalized_scans AS (
+WITH raw_data AS (
   SELECT
-    id,
-    user_id,
-    TRIM(COALESCE(NULLIF(tool, ''), 'OTHER')) AS clean_tool,
+    sr.id,
+    sr.user_id,
+    -- Try to get the tool name: 1. From scan_results.tool, 2. From first associated finding, 3. Default to 'N/A'
+    UPPER(TRIM(COALESCE(
+      NULLIF(sr.tool, ''),
+      (SELECT tool FROM public.scan_findings f WHERE f.scan_id = sr.id LIMIT 1),
+      'N/A'
+    ))) AS clean_tool,
     -- Normalize target: trim, lowercase, strip protocol, strip trailing slash
     regexp_replace(
       regexp_replace(
-        lower(trim(target)),
+        lower(trim(sr.target)),
         '^https?://',
         ''
       ),
       '/$',
       ''
     ) AS normalized_target,
-    completed_at,
-    started_at,
-    created_at,
-    critical_count,
-    high_count,
-    medium_count,
-    low_count
-  FROM public.scan_results
-  WHERE user_id = auth.uid()
+    sr.completed_at,
+    sr.started_at,
+    sr.created_at,
+    sr.critical_count,
+    sr.high_count,
+    sr.medium_count,
+    sr.low_count
+  FROM public.scan_results sr
+  WHERE sr.user_id = auth.uid()
 ),
 latest_scans AS (
   -- One row per (normalized_target, tool)
+  -- If tool is still N/A, we still group by it
   SELECT DISTINCT ON (normalized_target, clean_tool)
     *
-  FROM normalized_scans
+  FROM raw_data
   ORDER BY normalized_target, clean_tool, COALESCE(completed_at, started_at, created_at) DESC
 ),
 per_target_ports AS (
@@ -58,7 +64,7 @@ SELECT
   md5('asset|' || ls.normalized_target || '|' || ls.clean_tool)::uuid AS id,
   ls.normalized_target AS ip_address,
   ls.normalized_target AS hostname,
-  UPPER(ls.clean_tool) AS os, -- Map TOOL to OS column
+  ls.clean_tool AS os, -- Tool name stored in OS column for UI
   COALESCE(ptp.port_list, '') AS open_ports,
   CASE
     WHEN ls.critical_count > 0 THEN 'Critical'

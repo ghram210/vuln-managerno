@@ -150,7 +150,7 @@ const ScannedAssetsTable = () => {
                     {a.hostname ?? "—"}
                   </td>
                   <td className={`${bodyCellClass} text-foreground/85 text-[15px] truncate font-semibold text-primary/90`}>
-                    {a.os && a.os !== "—" ? a.os : "OTHER"}
+                    {a.os && a.os !== "—" ? a.os : "N/A"}
                   </td>
                   <td className={`${bodyCellClass} text-foreground/85 font-mono text-[15px] truncate`}>
                     {a.open_ports ?? "—"}
