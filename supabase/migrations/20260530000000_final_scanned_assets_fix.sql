@@ -1,5 +1,5 @@
 -- =============================================================
--- Final Scanned Assets View: Guaranteed Ports (with Fallback), Tool, and Isolation
+-- Final Scanned Assets View: Numeric Ports, Tool Identification, and Isolation
 -- =============================================================
 
 BEGIN;
@@ -16,20 +16,21 @@ WITH latest_scans AS (
   ORDER BY target, tool, COALESCE(completed_at, started_at, created_at) DESC
 ),
 scan_ports AS (
-  -- Aggregate ports using the specific scan_id
+  -- Extract ONLY numeric port numbers from findings
   SELECT
     f.scan_id,
-    string_agg(DISTINCT NULLIF(split_part(f.target, ':', 2), ''), ',') AS port_list
+    string_agg(DISTINCT substring(f.target from ':(\d+)'), ',') AS port_list
   FROM public.scan_findings f
+  WHERE f.target ~ ':\d+'
   GROUP BY f.scan_id
 ),
-target_ports_fallback AS (
-  -- Fallback: aggregate ports by target string
+fallback_ports AS (
+  -- Extract port number from the main scan target
   SELECT
-    f.target,
-    string_agg(DISTINCT NULLIF(split_part(f.target, ':', 2), ''), ',') AS port_list
-  FROM public.scan_findings f
-  GROUP BY f.target
+    id,
+    substring(target from ':(\d+)') AS port
+  FROM public.scan_results
+  WHERE target ~ ':\d+'
 )
 SELECT
   md5('asset|' || ls.target || '|' || COALESCE(ls.tool, 'none'))::uuid AS id,
@@ -37,7 +38,16 @@ SELECT
   COALESCE(NULLIF(split_part(regexp_replace(ls.target, '^https?://', ''), '/', 1), ''), ls.target) AS hostname,
   'unknown'::text AS os,
   UPPER(ls.tool) AS tool,
-  COALESCE(NULLIF(sp.port_list, ''), tp.port_list, '') AS open_ports,
+  -- Result: numeric port from findings, then from target, then default by protocol
+  COALESCE(
+    NULLIF(sp.port_list, ''),
+    NULLIF(fp.port, ''),
+    CASE
+      WHEN ls.target ~* '^https' THEN '443'
+      WHEN ls.target ~* '^http' THEN '80'
+      ELSE ''
+    END
+  ) AS open_ports,
   CASE
     WHEN ls.critical_count > 0 THEN 'Critical'
     WHEN ls.high_count     > 0 THEN 'High'
@@ -49,7 +59,7 @@ SELECT
   ls.created_at AS created_at
 FROM latest_scans ls
 LEFT JOIN scan_ports sp ON sp.scan_id = ls.id
-LEFT JOIN target_ports_fallback tp ON tp.target = ls.target;
+LEFT JOIN fallback_ports fp ON fp.id = ls.id;
 
 GRANT SELECT ON public.scanned_assets TO authenticated;
 GRANT SELECT ON public.scanned_assets TO anon;
