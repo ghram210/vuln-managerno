@@ -1,5 +1,5 @@
 -- =============================================================
--- Final Scanned Assets View: Guaranteed Tool Name and Deduplication
+-- Final Scanned Assets View: Explicit Tool Column and Deduplication
 -- =============================================================
 
 BEGIN;
@@ -9,8 +9,8 @@ WITH raw_data AS (
   SELECT
     id,
     user_id,
-    -- Prioritize tool name from scan_results, fallback to 'SCANNER'
-    UPPER(TRIM(COALESCE(NULLIF(tool, ''), 'SCANNER'))) AS tool_name,
+    -- Extract tool name directly from scan_results
+    UPPER(TRIM(COALESCE(NULLIF(tool, ''), 'OTHER'))) AS tool_name,
     -- Normalize target: trim, lowercase, strip protocol, strip trailing slash
     regexp_replace(
       regexp_replace(
@@ -59,7 +59,8 @@ SELECT
   md5('asset|' || ls.normalized_target || '|' || ls.tool_name)::uuid AS id,
   ls.normalized_target AS ip_address,
   ls.normalized_target AS hostname,
-  ls.tool_name AS os, -- Map tool_name to the 'os' field for the frontend
+  'unknown'::text AS os, -- Restore OS to its original purpose (or keep it neutral)
+  ls.tool_name AS tool,   -- ADD NEW EXPLICIT TOOL COLUMN
   COALESCE(ptp.port_list, '') AS open_ports,
   CASE
     WHEN ls.critical_count > 0 THEN 'Critical'
