@@ -1,5 +1,5 @@
 -- =============================================================
--- Final Scanned Assets View: Precise Tool Identification and Deduplication
+-- Final Scanned Assets View: Guaranteed Tool Name and Deduplication
 -- =============================================================
 
 BEGIN;
@@ -7,41 +7,36 @@ BEGIN;
 CREATE OR REPLACE VIEW public.scanned_assets AS
 WITH raw_data AS (
   SELECT
-    sr.id,
-    sr.user_id,
-    -- Try to get the tool name: 1. From scan_results.tool, 2. From first associated finding, 3. Default to 'N/A'
-    UPPER(TRIM(COALESCE(
-      NULLIF(sr.tool, ''),
-      (SELECT tool FROM public.scan_findings f WHERE f.scan_id = sr.id LIMIT 1),
-      'N/A'
-    ))) AS clean_tool,
+    id,
+    user_id,
+    -- Prioritize tool name from scan_results, fallback to 'SCANNER'
+    UPPER(TRIM(COALESCE(NULLIF(tool, ''), 'SCANNER'))) AS tool_name,
     -- Normalize target: trim, lowercase, strip protocol, strip trailing slash
     regexp_replace(
       regexp_replace(
-        lower(trim(sr.target)),
+        lower(trim(target)),
         '^https?://',
         ''
       ),
       '/$',
       ''
     ) AS normalized_target,
-    sr.completed_at,
-    sr.started_at,
-    sr.created_at,
-    sr.critical_count,
-    sr.high_count,
-    sr.medium_count,
-    sr.low_count
-  FROM public.scan_results sr
-  WHERE sr.user_id = auth.uid()
+    completed_at,
+    started_at,
+    created_at,
+    critical_count,
+    high_count,
+    medium_count,
+    low_count
+  FROM public.scan_results
+  WHERE user_id = auth.uid()
 ),
 latest_scans AS (
-  -- One row per (normalized_target, tool)
-  -- If tool is still N/A, we still group by it
-  SELECT DISTINCT ON (normalized_target, clean_tool)
+  -- Pick only the most recent scan for each (target, tool)
+  SELECT DISTINCT ON (normalized_target, tool_name)
     *
   FROM raw_data
-  ORDER BY normalized_target, clean_tool, COALESCE(completed_at, started_at, created_at) DESC
+  ORDER BY normalized_target, tool_name, COALESCE(completed_at, started_at, created_at) DESC
 ),
 per_target_ports AS (
   SELECT
@@ -61,10 +56,10 @@ per_target_ports AS (
   GROUP BY 1
 )
 SELECT
-  md5('asset|' || ls.normalized_target || '|' || ls.clean_tool)::uuid AS id,
+  md5('asset|' || ls.normalized_target || '|' || ls.tool_name)::uuid AS id,
   ls.normalized_target AS ip_address,
   ls.normalized_target AS hostname,
-  ls.clean_tool AS os, -- Tool name stored in OS column for UI
+  ls.tool_name AS os, -- Map tool_name to the 'os' field for the frontend
   COALESCE(ptp.port_list, '') AS open_ports,
   CASE
     WHEN ls.critical_count > 0 THEN 'Critical'
