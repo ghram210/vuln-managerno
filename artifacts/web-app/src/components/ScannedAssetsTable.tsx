@@ -107,7 +107,7 @@ const ScannedAssetsTable = () => {
             <tr className="bg-secondary/30">
               <th className={headerCellClass}>IP</th>
               <th className={headerCellClass}>Hostname</th>
-              <th className={headerCellClass}>OS</th>
+              <th className={headerCellClass}>Tool</th>
               <th className={headerCellClass}>Open Ports</th>
               <th className={headerCellClass}>Risk</th>
               <th className={headerCellClass}>Last Scan</th>
@@ -149,11 +149,11 @@ const ScannedAssetsTable = () => {
                   <td className={`${bodyCellClass} text-foreground text-[15px] truncate`}>
                     {a.hostname ?? "—"}
                   </td>
-                  <td className={`${bodyCellClass} text-foreground/85 text-[15px] truncate`}>
-                    {a.os ?? "—"}
+                  <td className={`${bodyCellClass} text-foreground/85 text-[15px] truncate font-semibold text-primary/90`}>
+                    {(a as any).tool ?? "—"}
                   </td>
                   <td className={`${bodyCellClass} text-foreground/85 font-mono text-[15px] truncate`}>
-                    {a.open_ports ?? "—"}
+                    {a.open_ports && a.open_ports !== "" ? a.open_ports : "—"}
                   </td>
                   <td className={bodyCellClass}>
                     <span

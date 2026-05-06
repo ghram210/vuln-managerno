@@ -5,48 +5,48 @@ import type { DonutSegment } from "@/components/DonutChart";
 // ─── Segment Definitions ─────────────────────────────────────────────────────
 
 const SEVERITY_SEGS: (DonutSegment & { order: number; key: string })[] = [
-  { name: "Critical", color: "hsl(0 84% 55%)",   order: 1, key: "critical" },
-  { name: "High",     color: "hsl(22 90% 54%)",  order: 2, key: "high"     },
-  { name: "Medium",   color: "hsl(38 95% 52%)",  order: 3, key: "medium"   },
-  { name: "Low",      color: "hsl(142 68% 45%)", order: 4, key: "low"      },
-  { name: "Info",     color: "hsl(270 60% 60%)", order: 5, key: "info"     },
+  { name: "Critical", color: "hsl(0 84% 55%)",   order: 1, key: "critical", value: 0 },
+  { name: "High",     color: "hsl(22 90% 54%)",  order: 2, key: "high",     value: 0 },
+  { name: "Medium",   color: "hsl(38 95% 52%)",  order: 3, key: "medium",   value: 0 },
+  { name: "Low",      color: "hsl(142 68% 45%)", order: 4, key: "low",      value: 0 },
+  { name: "Info",     color: "hsl(270 60% 60%)", order: 5, key: "info",     value: 0 },
 ];
 
 const TOOL_SEGS: (DonutSegment & { order: number; keys: string[] })[] = [
-  { name: "FFUF",   color: "hsl(243 72% 68%)", order: 1, keys: ["ffuf"]                     },
-  { name: "SQLMap", color: "hsl(195 85% 48%)", order: 2, keys: ["sqlmap"]                   },
-  { name: "Nmap",   color: "hsl(210 90% 52%)", order: 3, keys: ["nmap"]                     },
-  { name: "Nikto",  color: "hsl(228 80% 62%)", order: 4, keys: ["nikto"]                    },
-  { name: "Other",  color: "hsl(215 22% 58%)", order: 5, keys: ["other", "unknown", ""]     },
+  { name: "FFUF",   color: "hsl(243 72% 68%)", order: 1, keys: ["ffuf"],                     value: 0 },
+  { name: "SQLMap", color: "hsl(195 85% 48%)", order: 2, keys: ["sqlmap"],                   value: 0 },
+  { name: "Nmap",   color: "hsl(210 90% 52%)", order: 3, keys: ["nmap"],                     value: 0 },
+  { name: "Nikto",  color: "hsl(228 80% 62%)", order: 4, keys: ["nikto"],                    value: 0 },
+  { name: "Other",  color: "hsl(215 22% 58%)", order: 5, keys: ["other", "unknown", ""],     value: 0 },
 ];
 
 const EXPOSURE_SEGS: (DonutSegment & { order: number })[] = [
-  { name: "Web Application", color: "hsl(315 95% 52%)", order: 1 },
-  { name: "External Host",   color: "hsl(335 88% 58%)", order: 2 },
-  { name: "Internal Host",   color: "hsl(350 78% 65%)", order: 3 },
-  { name: "Network Service", color: "hsl(300 70% 60%)", order: 4 },
+  { name: "Web Application", color: "hsl(315 95% 52%)", order: 1, value: 0 },
+  { name: "External Host",   color: "hsl(335 88% 58%)", order: 2, value: 0 },
+  { name: "Internal Host",   color: "hsl(350 78% 65%)", order: 3, value: 0 },
+  { name: "Network Service", color: "hsl(300 70% 60%)", order: 4, value: 0 },
 ];
 
 const EXPLOIT_SEGS: (DonutSegment & { order: number })[] = [
-  { name: "Weaponized",  color: "hsl(120 75% 38%)", order: 1 },
-  { name: "Public PoC",  color: "hsl(140 68% 48%)", order: 2 },
-  { name: "Known CVE",   color: "hsl(158 62% 55%)", order: 3 },
-  { name: "Theoretical", color: "hsl(175 50% 60%)", order: 4 },
+  { name: "Weaponized",  color: "hsl(120 75% 38%)", order: 1, value: 0 },
+  { name: "Public PoC",  color: "hsl(140 68% 48%)", order: 2, value: 0 },
+  { name: "Known CVE",   color: "hsl(158 62% 55%)", order: 3, value: 0 },
+  { name: "Theoretical", color: "hsl(175 50% 60%)", order: 4, value: 0 },
 ];
 
 const VECTOR_SEGS: (DonutSegment & { order: number })[] = [
-  { name: "Network",  color: "hsl(185 95% 40%)", order: 1 },
-  { name: "Adjacent", color: "hsl(174 82% 46%)", order: 2 },
-  { name: "Local",    color: "hsl(163 74% 52%)", order: 3 },
-  { name: "Physical", color: "hsl(152 62% 58%)", order: 4 },
-  { name: "Unknown",  color: "hsl(215 18% 60%)", order: 5 },
+  { name: "Network",  color: "hsl(185 95% 40%)", order: 1, value: 0 },
+  { name: "Adjacent", color: "hsl(174 82% 46%)", order: 2, value: 0 },
+  { name: "Local",    color: "hsl(163 74% 52%)", order: 3, value: 0 },
+  { name: "Physical", color: "hsl(152 62% 58%)", order: 4, value: 0 },
+  { name: "Unknown",  color: "hsl(215 18% 60%)", order: 5, value: 0 },
 ];
 
 const STATUS_SEGS: (DonutSegment & { order: number; keys: string[] })[] = [
-  { name: "Open",           color: "hsl(0 82% 55%)",   order: 1, keys: ["open"]                        },
-  { name: "In Progress",    color: "hsl(205 82% 52%)",  order: 2, keys: ["in_progress", "triaged"]      },
-  { name: "Fixed",          color: "hsl(145 65% 44%)",  order: 3, keys: ["fixed", "resolved", "closed"] },
-  { name: "False Positive", color: "hsl(270 58% 60%)",  order: 4, keys: ["false_positive"]              },
+  { name: "Open",           color: "hsl(0 82% 55%)",   order: 1, keys: ["open"],                        value: 0 },
+  { name: "In Progress",    color: "hsl(205 82% 52%)",  order: 2, keys: ["in_progress", "triaged"],      value: 0 },
+  { name: "Fixed",          color: "hsl(145 65% 44%)",  order: 3, keys: ["fixed", "resolved", "closed"], value: 0 },
+  { name: "False Positive", color: "hsl(270 58% 60%)",  order: 4, keys: ["false_positive"],              value: 0 },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -188,76 +188,42 @@ async function getUserTargets(targetFilter: string | null): Promise<string[]> {
     .eq("user_id", user.id);
   if (targetFilter) q = q.eq("target", targetFilter);
   const { data } = await q;
-  return [...new Set((data ?? []).map((r: any) => r.target as string).filter(Boolean))];
+  return [...new Set((data ?? []).map((r: any) => (r as any).target as string).filter(Boolean))] as string[];
 }
 
 // ─── Core Helper: scan_findings for given targets, deduplicated by (target, tool) ──
-// NOTE: scan_findings are NOT filtered by user_id — they are linked by target URL.
-// Uses flexible URL matching to handle cases where the scanning tool normalises
-// the hostname (e.g. "scan.nmap.org" → stored as "scanme.nmap.org" in scan_findings).
-//
-// Strategy:
-//   1. Exact match via .in() — fast, works for most targets.
-//   2. For bare-hostname targets (no http(s):// prefix), also try ilike on the
-//      base domain (last two labels), which bridges scan.nmap.org ↔ scanme.nmap.org.
-//   3. For protocol-prefixed targets, also try the protocol-stripped variant.
+// Filters findings by user_id via join with scan_results to ensure data isolation.
+// Uses strict matching to prevent mixing findings between different subdomains.
 async function getScanFindings(targets: string[]): Promise<FindingRow[]> {
   if (!targets.length) return [];
+  const user = await getUser();
+  if (!user) return [];
 
-  const allRows: FindingRow[] = [];
-  const seenIds = new Set<string>();
-
-  function addRows(rows: FindingRow[] | null) {
-    for (const f of rows ?? []) {
-      if (!seenIds.has(f.id)) { seenIds.add(f.id); allRows.push(f); }
-    }
-  }
-
-  // 1. Exact match on all targets
-  const { data: exact } = await (supabase as any)
-    .from("scan_findings")
-    .select("id, target, tool")
-    .in("target", targets);
-  addRows(exact);
-
-  // 2. Additional lookups for targets that may have been normalised by the tool
-  const extraQueries: Promise<{ data: FindingRow[] | null }>[] = [];
-
+  // Normalize targets: include both bare hostname and protocol-prefixed versions
+  // to account for tool normalization, but AVOID fuzzy domain matches.
+  const expandedTargets = new Set<string>();
   for (const t of targets) {
-    const isBare = !/^https?:\/\//i.test(t);
-
-    if (isBare) {
-      // Bare hostname: try with protocol prefixes
-      const clean = t.replace(/\/$/, "");
-      extraQueries.push(
-        (supabase as any).from("scan_findings").select("id, target, tool")
-          .in("target", [`http://${clean}`, `https://${clean}`])
-      );
-      // Also try base-domain ilike so "scan.nmap.org" finds "scanme.nmap.org"
-      const parts = clean.split(".").filter(Boolean);
-      if (parts.length >= 2) {
-        const baseDomain = parts.slice(-2).join(".");
-        extraQueries.push(
-          (supabase as any).from("scan_findings").select("id, target, tool")
-            .ilike("target", `%${baseDomain}%`)
-        );
-      }
+    expandedTargets.add(t);
+    const clean = t.replace(/\/$/, "");
+    if (/^https?:\/\//i.test(t)) {
+      expandedTargets.add(t.replace(/^https?:\/\//i, ""));
     } else {
-      // Protocol-prefixed: also try without the protocol
-      const noProto = t.replace(/^https?:\/\//, "");
-      extraQueries.push(
-        (supabase as any).from("scan_findings").select("id, target, tool")
-          .eq("target", noProto)
-      );
+      expandedTargets.add(`http://${clean}`);
+      expandedTargets.add(`https://${clean}`);
     }
   }
 
-  const extraResults = await Promise.all(extraQueries);
-  for (const res of extraResults) addRows(res.data);
+  const { data, error } = await (supabase as any)
+    .from("scan_findings")
+    .select("id, target, tool, scan_results!inner(user_id)")
+    .eq("scan_results.user_id", user.id)
+    .in("target", Array.from(expandedTargets));
+
+  if (error || !data) return [];
 
   // Deduplicate by (target, tool) — keep first occurrence
   const dedup = new Map<string, FindingRow>();
-  for (const f of allRows) {
+  for (const f of data as any[]) {
     const key = `${f.target ?? ""}||${(f.tool ?? "").toLowerCase().trim()}`;
     if (!dedup.has(key)) dedup.set(key, f);
   }
