@@ -50,7 +50,13 @@ def build_payload(
         client_id = f"{fp.vendor}:{fp.product}:{fp.version or '*'}"
 
         # Smart Title Generation
-        if fp.vendor == "generic":
+        if r.cves:
+            # Highlight CVE ID for NVD matches to show credibility
+            cve_ids = ", ".join([c.cve_id for c in r.cves[:2]])
+            if len(r.cves) > 2:
+                cve_ids += f" (+{len(r.cves)-2})"
+            title = f"{cve_ids} - {fp.product} {fp.version or '*'}"
+        elif fp.vendor == "generic":
             if "port-" in fp.product:
                 title = f"Open Port: {fp.product.replace('port-','')}"
             elif fp.product == "discovered-path":
@@ -84,6 +90,7 @@ def build_payload(
                 "cve_count": r.total_cves,
                 "exploit_count": r.total_exploits,
                 "suggested_severity": fp.suggested_severity,
+                "classification_source": "NVD (CVE Match)" if r.cves else "Smart Intelligence",
             },
         })
 

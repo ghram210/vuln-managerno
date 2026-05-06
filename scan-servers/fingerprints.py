@@ -131,6 +131,13 @@ _NOISE_PATTERNS = [
     r"/assets/", r"/images/", r"/fonts/", r"/favicon\.ico$"
 ]
 
+# Nikto specific patterns
+_NIKTO_PATTERNS = {
+    "HIGH": [r"vulnerable", r"outdated", r"critical", r"rce", r"exploit"],
+    "MEDIUM": [r"interesting", r"sensitive", r"bypass", r"config", r"directory index"],
+    "LOW": [r"header", r"cookie", r"not present", r"missing", r"options"]
+}
+
 
 def _lookup_product(text: str) -> tuple[str, str] | None:
     t = text.lower()
@@ -256,9 +263,12 @@ def from_nikto(output: str) -> list[Fingerprint]:
         # 2. Smart Nikto Finding Extraction
         # Look for security issues reported with "+ "
         if line.startswith("+ ") and not extracted:
-            sev = "MEDIUM"
-            if "vulnerable" in low or "outdated" in low or "critical" in low:
-                sev = "HIGH"
+            # Smart Severity Logic for Nikto
+            sev = "INFO"
+            for s, patterns in _NIKTO_PATTERNS.items():
+                if any(re.search(p, low, re.I) for p in patterns):
+                    sev = s
+                    break
 
             # Extract path if any
             path_match = re.search(r"(/[A-Za-z0-9_\-./%]+)", line)
