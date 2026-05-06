@@ -1,12 +1,6 @@
 -- =============================================================
 -- Final Scanned Assets View: Strict Deduplication and Per-Tool Grouping
 -- =============================================================
--- This migration ensures that:
--- 1. Assets are deduplicated by normalizing the target URL (stripping protocol and trailing slashes).
--- 2. Results are grouped by both the normalized target AND the tool.
--- 3. Only the most recent scan data for each (target, tool) pair is displayed.
--- 4. Data is isolated to the currently authenticated user.
--- =============================================================
 
 BEGIN;
 
@@ -15,12 +9,11 @@ WITH normalized_scans AS (
   SELECT
     id,
     user_id,
-    tool,
-    target,
-    -- Normalize target for grouping: lowercase, strip protocol, strip trailing slash
+    TRIM(COALESCE(NULLIF(tool, ''), 'OTHER')) AS clean_tool,
+    -- Normalize target: trim, lowercase, strip protocol, strip trailing slash
     regexp_replace(
       regexp_replace(
-        lower(target),
+        lower(trim(target)),
         '^https?://',
         ''
       ),
@@ -38,35 +31,34 @@ WITH normalized_scans AS (
   WHERE user_id = auth.uid()
 ),
 latest_scans AS (
-  -- For each (normalized_target, tool) group, pick the most recent scan record
-  SELECT DISTINCT ON (normalized_target, tool)
+  -- One row per (normalized_target, tool)
+  SELECT DISTINCT ON (normalized_target, clean_tool)
     *
   FROM normalized_scans
-  ORDER BY normalized_target, tool, COALESCE(completed_at, started_at, created_at) DESC
+  ORDER BY normalized_target, clean_tool, COALESCE(completed_at, started_at, created_at) DESC
 ),
 per_target_ports AS (
-  -- Aggregate ports by normalized target
   SELECT
     regexp_replace(
       regexp_replace(
-        lower(target),
+        lower(trim(target)),
         '^https?://',
         ''
       ),
       '/$',
       ''
     ) AS normalized_target,
-    string_agg(DISTINCT NULLIF(split_part(target, ':', 2), ''), ',') AS port_list
+    string_agg(DISTINCT NULLIF(split_part(trim(target), ':', 2), ''), ',') AS port_list
   FROM public.scan_findings f
   JOIN public.scan_results sr ON sr.id = f.scan_id
   WHERE sr.user_id = auth.uid()
   GROUP BY 1
 )
 SELECT
-  md5('asset|' || ls.normalized_target || '|' || COALESCE(ls.tool, 'none'))::uuid AS id,
-  ls.normalized_target AS ip_address, -- Normalized target as IP/ID
-  ls.normalized_target AS hostname,   -- Normalized target as Hostname
-  COALESCE(UPPER(ls.tool), 'OTHER') AS os, -- Map TOOL to OS column for frontend
+  md5('asset|' || ls.normalized_target || '|' || ls.clean_tool)::uuid AS id,
+  ls.normalized_target AS ip_address,
+  ls.normalized_target AS hostname,
+  UPPER(ls.clean_tool) AS os, -- Map TOOL to OS column
   COALESCE(ptp.port_list, '') AS open_ports,
   CASE
     WHEN ls.critical_count > 0 THEN 'Critical'
