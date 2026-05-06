@@ -66,9 +66,13 @@ const ScanResults = () => {
   const { data: scans = [] } = useQuery({
     queryKey: ["scan_results"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await (supabase as any)
         .from("scan_results")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as ScanResult[];
