@@ -1,10 +1,11 @@
 
 التعليمات المطلوبة لربط قاعدة البيانات وتفعيل النظام:
 
-1. لربط ثغرات NVD التي قمت بتحميلها:
-python3 scripts/download_nvd.py --start-year 2017 --skip-download
+1. لربط ثغرات NVD التي قمت بتحميلها (بما أنك حملت من عام 2002):
+python3 scripts/download_nvd.py --start-year 2002 --skip-download
 
-2. لربط الأكواد الاستغلالية (Exploits):
+2. لتحميل وتحديث قاعدة الأكواد الاستغلالية (Exploits) ثم ربطها:
+sudo apt update && sudo apt install exploitdb -y
 python3 scripts/index_exploitdb.py
 
 3. لتشغيل النظام وتفعيل التعديلات الجديدة:

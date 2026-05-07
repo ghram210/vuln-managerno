@@ -384,7 +384,7 @@ def main() -> int:
     )
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR,
                         help=f"output directory (default: {DEFAULT_DATA_DIR})")
-    parser.add_argument("--start-year", type=int, default=2017)
+    parser.add_argument("--start-year", type=int, default=2002)
     parser.add_argument("--end-year",   type=int, default=datetime.now().year)
     parser.add_argument("--force",         action="store_true",
                         help="redownload even if local sha256 matches")
