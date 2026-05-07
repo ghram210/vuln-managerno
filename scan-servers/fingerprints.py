@@ -94,6 +94,8 @@ PRODUCT_MAP: dict[str, tuple[str, str]] = {
     "fortios":         ("fortinet",  "fortios"),
     "fortigate":       ("fortinet",  "fortios"),
     "pan-os":          ("paloaltonetworks", "pan-os"),
+    "apache-coyote":   ("apache",    "tomcat"),
+    "apache tomcat":   ("apache",    "tomcat"),
 }
 
 # Sorted longest-first so "apache httpd" matches before "apache" etc.
@@ -310,10 +312,23 @@ def extract(tool: str, raw_output: str) -> list[Fingerprint]:
 
 
 def _dedup(fps: Iterable[Fingerprint]) -> list[Fingerprint]:
-    seen: set[tuple[str, str, str | None]] = set()
+    seen: set[tuple] = set()
     out: list[Fingerprint] = []
     for fp in fps:
-        key = (fp.vendor.lower(), fp.product.lower(), (fp.version or "").lower())
+        # For Intelligence findings, we want to keep them unique based on path/evidence
+        # so they don't all collapse into a single row in the dashboard.
+        if fp.vendor.lower() == "intelligence":
+            key = (
+                fp.vendor.lower(),
+                fp.product.lower(),
+                (fp.version or "").lower(),
+                (fp.path or "").lower(),
+                (fp.evidence or "").lower()[:200]
+            )
+        else:
+            # For real products, we dedupe by version for CVE matching efficiency.
+            key = (fp.vendor.lower(), fp.product.lower(), (fp.version or "").lower())
+
         if key in seen:
             continue
         seen.add(key)
