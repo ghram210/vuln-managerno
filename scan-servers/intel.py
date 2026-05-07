@@ -93,16 +93,15 @@ async def process_scan_intelligence(
         with Matcher(NVD_DB, EXPLOITDB_DB) as m:
             results: list[MatchResult] = m.match(fps)
     except Exception as e:
+        # If matching fails, we still want to push the "Smart Intelligence"
+        # discoveries if we have any. We'll wrap fps in MatchResults with no CVEs.
         summary["errors"].append(f"matcher: {type(e).__name__}: {e}")
-        return summary
+        results = [MatchResult(fingerprint=fp) for fp in fps]
 
     matched = [r for r in results if r.cves]
     summary["matched_fingerprints"] = len(matched)
     summary["cves"]     = sum(r.total_cves     for r in matched)
     summary["exploits"] = sum(r.total_exploits for r in matched)
-    if not matched:
-        summary["skipped"] = "fingerprints matched no CVEs"
-        return summary
 
     # 3. Build & push payload
     payload = build_payload(scan_id, tool, target, results)
