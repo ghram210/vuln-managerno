@@ -5,18 +5,18 @@
 <style>
     body { font-family: 'Arial', sans-serif; line-height: 1.6; margin: 40px; color: #333; }
     h1 { color: #2c3e50; text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; }
-    h2 { color: #34495e; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin-top: 30px; }
+    h2 { color: #34495e; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin-top: 40px; }
     h3 { color: #2980b9; margin-top: 25px; }
     h4 { color: #16a085; }
     p, li { font-size: 14pt; }
 
-    /* TOC Table Style based on the user's image */
+    /* TOC Table Style */
     .toc-table { width: 100%; border-collapse: collapse; margin-bottom: 50px; background-color: #fff; }
-    .toc-table th, .toc-table td { border: 1px solid #000; padding: 10px; text-align: center; font-size: 14pt; }
+    .toc-table th, .toc-table td { border: 1px solid #000; padding: 12px; text-align: center; font-size: 14pt; }
     .toc-table th { background-color: #f2f2f2; font-weight: bold; }
     .toc-table td.title-cell { text-align: right; padding-right: 20px; }
-    .toc-table a { text-decoration: none; color: inherit; display: block; width: 100%; height: 100%; }
-    .toc-table tr.chapter-row { font-weight: bold; }
+    .toc-table a { text-decoration: none; color: #2980b9; font-weight: bold; }
+    .toc-table tr.chapter-row { font-weight: bold; background-color: #fcfcfc; }
 
     hr { margin: 40px 0; border: 0; border-top: 1px solid #eee; }
     .page-break { page-break-before: always; }
@@ -24,174 +24,185 @@
 </head>
 <body>
 
-<h1>الفهرس</h1>
+<h1>فهرس محتويات البحث</h1>
 
 <table class="toc-table">
     <thead>
         <tr>
             <th style="width: 15%;">الفصل</th>
             <th style="width: 70%;">العنوان الرئيسي</th>
-            <th style="width: 15%;">الصفحة</th>
+            <th style="width: 15%;">انتقال</th>
         </tr>
     </thead>
     <tbody>
         <!-- الفصل الأول -->
         <tr class="chapter-row">
             <td>الفصل الأول</td>
-            <td class="title-cell">مبادئ ومفاهيم في الأمن السيبراني</td>
-            <td><a href="#ch1">12</a></td>
+            <td class="title-cell">المقدمة ومشكلة البحث (Introduction & Problem Statement)</td>
+            <td><a href="#ch1">اذهب</a></td>
         </tr>
         <tr>
             <td>1.1</td>
-            <td class="title-cell">مقدمة</td>
-            <td><a href="#sec1-1">12</a></td>
+            <td class="title-cell">مقدمة عامة</td>
+            <td><a href="#sec1-1">1</a></td>
         </tr>
         <tr>
             <td>1.2</td>
-            <td class="title-cell">تعريف الأمن السيبراني</td>
-            <td><a href="#sec1-2">12</a></td>
+            <td class="title-cell">مشكلة البحث والتحديات الحالية</td>
+            <td><a href="#sec1-2">1</a></td>
         </tr>
         <tr>
             <td>1.3</td>
-            <td class="title-cell">أهمية الأمن السيبراني</td>
-            <td><a href="#sec1-3">12</a></td>
+            <td class="title-cell">الحل المقترح (المنصة الذكية)</td>
+            <td><a href="#sec1-3">2</a></td>
         </tr>
         <tr>
             <td>1.4</td>
-            <td class="title-cell">التهديدات السيبرانية الشائعة</td>
-            <td><a href="#sec1-4">12</a></td>
-        </tr>
-        <tr>
-            <td>1.5</td>
-            <td class="title-cell">مفاهيم أساسية في الأمن السيبراني</td>
-            <td><a href="#sec1-5">13</a></td>
+            <td class="title-cell">أهداف البحث والنتائج المتوقعة</td>
+            <td><a href="#sec1-4">2</a></td>
         </tr>
 
         <!-- الفصل الثاني -->
         <tr class="chapter-row">
             <td>الفصل الثاني</td>
-            <td class="title-cell">المعلومات الأساسية اللازمة لتوضيح أهمية اكتشاف الثغرات</td>
-            <td><a href="#ch2">14</a></td>
+            <td class="title-cell">هيكلية النظام التقنية (System Architecture)</td>
+            <td><a href="#ch2">اذهب</a></td>
         </tr>
         <tr>
             <td>2.1</td>
-            <td class="title-cell">المقدمة</td>
-            <td><a href="#sec2-1">14</a></td>
+            <td class="title-cell">المكونات الرئيسية للنظام (Frontend, Backend, Database)</td>
+            <td><a href="#sec2-1">3</a></td>
         </tr>
         <tr>
             <td>2.2</td>
-            <td class="title-cell">أهمية البروتوكولات في فحص ثغرات الويب</td>
-            <td><a href="#sec2-2">14</a></td>
+            <td class="title-cell">تدفق البيانات وعملية الفحص الذكي</td>
+            <td><a href="#sec2-2">4</a></td>
         </tr>
         <tr>
-            <td>2.2.1</td>
-            <td class="title-cell" style="padding-right: 40px;">بروتوكول HTTP/HTTPS</td>
-            <td><a href="#sec2-2-1">14</a></td>
-        </tr>
-        <tr>
-            <td>2.2.2</td>
-            <td class="title-cell" style="padding-right: 40px;">بروتوكول TCP/IP</td>
-            <td><a href="#sec2-2-2">15</a></td>
+            <td>2.3</td>
+            <td class="title-cell">منطق الأمان وفصل الصلاحيات</td>
+            <td><a href="#sec2-3">4</a></td>
         </tr>
 
-        <!-- الفصل الثالث - (المحتوى التقني للمشروع) -->
+        <!-- الفصل الثالث -->
         <tr class="chapter-row">
             <td>الفصل الثالث</td>
-            <td class="title-cell">هيكلية المنصة الذكية ومحرك تحليل البصمات</td>
-            <td><a href="#ch3">16</a></td>
+            <td class="title-cell">الميزات الابتكارية ومحركات التحليل</td>
+            <td><a href="#ch3">اذهب</a></td>
         </tr>
         <tr>
             <td>3.1</td>
-            <td class="title-cell">المكونات الرئيسية للنظام (System Components)</td>
-            <td><a href="#sec3-1">16</a></td>
+            <td class="title-cell">محرك استخراج البصمات الرقمية (Fingerprinting Engine)</td>
+            <td><a href="#sec3-1">5</a></td>
         </tr>
         <tr>
             <td>3.2</td>
-            <td class="title-cell">محرك استخراج البصمات البرمجية (Fingerprinting)</td>
-            <td><a href="#sec3-2">17</a></td>
+            <td class="title-cell">مطابقة الثغرات والاستخبارات (CVE & Exploit Matcher)</td>
+            <td><a href="#sec3-2">6</a></td>
         </tr>
         <tr>
             <td>3.3</td>
-            <td class="title-cell">مطابقة الثغرات مع قواعد البيانات العالمية (Matcher)</td>
-            <td><a href="#sec3-3">18</a></td>
+            <td class="title-cell">خوارزمية التصنيف الذكي للمخاطر</td>
+            <td><a href="#sec3-3">7</a></td>
         </tr>
 
         <!-- الفصل الرابع -->
         <tr class="chapter-row">
             <td>الفصل الرابع</td>
-            <td class="title-cell">هندسة التقارير والأمن (Reporting & Security)</td>
-            <td><a href="#ch4">20</a></td>
+            <td class="title-cell">هندسة التقارير وأمن المنصة المتقدم</td>
+            <td><a href="#ch4">اذهب</a></td>
         </tr>
         <tr>
             <td>4.1</td>
-            <td class="title-cell">تصميم التقارير الاحترافية الموجهة للطباعة</td>
-            <td><a href="#sec4-1">20</a></td>
+            <td class="title-cell">نظام التقارير الاحترافي الموجه للطباعة</td>
+            <td><a href="#sec4-1">8</a></td>
         </tr>
         <tr>
             <td>4.2</td>
-            <td class="title-cell">حماية البيانات باستخدام نظام الصلاحيات (RLS)</td>
-            <td><a href="#sec4-2">21</a></td>
+            <td class="title-cell">حماية البيانات باستخدام RLS والتحكم في الوصول</td>
+            <td><a href="#sec4-2">9</a></td>
+        </tr>
+
+        <!-- الفصل الخامس -->
+        <tr class="chapter-row">
+            <td>الفصل الخامس</td>
+            <td class="title-cell">الخلاصة والتوصيات المستقبلية</td>
+            <td><a href="#ch5">اذهب</a></td>
+        </tr>
+        <tr>
+            <td>5.1</td>
+            <td class="title-cell">النتائج المستخلصة من المشروع</td>
+            <td><a href="#sec5-1">10</a></td>
+        </tr>
+        <tr>
+            <td>5.2</td>
+            <td class="title-cell">الرؤية التطويرية المستقبلية</td>
+            <td><a href="#sec5-2">10</a></td>
         </tr>
     </tbody>
 </table>
 
 <div class="page-break"></div>
 
-<h2 id="ch1">الفصل الأول: مبادئ ومفاهيم في الأمن السيبراني</h2>
+<h2 id="ch1">الفصل الأول: المقدمة ومشكلة البحث (Introduction & Problem Statement)</h2>
 
-<h3 id="sec1-1">1.1 مقدمة</h3>
-<p>في ظل التحول الرقمي المتسارع، أصبحت حماية الأصول الرقمية ضرورة حتمية للمؤسسات والأفراد على حد سواء...</p>
+<h3 id="sec1-1">1.1 مقدمة عامة</h3>
+<p>في ظل التحول الرقمي المتسارع، أصبحت تطبيقات الويب والبنية التحتية الرقمية هي العمود الفقري للمؤسسات. ومع هذا التطور، تزايدت وتيرة الهجمات السيبرانية، مما جعل عملية إدارة الثغرات ضرورة حتمية.</p>
 
-<h3 id="sec1-2">1.2 تعريف الأمن السيبراني</h3>
-<p>يُعرف الأمن السيبراني بأنه ممارسة حماية الأنظمة والشبكات والبرامج من الهجمات الرقمية التي تهدف عادةً إلى الوصول إلى المعلومات الحساسة أو تغييرها أو تدميرها.</p>
+<h3 id="sec1-2">1.2 مشكلة البحث والتحديات الحالية</h3>
+<p>يواجه المختصون الأمنيون تحديات مثل تشتت البيانات، صعوبة التحليل الفني للمخرجات الخام، والفجوة الكبيرة بين اكتشاف الثغرة وتوافر كود الاستغلال (Exploit).</p>
 
-<h3 id="sec1-3">1.3 أهمية الأمن السيبراني</h3>
-<p>تكمن أهمية الأمن السيبراني في الحفاظ على سرية وسلامة وتوافر البيانات، ومنع الخسائر المالية وحماية السمعة المؤسسية.</p>
+<h3 id="sec1-3">1.3 الحل المقترح (المنصة الذكية)</h3>
+<p>يقدم المشروع منصة متكاملة تعمل كمحلل ذكي يقوم بأتمتة دورة حياة إدارة الثغرات بالكامل، من الفحص إلى مطابقة الثغرات العالمية وصولاً للتقارير.</p>
 
-<h3 id="sec1-4">1.4 التهديدات السيبرانية الشائعة</h3>
-<p>تشمل التهديدات هجمات التصيد الاحتيالي، البرمجيات الخبيثة، هجمات حجب الخدمة، وثغرات حقن الكود.</p>
-
-<h3 id="sec1-5">1.5 مفاهيم أساسية في الأمن السيبراني</h3>
-<p>مثل التشفير، المصادقة ثنائية العامل، إدارة الهوية، وجدران الحماية.</p>
+<h3 id="sec1-4">1.4 أهداف البحث والنتائج المتوقعة</h3>
+<p>بناء نظام مركزي، تطوير محرك تحليل ذكي، وتوفير قاعدة بيانات محلية محدثة للثغرات وأكواد الاستغلال لضمان سرعة الاستجابة.</p>
 
 <hr>
 
-<h2 id="ch2">الفصل الثاني: المعلومات الأساسية اللازمة لتوضيح أهمية اكتشاف الثغرات</h2>
+<h2 id="ch2">الفصل الثاني: هيكلية النظام التقنية (System Architecture)</h2>
 
-<h3 id="sec2-1">2.1 المقدمة</h3>
-<p>يعتبر اكتشاف الثغرات بشكل استباقي هو الخط الدفاعي الأول ضد الاختراقات، حيث يسمح بسد الثغرات قبل استغلالها.</p>
+<h3 id="sec2-1">2.1 المكونات الرئيسية للنظام (Frontend, Backend, Database)</h3>
+<p>يعتمد النظام على React في الواجهة الأمامية، Python في محرك الذكاء، و Supabase كقاعدة بيانات سحابية متطورة توفر الأمان والسرعة.</p>
 
-<h3 id="sec2-2">2.2 أهمية البروتوكولات في فحص ثغرات الويب</h3>
-<p>فهم البروتوكولات هو المفتاح لتحليل كيفية انتقال البيانات واكتشاف نقاط الضعف في قنوات الاتصال.</p>
+<h3 id="sec2-2">2.2 تدفق البيانات وعملية الفحص الذكي</h3>
+<p>تنتقل البيانات من طلب المستخدم إلى أدوات الفحص، ثم تعالج في محرك البايثون لاستخراج المعلومات المفيدة قبل حفظها وعرضها للمستخدم.</p>
 
-<h4 id="sec2-2-1">2.2.1 بروتوكول HTTP/HTTPS</h4>
-<p>يعتبر البروتوكول الأساسي لنقل صفحات الويب، وتعتمد العديد من الثغرات مثل (XSS) و (SQLi) على التلاعب بطلبات هذا البروتوكول.</p>
-
-<h4 id="sec2-2-2">2.2.2 بروتوكول TCP/IP</h4>
-<p>هو العمود الفقري للإنترنت، وفحص ثغراته يساعد في اكتشاف الخدمات المفتوحة ونقاط الدخول غير المصرح بها للشبكة.</p>
+<h3 id="sec2-3">2.3 منطق الأمان وفصل الصلاحيات</h3>
+<p>يتم تطبيق نظام Row Level Security لضمان أن كل مستخدم لا يرى إلا بياناته الخاصة، مع توفير واجهة إدارة للمسؤولين.</p>
 
 <hr>
 
-<h2 id="ch3">الفصل الثالث: هيكلية المنصة الذكية ومحرك تحليل البصمات</h2>
+<h2 id="ch3">الفصل الثالث: الميزات الابتكارية ومحركات التحليل</h2>
 
-<h3 id="sec3-1">3.1 المكونات الرئيسية للنظام (System Components)</h3>
-<p>يتكون النظام من ثلاث طبقات: الواجهة الأمامية (React)، المحرك الخلفي (Python)، وقاعدة البيانات السحابية (Supabase).</p>
+<h3 id="sec3-1">3.1 محرك استخراج البصمات الرقمية (Fingerprinting Engine)</h3>
+<p>خوارزمية مخصصة لتحليل النصوص تستخرج اسم المنتج وإصداره بدقة عالية من مخرجات أدوات مثل Nmap و Nikto.</p>
 
-<h3 id="sec3-2">3.2 محرك استخراج البصمات البرمجية (Fingerprinting)</h3>
-<p>يعتمد المحرك على خوارزميات تحليل النصوص لاستخراج إصدارات البرامج بدقة متناهية من مخرجات أدوات الفحص.</p>
+<h3 id="sec3-2">3.2 مطابقة الثغرات والاستخبارات (CVE & Exploit Matcher)</h3>
+<p>ربط لحظي بين الإصدارات المكتشفة وقواعد بيانات NVD العالمية و Exploit-DB لتوفير روابط مباشرة لأكواد الاستغلال.</p>
 
-<h3 id="sec3-3">3.3 مطابقة الثغرات مع قواعد البيانات العالمية (Matcher)</h3>
-<p>يتم مطابقة البصمات مع قاعدة بيانات NVD و Exploit-DB لتوفير استخبارات تهديدات فورية.</p>
+<h3 id="sec3-3">3.3 خوارزمية التصنيف الذكي للمخاطر</h3>
+<p>منطق برمي يقوم بتصنيف خطورة الثغرات بناءً على معايير CVSS العالمية وتصنيفات مخصصة للمكتشفات غير الموثقة برقم CVE.</p>
 
 <hr>
 
-<h2 id="ch4">الفصل الرابع: هندسة التقارير والأمن (Reporting & Security)</h2>
+<h2 id="ch4">الفصل الرابع: هندسة التقارير وأمن المنصة المتقدم</h2>
 
-<h3 id="sec4-1">4.1 تصميم التقارير الاحترافية الموجهة للطباعة</h3>
-<p>تستخدم المنصة CSS متطور لتوليد تقارير PDF تتضمن توزيع المخاطر وجداول زمنية للعلاج.</p>
+<h3 id="sec4-1">4.1 نظام التقارير الاحترافي الموجه للطباعة</h3>
+<p>توليد تقارير PDF احترافية تتضمن توزيع المخاطر، الأدلة التقنية، وجداول زمنية مقترحة للإصلاح والعلاج.</p>
 
-<h3 id="sec4-2">4.2 حماية البيانات باستخدام نظام الصلاحيات (RLS)</h3>
-<p>يضمن نظام Row Level Security عزل بيانات كل مستخدم بشكل كامل، مما يمنح المنصة موثوقية أمنية عالية.</p>
+<h3 id="sec4-2">4.2 حماية البيانات باستخدام RLS والتحكم في الوصول</h3>
+<p>ضمان خصوصية التقارير والنتائج من خلال سياسات أمنية صارمة على مستوى قاعدة البيانات تمنع الوصول غير المصرح به.</p>
+
+<hr>
+
+<h2 id="ch5">الفصل الخامس: الخلاصة والتوصيات المستقبلية</h2>
+
+<h3 id="sec5-1">5.1 النتائج المستخلصة من المشروع</h3>
+<p>أثبت المشروع فعاليته في ردم الفجوة بين أدوات الفحص التقليدية واحتياجات المؤسسات من خلال التحليل المؤتمت والذكي.</p>
+
+<h3 id="sec5-2">5.2 الرؤية التطويرية المستقبلية</h3>
+<p>تشمل خطط التطوير دمج الذكاء الاصطناعي التوليدي لتقديم حلول برمجية للثغرات، ودعم الفحص المجدول والتنبيهات الفورية.</p>
 
 </body>
 </html>
