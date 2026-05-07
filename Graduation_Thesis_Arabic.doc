@@ -1,187 +1,228 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
-<meta charset="UTF-8">
-<style>
-    body { font-family: 'Arial', sans-serif; line-height: 1.6; margin: 40px; color: #333; }
-    h1 { color: #2c3e50; text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; }
-    h2 { color: #34495e; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin-top: 40px; }
-    h3 { color: #2980b9; margin-top: 25px; }
-    h4 { color: #16a085; }
-    p, li { font-size: 14pt; text-align: justify; }
+    <meta charset="UTF-8">
+    <title>بحث تخرج: منصة ذكية مؤتمتة لإدارة الثغرات</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 
-    .toc-table { width: 100%; border-collapse: collapse; margin-bottom: 50px; background-color: #fff; }
-    .toc-table th, .toc-table td { border: 1px solid #000; padding: 10px; text-align: center; font-size: 14pt; }
-    .toc-table th { background-color: #f2f2f2; font-weight: bold; }
-    .toc-table td.title-cell { text-align: right; padding-right: 20px; }
-    .toc-table a { text-decoration: none; color: inherit; display: block; }
-    .toc-table tr.chapter-row { font-weight: bold; background-color: #f9f9f9; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px;
+            background-color: #f9f9f9;
+        }
 
-    .page-break { page-break-before: always; }
-    .center-text { text-align: center; }
-    table.comparison { width: 100%; border-collapse: collapse; margin: 20px 0; }
-    table.comparison th, table.comparison td { border: 1px solid #bdc3c7; padding: 12px; text-align: center; }
-    table.comparison th { background-color: #ecf0f1; }
-</style>
+        .cover-page {
+            text-align: center;
+            padding: 100px 50px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            border-radius: 15px;
+            margin-bottom: 50px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .cover-page h1 { font-size: 2.5em; margin-bottom: 20px; color: #38bdf8; }
+        .cover-page h2 { font-size: 1.5em; font-weight: normal; opacity: 0.9; }
+
+        .toc {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 40px;
+        }
+
+        .toc h3 { border-bottom: 2px solid #38bdf8; padding-bottom: 10px; margin-top: 0; }
+        .toc ul { list-style: none; padding: 0; }
+        .toc li { margin: 10px 0; border-bottom: 1px dashed #eee; padding-bottom: 5px; }
+        .toc a { text-decoration: none; color: #2563eb; font-weight: 500; display: flex; justify-content: space-between; }
+        .toc a:hover { color: #1d4ed8; }
+
+        .section {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            page-break-after: always;
+        }
+
+        h2 { color: #1e293b; border-right: 5px solid #38bdf8; padding-right: 15px; margin-top: 40px; }
+        h3 { color: #2563eb; margin-top: 30px; }
+        h4 { color: #0f172a; background: #f1f5f9; padding: 10px; border-radius: 5px; }
+
+        .highlight-box {
+            background: #eff6ff;
+            border-right: 4px solid #3b82f6;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .tool-card {
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .footer { text-align: center; margin-top: 50px; font-size: 0.9em; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .section { box-shadow: none; border: 1px solid #eee; margin-bottom: 0; }
+            .cover-page { border-radius: 0; height: 100vh; display: flex; flex-direction: column; justify-content: center; }
+            .toc { page-break-after: always; }
+        }
+    </style>
 </head>
 <body>
 
-<!-- شكر وتقدير -->
-<div class="center-text">
-    <h1 style="margin-top: 100px;">شكر وتقدير</h1>
-    <p style="font-size: 16pt; margin-top: 50px;">
-        أتقدم بجزيل الشكر والعرفان إلى كل من ساعدني في إتمام هذا العمل الأكاديمي...
-    </p>
-</div>
-<div class="page-break"></div>
+    <!-- Cover Page -->
+    <div class="cover-page">
+        <h1>منصة ذكية مؤتمتة لإدارة الثغرات واستخبارات التهديدات</h1>
+        <h2>بحث تخرج مقدم لنيل درجة البكالوريوس في هندسة البرمجيات / الأمن السيبراني</h2>
+        <p style="margin-top: 40px;">إعداد الطالب: [اسمك هنا]</p>
+        <p>إشراف الدكتور: [اسم المشرف]</p>
+        <p>العام الجامعي: 2024 - 2025</p>
+    </div>
 
-<!-- إهداء -->
-<div class="center-text">
-    <h1 style="margin-top: 100px;">إهداء</h1>
-    <p style="font-size: 16pt; margin-top: 50px;">
-        إلى عائلتي وأساتذتي وكل من آمن بقدراتي...
-    </p>
-</div>
-<div class="page-break"></div>
+    <!-- Interactive TOC -->
+    <div class="toc">
+        <h3>فهرس المحتويات</h3>
+        <ul>
+            <li><a href="#ch1">الفصل الأول: الإطار العام للبحث <span>صفحة 1</span></a></li>
+            <li><a href="#ch1_4">دورة حياة إدارة الثغرات <span>صفحة 3</span></a></li>
+            <li><a href="#ch2">الفصل الثاني: البناء المعماري والمتطلبات <span>صفحة 5</span></a></li>
+            <li><a href="#ch3">الفصل الثالث: منهجية الابتكار وتحليل الأدوات <span>صفحة 8</span></a></li>
+            <li><a href="#ch3_3">تحليل الأدوات المدمجة (Nmap, Ffuf, SQLMap, Nikto) <span>صفحة 10</span></a></li>
+            <li><a href="#ch4">الفصل الرابع: تطوير الواجهة وأمن البيانات <span>صفحة 13</span></a></li>
+            <li><a href="#ch5">الفصل الخامس: الخلاصة والتطلعات <span>صفحة 16</span></a></li>
+        </ul>
+    </div>
 
-<!-- الفهرس الشامل -->
-<h1 id="toc">الفهرس</h1>
-<table class="toc-table">
-    <thead>
-        <tr>
-            <th style="width: 15%;">الفصل</th>
-            <th style="width: 70%;">العنوان الرئيسي</th>
-            <th style="width: 15%;">الصفحة</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr class="chapter-row">
-            <td>الفصل الأول</td>
-            <td class="title-cell">المقدمة ومشكلة البحث (Introduction & Problem Statement)</td>
-            <td><a href="#ch1">4</a></td>
-        </tr>
-        <tr><td>1.1</td><td class="title-cell">مقدمة عامة</td><td><a href="#sec1-1">4</a></td></tr>
-        <tr><td>1.2</td><td class="title-cell">مشكلة البحث (تشتت البيانات وفجوة التحليل)</td><td><a href="#sec1-2">4</a></td></tr>
-        <tr><td>1.3</td><td class="title-cell">الحل المقترح (المحلل الذكي Intelligent Analyzer)</td><td><a href="#sec1-3">5</a></td></tr>
-        <tr><td>1.4</td><td class="title-cell">أهداف البحث (أتمتة دورة حياة الثغرات)</td><td><a href="#sec1-4">5</a></td></tr>
-        <tr><td>1.5</td><td class="title-cell">مفهوم "إدارة" الثغرات مقابل "اكتشاف" الثغرات (Vulnerability Lifecycle)</td><td><a href="#sec1-5">6</a></td></tr>
+    <!-- Chapter 1 -->
+    <div id="ch1" class="section">
+        <h2>الفصل الأول: الإطار العام للبحث</h2>
 
-        <tr class="chapter-row">
-            <td>الفصل الثاني</td>
-            <td class="title-cell">هيكلية النظام التقنية (System Architecture)</td>
-            <td><a href="#ch2">7</a></td>
-        </tr>
-        <tr><td>2.1</td><td class="title-cell">المكونات الرئيسية للنظام (Decoupled Architecture)</td><td><a href="#sec2-1">7</a></td></tr>
-        <tr><td>2.2</td><td class="title-cell">هندسة الواجهات الأمامية (The Power of React & TypeScript)</td><td><a href="#sec2-2">8</a></td></tr>
-        <tr><td>2.3</td><td class="title-cell">معمارية الخادم اللامرئي (Supabase & RLS Architecture)</td><td><a href="#sec2-3">9</a></td></tr>
-        <tr><td>2.4</td><td class="title-cell">تدفق البيانات وهندسة قواعد البيانات</td><td><a href="#sec2-4">10</a></td></tr>
+        <h3>1.1 مقدمة البحث (Introduction)</h3>
+        <p>في ظل التحول الرقمي المتسارع، أصبحت الأمن السيبراني هو الركيزة الأساسية لاستمرارية الأعمال. هذا البحث يقدم "منصة ذكية مؤتمتة" لا تكتفي باكتشاف المشاكل، بل تحللها وتربطها بقواعد بيانات عالمية لحظياً. المشروع هو دمج بين هندسة البرمجيات الحديثة (Software Engineering) وبين الأمن الهجومي (Offensive Security) لتقديم أداة تساعد الشركات على البقاء خطوة واحدة أمام المخترقين.</p>
 
-        <tr class="chapter-row">
-            <td>الفصل الثالث</td>
-            <td class="title-cell">الميزات الابتكارية وتقنيات التحليل الذكي</td>
-            <td><a href="#ch3">11</a></td>
-        </tr>
-        <tr><td>3.1</td><td class="title-cell">محرك استخراج البصمات الرقمية (Digital Fingerprinting Engine)</td><td><a href="#sec3-1">11</a></td></tr>
-        <tr><td>3.2</td><td class="title-cell">مطابقة الثغرات والاستخبارات (CVE & Exploit-DB Matcher)</td><td><a href="#sec3-2">12</a></td></tr>
-        <tr><td>3.3</td><td class="title-cell">بروتوكول CVSS وتصنيف المخاطر الديناميكي</td><td><a href="#sec3-3">13</a></td></tr>
-        <tr><td>3.4</td><td class="title-cell">تحليل الأدوات المدمجة (Nmap, SQLmap, Ffuf, Nikto)</td><td><a href="#sec3-4">14</a></td></tr>
+        <h3>1.2 مشكلة البحث (Problem Statement)</h3>
+        <div class="highlight-box">
+            المشكلة الأساسية تكمن في "فوضى البيانات الأمنية". الأدوات التقليدية تنتج آلاف الأسطر من النتائج التي يصعب على البشر تحليلها يدوياً في وقت قصير. بالإضافة إلى ذلك، فإن معظم هذه الأدوات تعمل بشكل منفصل، مما يترك فجوات أمنية وصعوبة في تحديد الأولويات.
+        </div>
 
-        <tr class="chapter-row">
-            <td>الفصل الرابع</td>
-            <td class="title-cell">هندسة التقارير والأمن المتقدم</td>
-            <td><a href="#ch4">16</a></td>
-        </tr>
-        <tr><td>4.1</td><td class="title-cell">هندسة التقارير الأمنية الموجهة (Professional Reporting)</td><td><a href="#sec4-1">16</a></td></tr>
-        <tr><td>4.2</td><td class="title-cell">نظام الصلاحيات وأمن المنصة (RBAC)</td><td><a href="#sec4-2">17</a></td></tr>
+        <h3>1.3 الحل المقترح (The Proposed Solution)</h3>
+        <p>يقدم هذا المشروع منصة مركزية موحدة تعمل كمحلل ذكي (Intelligent Orchestrator). تقوم المنصة بتنسيق عمل أدوات متعددة، وتجمع مخرجاتها، ثم تقوم بمعالجتها عبر "محرك ذكاء" خاص يستخرج المعلومات الحيوية (مثل نوع الخادم، الإصدار، والخدمات النشطة) ويربطها بقواعد بيانات الثغرات (CVE) وأكواد الاستغلال (Exploit-DB).</p>
 
-        <tr class="chapter-row">
-            <td>الفصل الخامس</td>
-            <td class="title-cell">التطبيق العملي والنتائج والخلاصة</td>
-            <td><a href="#ch5">18</a></td>
-        </tr>
-        <tr><td>5.1</td><td class="title-cell">سيناريوهات الفحص ولوحة التحكم (Screenshots)</td><td><a href="#sec5-1">18</a></td></tr>
-        <tr><td>5.2</td><td class="title-cell">الخلاصة والتوصيات المستقبلية</td><td><a href="#sec5-2">19</a></td></tr>
-    </tbody>
-</table>
+        <h3 id="ch1_4">1.4 دورة حياة إدارة الثغرات في المنصة</h3>
+        <p>يتبع المشروع المنهجية العالمية لإدارة الثغرات، ولكن بلمسة أتمتة كاملة:</p>
+        <ul>
+            <li><strong>الاكتشاف (Discovery):</strong> مسح كامل للأصول الرقمية عبر الشبكة.</li>
+            <li><strong>التحليل (Analysis):</strong> استخراج البصمات وتحديد الإصدارات البرمجية بدقة.</li>
+            <li><strong>التقييم (Assessment):</strong> مطابقة النتائج مع سجلات CVE لتقييم الخطورة.</li>
+            <li><strong>إعداد التقارير (Reporting):</strong> توليد تقارير إدارية وفنية فورية بضغطة زر.</li>
+            <li><strong>المعالجة (Remediation):</strong> توفير روابط الاستغلال والتوصيات العملية لسد الثغرة.</li>
+        </ul>
 
-<div class="page-break"></div>
+        <h3>1.5 فوائد اختيار التقنيات الحديثة (Tech Stack)</h3>
+        <p>تم اختيار <strong>React & TypeScript</strong> لبناء واجهة مستخدم قوية توفر "أمان الأنواع" (Type Safety)، بينما استخدمنا <strong>Python</strong> في المحرك الخلفي لقدرتها الهائلة على معالجة النصوص. أما <strong>Supabase</strong> فقد وفر لنا سرعة التطوير مع قوة قواعد بيانات PostgreSQL ونظام RLS المتطور.</p>
 
-<h2 id="ch1">الفصل الأول: المقدمة ومشكلة البحث (Introduction & Problem Statement)</h2>
+        <h3>1.7 إدارة المخاطر (Risk Management)</h3>
+        <p>تم التعامل مع المخاطر التقنية (مثل انقطاع البيانات العالمية) عبر بناء "نسخة محلية" (Local Cache)، والمخاطر القانونية عبر فرض نظام صارم لتسجيل الدخول والتحقق من الهوية.</p>
+    </div>
 
-<h3 id="sec1-1">1.1 مقدمة عامة</h3>
-<p>في ظل التحول الرقمي المتسارع، أصبحت تطبيقات الويب والبنية التحتية الرقمية هي العمود الفقري للمؤسسات. ومع هذا التطور، تزايدت وتيرة الهجمات السيبرانية، مما جعل عملية "إدارة الثغرات" (Vulnerability Management) ضرورة حتمية وليست مجرد خيار تكميلي.</p>
+    <!-- Chapter 2 -->
+    <div id="ch2" class="section">
+        <h2>الفصل الثاني: البناء المعماري والمتطلبات</h2>
 
-<h3 id="sec1-2">1.2 مشكلة البحث (تشتت البيانات وفجوة التحليل)</h3>
-<p>رغم توفر العديد من أدوات الفحص الأمني، إلا أن المختصين يواجهون تحديات مثل تشتت البيانات بين الأدوات، صعوبة استخراج المعلومات المفيدة من المخرجات الخام، والفجوة بين اكتشاف الثغرة وتوافر كود الاستغلال (Exploit) لإثبات صحتها.</p>
+        <h3>2.1 الهيكلية المفصولة (Decoupled Architecture)</h3>
+        <p>النظام ليس "كتلة واحدة"، بل هو نظام موزع يسمح بتحديث محركات الفحص دون التأثير على واجهة المستخدم، مما يضمن استدامة المنصة (Scalability).</p>
 
-<h3 id="sec1-3">1.3 الحل المقترح (المحلل الذكي Intelligent Analyzer)</h3>
-<p>يقدم هذا المشروع منصة متكاملة تعمل كمحلل ذكي يقوم بأتمتة دورة حياة إدارة الثغرات بالكامل. المنصة لا تكتفي بتشغيل الفحوصات، بل تقوم بمعالجة المخرجات عبر محرك متطور لاستخراج البصمات الرقمية ومطابقتها مع قواعد بيانات عالمية.</p>
+        <h3>2.2 محرك الاستخبارات (Intel Engine - Python)</h3>
+        <p>هذا هو "دماغ" المنصة، المسؤول عن عمليات التنظيف (Cleaning) والمطابقة (Matching) وإغناء البيانات (Enrichment) بالمعلومات المستمدة من المصادر العالمية والمحلية.</p>
 
-<h3 id="sec1-4">1.4 أهداف البحث (أتمتة دورة حياة الثغرات)</h3>
-<p>يهدف البحث إلى بناء نظام مركزي لإدارة عمليات الفحص الأمني، تطوير محرك تحليل ذكي قادر على استخراج الإصدارات البرمجية بدقة، وتمكين المستخدمين من الحصول على تقارير احترافية وتوصيات للعلاج.</p>
+        <h3>2.3 هندسة قاعدة البيانات (Supabase & PostgreSQL)</h3>
+        <div class="highlight-box">
+            تم تصميم الجداول لتدعم العلاقات المعقدة بين "عمليات الفحص" و"النتائج" و"فهرس الثغرات العالمي"، مع تفعيل نظام Row Level Security لضمان خصوصية كل مؤسسة.
+        </div>
 
-<h3 id="sec1-5">1.5 مفهوم "إدارة" الثغرات مقابل "اكتشاف" الثغرات (Vulnerability Lifecycle)</h3>
-<p>لا يكتفي المشروع بالبحث عن الثغرة فقط، بل يدير دورة حياتها كاملة (Lifecycle). يبدأ الأمر من الاستكشاف (Discovery)، ثم التصنيف (Prioritization) بناءً على خطورة الثغرة، وصولاً إلى التحقق من المعالجة (Remediation). هذا يظهر أننا لا نبني ماسحاً بسيطاً، بل نظاماً يساعد أصحاب القرار على معرفة أي الثغرات يجب إصلاحها أولاً بناءً على المخاطر الفعلية.</p>
+        <h3>2.5 المتطلبات الوظيفية وغير الوظيفية</h3>
+        <p>تشمل المتطلبات الوظيفية القدرة على إدارة الأهداف، بدء الفحوصات، وتحميل التقارير. أما غير الوظيفية فتركز على سرعة المعالجة وسهولة استخدام الواجهة (UX/UI).</p>
+    </div>
 
-<hr>
+    <!-- Chapter 3 -->
+    <div id="ch3" class="section">
+        <h2>الفصل الثالث: منهجية الابتكار وتحليل الأدوات</h2>
 
-<h2 id="ch2">الفصل الثاني: هيكلية النظام التقنية (System Architecture)</h2>
+        <h3>3.1 محرك استخراج البصمات الرقمية (Fingerprinting)</h3>
+        <p>الابتكار الحقيقي هنا هو قدرة المنصة على استنتاج "نوع التقنية المستخدمة" (Tech Stack Detection) حتى لو حاول النظام إخفاء نسخته، وذلك عبر تحليل أنماط الاستجابة (Header Analysis).</p>
 
-<h3 id="sec2-1">2.1 المكونات الرئيسية للنظام (Decoupled Architecture)</h3>
-<p>تعتمد المنصة على معمارية حديثة تفصل بين الخدمات (Frontend, Backend, Database). هذا الفصل يمنح النظام مرونة عالية في التوسع وتحديث محركات الفحص دون التأثير على تجربة المستخدم.</p>
+        <h3 id="ch3_3">3.3 تحليل الأدوات المدمجة كـ "عملاء ذكيين"</h3>
 
-<h3 id="sec2-2">2.2 هندسة الواجهات الأمامية (The Power of React & TypeScript)</h3>
-<p>تم استخدام React مع TypeScript لبناء واجهات تفاعلية و (Type-Safe) تمنع أخطاء البرمجة في وقت التشغيل. يوفر النظام لوحة تحكم (Dashboard) تعرض إحصائيات حية، مما يعكس نضجاً برمجياً في التعامل مع الحالات المعقدة (State Management) لعرض النتائج الضخمة بسلاسة.</p>
+        <div class="tool-card">
+            <h4>1. Nmap (The Network Mapper)</h4>
+            <p>هو العين التي ترى الشبكة. يستخدمه النظام لاستكشاف المنافذ المفتوحة والخدمات النشطة. هو الخطوة الأولى والأساسية في رسم خريطة الهجوم.</p>
+        </div>
 
-<h3 id="sec2-3">2.3 معمارية الخادم اللامرئي (Supabase & RLS Architecture)</h3>
-<p>يعتمد المشروع على Supabase كنظام "Backend-as-a-Service". الأهمية هنا تكمن في بناء أمان "داخل قاعدة البيانات" (Security at the Database Level) من خلال سياسات (Row Level Security - RLS). هذا يضمن عزل بيانات كل مستخدم تماماً ويقلل من سطح الهجوم (Attack Surface) على المشروع نفسه.</p>
+        <div class="tool-card">
+            <h4>2. Ffuf (Fast Fuzzing)</h4>
+            <p>أداة متخصصة في اكتشاف الملفات والمجلدات المخفية (مثل ملفات الإعدادات .env). المنصة تستخدمها للبحث عن الموارد الحساسة التي قد ينساها المطورون.</p>
+        </div>
 
-<h3 id="sec2-4">2.4 تدفق البيانات وهندسة قواعد البيانات</h3>
-<p>يتم إرسال المخرجات الخام من الأدوات إلى محرك البايثون، حيث تُعالج وتُحفظ في PostgreSQL بتصميم يضمن عدم تكرار البيانات (Normalization) وسرعة الاستعلام عنها، مما يجعلها العمود الفقري لأي نظام إدارة كفؤ.</p>
+        <div class="tool-card">
+            <h4>3. SQLMap</h4>
+            <p>المحرك الأقوى في العالم لاكتشاف ثغرات حقن قواعد البيانات. المنصة تدمجه للتأكد مما إذا كانت مدخلات الموقع محمية ضد الاختراق الحقيقي.</p>
+        </div>
 
-<hr>
+        <div class="tool-card">
+            <h4>4. Nikto</h4>
+            <p>أداة مسح شاملة لخوادم الويب، تكتشف الملفات الخطيرة والإعدادات الخاطئة (Misconfigurations) بسرعة فائقة وتقدم تنبيهات حول البرمجيات القديمة.</p>
+        </div>
 
-<h2 id="ch3">الفصل الثالث: الميزات الابتكارية وتقنيات التحليل الذكي</h2>
+        <h3>3.4 التصنيف الذكي والمفاضلة (Smart Classification)</h3>
+        <p>تم تطوير نظام "أوزان" يقوم بترتيب الثغرات من "Critical" إلى "Low" بناءً على معايير CVSS العالمية، لضمان تركيز فريق العمل على المخاطر الأكبر أولاً.</p>
+    </div>
 
-<h3 id="sec3-1">3.1 محرك استخراج البصمات الرقمية (Digital Fingerprinting Engine)</h3>
-<p>هذا هو قلب المنصة، حيث يمتلك النظام خوارزميات تحليل أنماط (Pattern Matching) لاستخراج هوية المنتج وإصداره الدقيق من مخرجات الأدوات، وهو أمر حيوي جداً لتحديد ما إذا كان البرنامج مصاباً بثغرة معينة.</p>
+    <!-- Chapter 4 -->
+    <div id="ch4" class="section">
+        <h2>الفصل الرابع: تطوير الواجهة وأمن البيانات</h2>
 
-<h3 id="sec3-2">3.2 مطابقة الثغرات والاستخبارات (CVE & Exploit-DB Matcher)</h3>
-<p>الميزة الكبرى هي الربط المتقاطع اللحظي؛ فبمجرد التعرف على الإصدار، يبحث النظام في قاعدة بيانات NVD و Exploit-DB ليربط الثغرة بروابط مباشرة لأكواد استغلال حقيقية (PoC)، مما يساعد المختبرين على التحقق من الثغرة بسرعة.</p>
+        <h3>4.1 هندسة التقارير الديناميكية</h3>
+        <p>التقرير في منصتنا هو مستند مهني يحتوي على "ملخص تنفيذي" للمدراء و"تفاصيل تقنية" للمبرمجين، مع رسوم بيانية توضح توزيع المخاطر (Risk Distribution).</p>
 
-<h3 id="sec3-3">3.3 بروتوكول CVSS وتصنيف المخاطر الديناميكي</h3>
-<p>يتم حساب خطورة الثغرة آلياً بناءً على المعايير العالمية (CVSS). هذا يثبت اتباع المشروع للمقاييس العالمية، ويحول البيانات التقنية الجافة إلى تقييم مخاطر مفهوم لصناع القرار.</p>
+        <h3>4.2 نموذج أمن البيانات (RLS)</h3>
+        <p>بفضل تقنية Row Level Security، يتم عزل بيانات كل مستخدم تماماً على مستوى قاعدة البيانات، مما يوفر حماية ضد هجمات الوصول غير المصرح به حتى في حالة وجود خلل في البرمجة.</p>
 
-<h3 id="sec3-4">3.4 تحليل الأدوات المدمجة (Nmap, SQLmap, Ffuf, Nikto)</h3>
-<table class="comparison">
-    <tr><th>الأداة</th><th>القيمة الهندسية المضافة</th></tr>
-    <tr><td>Nmap</td><td>استكشاف الشبكة وتحديد "سطح الهجوم" وإصدارات الخدمات.</td></tr>
-    <tr><td>SQLmap</td><td>ضمان سلامة قاعدة البيانات ومنع تسريبات ثغرات الحقن (SQLi).</td></tr>
-    <tr><td>Ffuf</td><td>اكتشاف المسارات المخفية والملفات المنسية (Fuzzing).</td></tr>
-    <tr><td>Nikto</td><td>التحقق من أمان إعدادات الخادم (Web Server Hardening).</td></tr>
-</table>
+        <h3>4.3 بناء الواجهة الأمامية وخطافات البيانات</h3>
+        <p>استخدمنا React Hooks لمراقبة حالة الفحص لحظياً، حيث يرى المستخدم شريط تقدم (Progress Bar) يتحدث مع كل خطوة يقوم بها المحرك الأمني في الخلفية.</p>
+    </div>
 
-<hr>
+    <!-- Chapter 5 -->
+    <div id="ch5" class="section">
+        <h2>الفصل الخامس: الخلاصة والتطلعات</h2>
 
-<h2 id="ch4">الفصل الرابع: هندسة التقارير والأمن المتقدم</h2>
+        <h3>5.1 الخلاصة (Conclusion)</h3>
+        <p>يمثل هذا المشروع خطوة نحو "ديمقراطية الأمن السيبراني"، حيث يحول الأدوات المعقدة إلى واجهة بسيطة وذكية تقدم حلولاً عملية لا مجرد قائمة طويلة من المشاكل.</p>
 
-<h3 id="sec4-1">4.1 هندسة التقارير الأمنية الموجهة (Professional Reporting)</h3>
-<p>تم ابتكار نظام تقارير يولد مستندات PDF احترافية تتضمن ملخصاً تنفيذياً، خطط علاج زمنية (مثل 7 أيام للثغرات الحرجة)، وأدلة تقنية مفصلة للمطورين.</p>
+        <h3>5.2 التوصيات والمستقبل</h3>
+        <ul>
+            <li>إضافة ميزة المعالجة التلقائية (Auto-Patching) عبر الذكاء الاصطناعي.</li>
+            <li>تطوير تطبيق موبايل للمراقبة الأمنية المستمرة.</li>
+            <li>دمج نماذج اللغة الكبيرة (LLMs) لشرح الثغرات باللغة العربية المبسطة.</li>
+        </ul>
+    </div>
 
-<h3 id="sec4-2">4.2 نظام الصلاحيات وأمن المنصة (RBAC)</h3>
-<p>يتم تأمين التواصل باستخدام بروتوكولات حديثة، مع تطبيق (Role-Based Access Control) لضمان خصوصية البيانات وعزل مهام المستخدمين عن المسؤولين بشكل كامل.</p>
-
-<hr>
-
-<h2 id="ch5">الفصل الخامس: التطبيق العملي والنتائج والخلاصة</h2>
-
-<h3 id="sec5-1">5.1 سيناريوهات الفحص ولوحة التحكم (Screenshots)</h3>
-<p class="center-text"><strong>(هنا يتم إدراج صورة واجهة إدخال النطاق المراد فحصه)</strong></p>
-<p class="center-text"><strong>(هنا يتم إدراج صورة الرسوم البيانية لتوزيع الثغرات)</strong></p>
-<p class="center-text"><strong>(هنا يتم إدراج صورة نصائح الإصلاح وكود المعالجة)</strong></p>
-
-<h3 id="sec5-2">5.2 الخلاصة والتوصيات المستقبلية</h3>
-<p>أثبت المشروع أن هندسة البرمجيات الصحيحة يمكنها توفر بيئة آمنة وقابلة للإدارة. في المستقبل، نطمح لدمج الذكاء الاصطناعي لتقديم حلول برمجية تلقائية للثغرات المكتشفة.</p>
+    <div class="footer">
+        <p>تم توليد هذا المستند كجزء من متطلبات بحث التخرج - © 2024</p>
+    </div>
 
 </body>
 </html>
