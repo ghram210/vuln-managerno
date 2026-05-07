@@ -42,7 +42,7 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
                 return "HIGH"
             if port in [80, 443, 8080, 8443]:
                 return "MEDIUM"
-        return "MEDIUM"
+        return "INFO"
 
     if tool == "SQLMAP":
         # Confirmed injections
@@ -51,7 +51,7 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
         # Heuristic hints
         if "might be injectable" in evidence or "heuristic" in evidence:
             return "HIGH"
-        return "MEDIUM"
+        return "INFO"
 
     if tool == "NIKTO":
         # Downgrade informational noise
@@ -63,7 +63,7 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
             "cookie", "header", "allowed methods",
         ]
         if any(kw in evidence for kw in info_keywords):
-            return "LOW"
+            return "INFO"
 
         # Real vulnerabilities
         if any(kw in evidence for kw in ["vulnerable", "vulnerability", "exploit", "rce", "sqli"]):

@@ -59,7 +59,7 @@ def test_nikto_classification():
         sev = classifier.classify("NIKTO", fp.evidence)
         print(f"Evidence: {fp.evidence} -> Severity: {sev}")
         if "clickjacking" in fp.evidence.lower():
-            assert sev == "LOW"
+            assert sev == "INFO"
 
 def test_formatted_nikto_parsing():
     print("\nTesting formatted Nikto parsing (database format)...")
