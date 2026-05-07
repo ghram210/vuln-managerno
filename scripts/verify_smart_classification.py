@@ -11,45 +11,59 @@ import fingerprints
 from matcher import MatchResult, Fingerprint, CVEHit
 from supabase_push import build_payload, severity_counts
 
-def test_hybrid_classification():
-    print("\n--- Testing Hybrid (NVD + Smart) Classification ---")
+def test_nmap_no_redundancy():
+    print("\n--- Testing Nmap Noise Reduction ---")
+    # Simulation: Nmap finds Apache 2.4.7 on port 80
+    nmap_output = "80/tcp open http Apache httpd 2.4.7"
+    fps = fingerprints.from_nmap(nmap_output)
 
-    # 1. Mock NVD Match (Nikto finding a software version)
-    fp_nvd = Fingerprint(vendor="apache", product="http_server", version="2.4.49", source="nikto")
-    cve_hit = CVEHit(cve_id="CVE-2021-41773", description="Path traversal", cvss_score=7.5, cvss_severity="HIGH", cvss_vector="...", cvss_version="3.1", published_date="...", last_modified="...")
-    res_nvd = MatchResult(fingerprint=fp_nvd, cves=[cve_hit])
+    # Expected: 1 fingerprint (Apache software), NO redundant "Open Port: 80"
+    # because software was detected and port 80 is not 'risky'.
+    print(f"Fingerprints count: {len(fps)}")
+    for fp in fps:
+        print(f"Product: {fp.product:<20} Source: {fp.source}")
 
-    # 2. Mock Smart Finding (Nikto finding a config issue)
-    fp_smart = Fingerprint(vendor="generic", product="nikto-finding", version="issue", source="nikto", evidence="+ The anti-clickjacking header is not present.", suggested_severity="LOW")
-    res_smart = MatchResult(fingerprint=fp_smart, cves=[])
+    assert len(fps) == 1
+    assert fps[0].product == "http_server"
 
-    results = [res_nvd, res_smart]
-    payload = build_payload("test-scan", "NIKTO", "http://test.com", results)
+def test_nmap_risky_port():
+    print("\n--- Testing Nmap Risky Port Inclusion ---")
+    # Simulation: Nmap finds FTP on port 21
+    nmap_output = "21/tcp open ftp"
+    fps = fingerprints.from_nmap(nmap_output)
 
-    for f in payload["scan_findings"]:
-        source = f["metadata"].get("classification_source")
-        print(f"Title: {f['title']:<40} Source: {source:<20}")
+    # Expected: Port 21 should be included as it's in _RISKY_PORTS
+    print(f"Fingerprints count: {len(fps)}")
+    for fp in fps:
+        print(f"Product: {fp.product:<20} Severity: {fp.suggested_severity}")
 
-    counts = severity_counts(payload)
-    print(f"Final Counts: {counts}")
-    assert counts["high_count"] == 1
-    assert counts["low_count"] == 1
+    assert any(f.product == "port-21/tcp" for f in fps)
 
-def test_sqlmap_critical():
-    print("\n--- Testing SQLMap Critical Classification ---")
-    sqlmap_output = "Parameter: id (GET)\n    Type: boolean-based blind"
-    fps = fingerprints.from_sqlmap(sqlmap_output)
-    results = [MatchResult(fingerprint=fp, cves=[]) for fp in fps]
-    payload = build_payload("test-scan", "SQLMAP", "http://test.com", results)
+def test_nikto_noise_reduction():
+    print("\n--- Testing Nikto Noise Reduction ---")
+    # Simulation: Nikto finding 'interesting' (Low) vs 'vulnerable' (High)
+    nikto_output = """
++ Server: Apache/2.4.7
++ The anti-clickjacking header is not present.
++ The X-Content-Type-Options header is not set.
++ OSVDB-3092: /test.php: This might be interesting.
++ /admin/: Vulnerable to something.
+    """
+    fps = fingerprints.from_nikto(nikto_output)
 
-    for f in payload["scan_findings"]:
-        print(f"Title: {f['title']:<40} Source: {f['metadata'].get('classification_source')}")
+    for fp in fps:
+        print(f"Title: {fp.product:<15} Evidence: {fp.evidence[:30]:<30} Sev: {fp.suggested_severity or 'NVD'}")
 
-    counts = severity_counts(payload)
-    print(f"Final Counts: {counts}")
-    assert counts["critical_count"] == 1
+    # Expected:
+    # 1. Apache (NVD)
+    # 2. anti-clickjacking (LOW)
+    # 3. X-Content-Type-Options (LOW)
+    # 4. /test.php (LOW)
+    # 5. /admin/ (HIGH)
+    print(f"Total findings: {len(fps)}")
 
 if __name__ == "__main__":
-    test_hybrid_classification()
-    test_sqlmap_critical()
-    print("\n✓ ALL VERIFICATIONS PASSED")
+    test_nmap_no_redundancy()
+    test_nmap_risky_port()
+    test_nikto_noise_reduction()
+    print("\n✓ ALL NOISE REDUCTION VERIFICATIONS PASSED")

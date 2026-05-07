@@ -52,10 +52,10 @@ def build_payload(
         # Smart Title Generation
         if r.cves:
             # Highlight CVE ID for NVD matches to show credibility
-            cve_ids = ", ".join([c.cve_id for c in r.cves[:2]])
-            if len(r.cves) > 2:
-                cve_ids += f" (+{len(r.cves)-2})"
-            title = f"{cve_ids} - {fp.product} {fp.version or '*'}"
+            cve_ids = ", ".join([c.cve_id for c in r.cves[:1]]) # Just 1 for brevity in UI
+            if len(r.cves) > 1:
+                cve_ids += f" (+{len(r.cves)-1})"
+            title = f"VULNERABILITY DETECTED: {cve_ids} | {fp.product} {fp.version or '*'}"
         elif fp.vendor == "generic":
             if "port-" in fp.product:
                 title = f"Open Port: {fp.product.replace('port-','')}"

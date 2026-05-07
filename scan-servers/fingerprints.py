@@ -131,11 +131,11 @@ _NOISE_PATTERNS = [
     r"/assets/", r"/images/", r"/fonts/", r"/favicon\.ico$"
 ]
 
-# Nikto specific patterns
+# Nikto specific patterns (More conservative to avoid noise)
 _NIKTO_PATTERNS = {
-    "HIGH": [r"vulnerable", r"outdated", r"critical", r"rce", r"exploit"],
-    "MEDIUM": [r"interesting", r"sensitive", r"bypass", r"config", r"directory index"],
-    "LOW": [r"header", r"cookie", r"not present", r"missing", r"options"]
+    "HIGH": [r"\bvulnerable\b", r"\boutdated\b", r"\bcritical\b", r"\brce\b", r"\bexploit\b"],
+    "MEDIUM": [r"\bsensitive\b", r"\bbypass\b", r"\bdirectory index\b", r"\breadme\b"],
+    "LOW": [r"\bheader\b", r"\bcookie\b", r"\bnot present\b", r"\bmissing\b", r"\binteresting\b"]
 }
 
 
@@ -212,9 +212,11 @@ def from_nmap(output: str) -> list[Fingerprint]:
     for line in output.splitlines():
         if "/tcp" in line and "open" in line:
             # 1. Extract software fingerprints
-            fps.extend(_pairs_from_line(line, source="nmap"))
+            extracted = _pairs_from_line(line, source="nmap")
+            fps.extend(extracted)
 
             # 2. Extract port details for smart classification
+            # ONLY if no specific software was found on this line, or if it's a risky port
             m = re.search(r"(\d+)/tcp\s+open\s+(\S+)", line)
             if m:
                 port_num = m.group(1)
@@ -222,17 +224,24 @@ def from_nmap(output: str) -> list[Fingerprint]:
 
                 # Determine smart severity for the port
                 sev = "INFO"
+                is_risky = False
                 for s, ports in _RISKY_PORTS.items():
                     if port_num in ports:
                         sev = s
+                        if s in ("HIGH", "MEDIUM"):
+                            is_risky = True
                         break
 
-                fps.append(Fingerprint(
-                    vendor="generic", product=f"port-{port_num}/tcp",
-                    version=service_name, source="nmap",
-                    evidence=line.strip()[:300],
-                    suggested_severity=sev
-                ))
+                # We only add a generic port finding if:
+                # a) No software was extracted from this line
+                # b) OR the port itself is considered risky (Medium/High)
+                if not extracted or is_risky:
+                    fps.append(Fingerprint(
+                        vendor="generic", product=f"port-{port_num}/tcp",
+                        version=service_name, source="nmap",
+                        evidence=line.strip()[:300],
+                        suggested_severity=sev
+                    ))
         elif "http-server-header" in line.lower():
             fps.extend(_pairs_from_line(line, source="nmap"))
     return _dedup(fps)
@@ -368,10 +377,17 @@ def extract(tool: str, raw_output: str) -> list[Fingerprint]:
 
 
 def _dedup(fps: Iterable[Fingerprint]) -> list[Fingerprint]:
-    seen: set[tuple[str, str, str | None]] = set()
+    # Dedup based on vendor, product, version AND evidence to allow multiple findings
+    # per tool if they refer to different issues, but prevent exact line duplicates.
+    seen: set[tuple[str, str, str | None, str | None]] = set()
     out: list[Fingerprint] = []
     for fp in fps:
-        key = (fp.vendor.lower(), fp.product.lower(), (fp.version or "").lower())
+        key = (
+            fp.vendor.lower(),
+            fp.product.lower(),
+            (fp.version or "").lower(),
+            (fp.evidence or "").strip().lower()
+        )
         if key in seen:
             continue
         seen.add(key)
