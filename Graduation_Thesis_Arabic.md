@@ -3,6 +3,32 @@
 
 ---
 
+### فهرس المحتويات (Table of Contents)
+
+*   **الفصل الأول: المقدمة ومشكلة البحث**
+    *   1.1 مقدمة (Introduction)
+    *   1.2 مشكلة البحث (Problem Statement)
+    *   1.3 الحل المقترح (The Proposed Solution)
+    *   1.4 أهداف البحث (Research Objectives)
+*   **الفصل الثاني: هيكلية النظام (System Architecture)**
+    *   2.1 المكونات الرئيسية للنظام (System Components)
+    *   2.2 تدفق البيانات (Data Flow)
+    *   2.3 لماذا هذه الهيكلية؟ (Architectural Rationale)
+*   **الفصل الثالث: الميزات الابتكارية وتقنيات التحليل**
+    *   3.1 خوارزمية استخراج البصمات البرمجية (Automated Fingerprinting Algorithm)
+    *   3.2 محرك مطابقة الثغرات والاستغلالات (CVE & Exploit Matcher)
+    *   3.3 نظام التصنيف الذكي والمفاضلة (Smart Classification & Priority)
+    *   3.4 محرك التقارير الديناميكي (Dynamic Reporting Engine)
+*   **الفصل الرابع: هندسة التقارير وأمن المنصة**
+    *   4.1 هندسة التقارير الأمنية المتقدمة (Security Reporting Engineering)
+    *   4.2 نموذج أمن البيانات والصلاحيات (Data Security & RBAC)
+    *   4.3 حماية الواجهة البرمجية (API Protection)
+*   **الفصل الخامس: الخلاصة والتوصيات**
+    *   5.1 الخلاصة (Conclusion)
+    *   5.2 التوصيات والمستقبل (Future Work)
+
+---
+
 ### الفصل الأول: المقدمة ومشكلة البحث (Introduction & Problem Statement)
 
 #### 1.1 مقدمة (Introduction)
