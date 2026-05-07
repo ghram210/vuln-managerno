@@ -61,6 +61,13 @@ def test_nikto_classification():
         if "clickjacking" in fp.evidence.lower():
             assert sev == "LOW"
 
+def test_formatted_nikto_parsing():
+    print("\nTesting formatted Nikto parsing (database format)...")
+    output = "NIKTO [NORMAL MODE] — Target: testfire.net\nUnique findings: 1\n============================================================\nFindings (1 unique):\n----------------------------------------\n  The anti-clickjacking X-Frame-Options header is not present."
+    fps = fingerprints.extract("NIKTO", output)
+    assert len(fps) > 0
+    print(f"Extracted {len(fps)} findings from formatted output")
+
 def test_hybrid_priority():
     print("\nTesting Hybrid System (NVD Priority)...")
     fp = Fingerprint(vendor="apache", product="http_server", version="2.4.49", source="nmap", evidence="80/tcp open http Apache 2.4.49")
@@ -88,6 +95,7 @@ if __name__ == "__main__":
         test_nmap_classification()
         test_sqlmap_classification()
         test_nikto_classification()
+        test_formatted_nikto_parsing()
         test_hybrid_priority()
         print("\nALL TESTS PASSED!")
     except AssertionError as e:

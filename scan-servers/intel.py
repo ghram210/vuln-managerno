@@ -76,10 +76,9 @@ async def process_scan_intelligence(
         "errors": [],
     }
 
-    ok, why = indexes_available()
-    if not ok:
-        summary["skipped"] = why
-        return summary
+    indices_ok, why = indexes_available()
+    if not indices_ok:
+        summary["errors"].append(f"Matching skipped: {why}")
 
     # 1. Extract fingerprints
     fps = fingerprints.extract(tool, raw_output)
@@ -88,14 +87,16 @@ async def process_scan_intelligence(
         summary["skipped"] = "no fingerprints extracted from scan output"
         return summary
 
-    # 2. Match against local NVD + Exploit-DB
-    try:
-        with Matcher(NVD_DB, EXPLOITDB_DB) as m:
-            results: list[MatchResult] = m.match(fps)
-    except Exception as e:
-        # If matching fails, we still want to push the "Smart Intelligence"
-        # discoveries if we have any. We'll wrap fps in MatchResults with no CVEs.
-        summary["errors"].append(f"matcher: {type(e).__name__}: {e}")
+    # 2. Match against local NVD + Exploit-DB (if available)
+    results = []
+    if indices_ok:
+        try:
+            with Matcher(NVD_DB, EXPLOITDB_DB) as m:
+                results = m.match(fps)
+        except Exception as e:
+            summary["errors"].append(f"matcher: {type(e).__name__}: {e}")
+            results = [MatchResult(fingerprint=fp) for fp in fps]
+    else:
         results = [MatchResult(fingerprint=fp) for fp in fps]
 
     matched = [r for r in results if r.cves]

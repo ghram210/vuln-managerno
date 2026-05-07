@@ -202,10 +202,19 @@ def from_nikto(output: str) -> list[Fingerprint]:
     """
     fps: list[Fingerprint] = []
     for line in output.splitlines():
-        if not line.strip() or not line.lstrip().startswith("+"):
+        line_clean = line.strip()
+        if not line_clean:
             continue
+
+        # Support both raw Nikto (+ ...) and formatted output (  ...)
+        is_raw = line_clean.startswith("+")
+        is_formatted = line.startswith("  ") and not line_clean.startswith("[HTTP")
+
+        if not (is_raw or is_formatted):
+            continue
+
         # Skip lines that are pure metadata (start time, scan terminated, etc.)
-        low = line.lower()
+        low = line_clean.lower()
         if any(s in low for s in (
             "+ start time", "+ end time", "+ scan terminated",
             "+ host:", "+ root page", "+ no cgi", "+ target ip",
@@ -219,10 +228,10 @@ def from_nikto(output: str) -> list[Fingerprint]:
             product="Security Discovery",
             version=None,
             source="nikto",
-            evidence=line.strip()
+            evidence=line_clean.lstrip("+ ").strip()
         ))
 
-        fps.extend(_pairs_from_line(line, source="nikto"))
+        fps.extend(_pairs_from_line(line_clean, source="nikto"))
     return _dedup(fps)
 
 
@@ -263,7 +272,7 @@ def from_ffuf(output: str) -> list[Fingerprint]:
 
         # Capture discovered paths (Formatted output looks like "  /path  [HTTP ...]")
         if " [HTTP " in line:
-            path_match = re.search(r"^\s*(/[^\s]+)", line)
+            path_match = re.search(r"^\s*([^\s]+)", line)
             if path_match:
                 path = path_match.group(1)
                 # Noise filtering

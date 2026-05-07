@@ -59,6 +59,7 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
             "the anti-clickjacking x-frame-options header is not present",
             "the x-xss-protection header is not defined",
             "the x-content-type-options header is not set",
+            "header missing", "suggested security header",
             "cookie", "header", "allowed methods",
         ]
         if any(kw in evidence for kw in info_keywords):
