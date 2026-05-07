@@ -158,46 +158,44 @@ def severity_counts(payload: dict) -> dict[str, int]:
     sev_order = {s: i for i, s in enumerate(SEVERITIES)}  # 0 = highest
 
     # 2. Assign severity to each finding
-    by_finding: dict[str, str] = {}
-    is_nvd_assigned: dict[str, bool] = {} # track if finding severity came from NVD
+    # mapping: client_id -> (severity, is_nvd_priority)
+    final_sevs: dict[str, tuple[str, bool]] = {}
 
     # Initialize with suggested_severity from metadata (Smart Classification)
     for f in findings:
         cid = f["client_id"]
-        suggested = (f.get("metadata", {}).get("suggested_severity") or "").upper()
-        if suggested in sev_order:
-            by_finding[cid] = suggested
-            is_nvd_assigned[cid] = False
+        suggested = (f.get("metadata", {}).get("suggested_severity") or "LOW").upper()
+        # Fallback to LOW if the tool didn't suggest anything valid
+        if suggested not in sev_order:
+            suggested = "LOW"
+        final_sevs[cid] = (suggested, False)
 
     # Overwrite with NVD severity if CVEs are linked (Strict Priority to NVD)
     for link in payload.get("finding_cves", []):
         cid = link["client_id"]
-        sev = cve_sev.get(link["cve_id"], "")
+        sev = cve_sev.get(link["cve_id"], "").upper()
         if sev not in sev_order:
             continue
 
-        cur_sev = by_finding.get(cid)
+        cur_sev, cur_is_nvd = final_sevs.get(cid, ("LOW", False))
+
         # NVD wins if:
-        # 1. No severity assigned yet
+        # 1. Finding has no real severity assigned yet
         # 2. Current severity was NOT from NVD (it's from Smart logic)
-        # 3. Current severity IS from NVD, but this new CVE is MORE SEVERE than previous NVD match
-        if (cur_sev is None or
-            not is_nvd_assigned.get(cid) or
-            sev_order[sev] < sev_order[cur_sev]):
-            by_finding[cid] = sev
-            is_nvd_assigned[cid] = True
+        # 3. Current severity IS from NVD, but this new CVE is MORE SEVERE
+        if (not cur_is_nvd or sev_order[sev] < sev_order.get(cur_sev, 99)):
+            final_sevs[cid] = (sev, True)
 
     # 3. Roll up totals
-    for sev in by_finding.values():
+    # We iterate over the actual findings list to ensure total_findings match
+    for f in findings:
+        cid = f["client_id"]
+        sev, _ = final_sevs.get(cid, ("LOW", False))
         key = f"{sev.lower()}_count"
         if key in counts:
             counts[key] += 1
-
-    # Any findings still without a severity? Default them to LOW if they exist
-    # but aren't in by_finding (safety fallback)
-    assigned_count = sum(counts[f"{s.lower()}_count"] for s in SEVERITIES)
-    if assigned_count < counts["total_findings"]:
-        counts["low_count"] += (counts["total_findings"] - assigned_count)
+        else:
+            counts["low_count"] += 1
 
     return counts
 
