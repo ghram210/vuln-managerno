@@ -8,201 +8,269 @@
     h2 { color: #34495e; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin-top: 40px; }
     h3 { color: #2980b9; margin-top: 25px; }
     h4 { color: #16a085; }
-    p, li { font-size: 14pt; }
+    p, li { font-size: 14pt; text-align: justify; }
 
-    /* TOC Table Style */
     .toc-table { width: 100%; border-collapse: collapse; margin-bottom: 50px; background-color: #fff; }
-    .toc-table th, .toc-table td { border: 1px solid #000; padding: 12px; text-align: center; font-size: 14pt; }
+    .toc-table th, .toc-table td { border: 1px solid #000; padding: 10px; text-align: center; font-size: 14pt; }
     .toc-table th { background-color: #f2f2f2; font-weight: bold; }
     .toc-table td.title-cell { text-align: right; padding-right: 20px; }
-    .toc-table a { text-decoration: none; color: #2980b9; font-weight: bold; }
-    .toc-table tr.chapter-row { font-weight: bold; background-color: #fcfcfc; }
+    .toc-table a { text-decoration: none; color: inherit; display: block; }
+    .toc-table tr.chapter-row { font-weight: bold; background-color: #f9f9f9; }
 
-    hr { margin: 40px 0; border: 0; border-top: 1px solid #eee; }
     .page-break { page-break-before: always; }
+    .center-text { text-align: center; }
+    .quote-box { border-right: 5px solid #2980b9; padding: 10px 20px; background: #f0f7fb; margin: 20px 0; }
+
+    table.comparison { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    table.comparison th, table.comparison td { border: 1px solid #bdc3c7; padding: 12px; text-align: center; }
+    table.comparison th { background-color: #ecf0f1; }
 </style>
 </head>
 <body>
 
-<h1>فهرس محتويات البحث</h1>
+<!-- الصفحة 1: الشكر والتقدير -->
+<div class="center-text">
+    <h1 style="margin-top: 100px;">شكر وتقدير</h1>
+    <p style="font-size: 16pt; margin-top: 50px;">
+        أتقدم بجزيل الشكر والعرفان إلى كل من ساعدني في إتمام هذا العمل الأكاديمي،
+        وإلى أساتذتي الكرام الذين لم يبخلوا عليّ بالتوجيه والنصح.
+        كما أخص بالشكر عائلتي على دعمهم اللامحدود طوال مسيرتي الدراسية.
+    </p>
+</div>
 
+<div class="page-break"></div>
+
+<!-- الصفحة 2: الإهداء -->
+<div class="center-text">
+    <h1 style="margin-top: 100px;">إهداء</h1>
+    <p style="font-size: 16pt; margin-top: 50px;">
+        إلى نبع العطاء.. والدي العزيز..<br>
+        إلى من سكنت الجنة تحت قدميها.. والدتي الغالية..<br>
+        إلى إخوتي وأصدقائي وكل من آمن بقدراتي..<br>
+        أهديكم ثمرة جهدي المتواضع.
+    </p>
+</div>
+
+<div class="page-break"></div>
+
+<!-- الصفحة 3: الفهرس -->
+<h1 id="toc">الفهرس</h1>
 <table class="toc-table">
     <thead>
         <tr>
             <th style="width: 15%;">الفصل</th>
             <th style="width: 70%;">العنوان الرئيسي</th>
-            <th style="width: 15%;">انتقال</th>
+            <th style="width: 15%;">الصفحة</th>
         </tr>
     </thead>
     <tbody>
         <!-- الفصل الأول -->
         <tr class="chapter-row">
             <td>الفصل الأول</td>
-            <td class="title-cell">المقدمة ومشكلة البحث (Introduction & Problem Statement)</td>
-            <td><a href="#ch1">اذهب</a></td>
+            <td class="title-cell">المبادئ الهندسية لإدارة الثغرات (Vulnerability Management Lifecycle)</td>
+            <td><a href="#ch1">4</a></td>
         </tr>
         <tr>
             <td>1.1</td>
-            <td class="title-cell">مقدمة عامة</td>
-            <td><a href="#sec1-1">1</a></td>
+            <td class="title-cell">مفهوم "إدارة" الثغرات مقابل "اكتشاف" الثغرات</td>
+            <td><a href="#sec1-1">4</a></td>
         </tr>
         <tr>
             <td>1.2</td>
-            <td class="title-cell">مشكلة البحث والتحديات الحالية</td>
-            <td><a href="#sec1-2">1</a></td>
+            <td class="title-cell">هندسة الواجهات الأمامية التفاعلية (React & TypeScript)</td>
+            <td><a href="#sec1-2">5</a></td>
         </tr>
         <tr>
             <td>1.3</td>
-            <td class="title-cell">الحل المقترح (المنصة الذكية)</td>
-            <td><a href="#sec1-3">2</a></td>
+            <td class="title-cell">بروتوكول CVSS وتصنيف المخاطر الديناميكي</td>
+            <td><a href="#sec1-3">6</a></td>
         </tr>
         <tr>
             <td>1.4</td>
-            <td class="title-cell">أهداف البحث والنتائج المتوقعة</td>
-            <td><a href="#sec1-4">2</a></td>
+            <td class="title-cell">استراتيجية "الاستجابة الاستباقية" (Proactive Risk Management)</td>
+            <td><a href="#sec1-4">7</a></td>
         </tr>
 
         <!-- الفصل الثاني -->
         <tr class="chapter-row">
             <td>الفصل الثاني</td>
-            <td class="title-cell">هيكلية النظام التقنية (System Architecture)</td>
-            <td><a href="#ch2">اذهب</a></td>
+            <td class="title-cell">بنية النظام الهجينة (The Architecture & Backend Hardening)</td>
+            <td><a href="#ch2">8</a></td>
         </tr>
         <tr>
             <td>2.1</td>
-            <td class="title-cell">المكونات الرئيسية للنظام (Frontend, Backend, Database)</td>
-            <td><a href="#sec2-1">3</a></td>
+            <td class="title-cell">معمارية "الخادم اللامرئي" (Supabase & RLS Architecture)</td>
+            <td><a href="#sec2-1">8</a></td>
         </tr>
         <tr>
             <td>2.2</td>
-            <td class="title-cell">تدفق البيانات وعملية الفحص الذكي</td>
-            <td><a href="#sec2-2">4</a></td>
+            <td class="title-cell">التكامل البرمجي عبر الـ API (Integration Layer)</td>
+            <td><a href="#sec2-2">9</a></td>
         </tr>
         <tr>
             <td>2.3</td>
-            <td class="title-cell">منطق الأمان وفصل الصلاحيات</td>
-            <td><a href="#sec2-3">4</a></td>
+            <td class="title-cell">أمن البيانات وهندسة قواعد البيانات</td>
+            <td><a href="#sec2-3">10</a></td>
+        </tr>
+        <tr>
+            <td>2.4</td>
+            <td class="title-cell">التوثيق والمصادقة اللامركزية (Authentication & RBAC)</td>
+            <td><a href="#sec2-4">11</a></td>
         </tr>
 
         <!-- الفصل الثالث -->
         <tr class="chapter-row">
             <td>الفصل الثالث</td>
-            <td class="title-cell">الميزات الابتكارية ومحركات التحليل</td>
-            <td><a href="#ch3">اذهب</a></td>
+            <td class="title-cell">التطبيق العملي ونمذجة النتائج (Vulnerability Assessment in Action)</td>
+            <td><a href="#ch3">12</a></td>
         </tr>
         <tr>
             <td>3.1</td>
-            <td class="title-cell">محرك استخراج البصمات الرقمية (Fingerprinting Engine)</td>
-            <td><a href="#sec3-1">5</a></td>
+            <td class="title-cell">أدوات الفحص والتحليل (Nmap, Ffuf, SQLmap, Nikto)</td>
+            <td><a href="#sec3-1">12</a></td>
         </tr>
         <tr>
             <td>3.2</td>
-            <td class="title-cell">مطابقة الثغرات والاستخبارات (CVE & Exploit Matcher)</td>
-            <td><a href="#sec3-2">6</a></td>
+            <td class="title-cell">سيناريو فحص بيئة عمل حقيقية</td>
+            <td><a href="#sec3-2">14</a></td>
         </tr>
         <tr>
             <td>3.3</td>
-            <td class="title-cell">خوارزمية التصنيف الذكي للمخاطر</td>
-            <td><a href="#sec3-3">7</a></td>
-        </tr>
-
-        <!-- الفصل الرابع -->
-        <tr class="chapter-row">
-            <td>الفصل الرابع</td>
-            <td class="title-cell">هندسة التقارير وأمن المنصة المتقدم</td>
-            <td><a href="#ch4">اذهب</a></td>
+            <td class="title-cell">لوحة التحكم والتحليل الإحصائي (Analytics Dashboard)</td>
+            <td><a href="#sec3-3">15</a></td>
         </tr>
         <tr>
-            <td>4.1</td>
-            <td class="title-cell">نظام التقارير الاحترافي الموجه للطباعة</td>
-            <td><a href="#sec4-1">8</a></td>
-        </tr>
-        <tr>
-            <td>4.2</td>
-            <td class="title-cell">حماية البيانات باستخدام RLS والتحكم في الوصول</td>
-            <td><a href="#sec4-2">9</a></td>
-        </tr>
-
-        <!-- الفصل الخامس -->
-        <tr class="chapter-row">
-            <td>الفصل الخامس</td>
-            <td class="title-cell">الخلاصة والتوصيات المستقبلية</td>
-            <td><a href="#ch5">اذهب</a></td>
-        </tr>
-        <tr>
-            <td>5.1</td>
-            <td class="title-cell">النتائج المستخلصة من المشروع</td>
-            <td><a href="#sec5-1">10</a></td>
-        </tr>
-        <tr>
-            <td>5.2</td>
-            <td class="title-cell">الرؤية التطويرية المستقبلية</td>
-            <td><a href="#sec5-2">10</a></td>
+            <td>3.4</td>
+            <td class="title-cell">تقارير المعالجة (Remediation Reports)</td>
+            <td><a href="#sec3-4">16</a></td>
         </tr>
     </tbody>
 </table>
 
 <div class="page-break"></div>
 
-<h2 id="ch1">الفصل الأول: المقدمة ومشكلة البحث (Introduction & Problem Statement)</h2>
+<!-- الصفحة 4: الفصل الأول -->
+<h2 id="ch1">الفصل الأول: المبادئ الهندسية لإدارة الثغرات (Vulnerability Management Lifecycle)</h2>
 
-<h3 id="sec1-1">1.1 مقدمة عامة</h3>
-<p>في ظل التحول الرقمي المتسارع، أصبحت تطبيقات الويب والبنية التحتية الرقمية هي العمود الفقري للمؤسسات. ومع هذا التطور، تزايدت وتيرة الهجمات السيبرانية، مما جعل عملية إدارة الثغرات ضرورة حتمية.</p>
+<h3 id="sec1-1">1.1 مفهوم "إدارة" الثغرات مقابل "اكتشاف" الثغرات</h3>
+<p>
+لا يكتفي المشروع بالبحث عن الثغرة فقط، بل يدير دورة حياتها كاملة (Lifecycle). يبدأ الأمر من الاستكشاف (Discovery)، ثم التصنيف (Prioritization) بناءً على خطورة الثغرة، وصولاً إلى التحقق من المعالجة (Remediation).
+تكمن الأهمية هنا في إظهار أننا لا نبني "ماسحاً" (Scanner) بسيطاً، بل نظاماً يساعد أصحاب القرار في الشركات على معرفة أي الثغرات يجب إصلاحها أولاً بناءً على المخاطر (Business Risks).
+</p>
 
-<h3 id="sec1-2">1.2 مشكلة البحث والتحديات الحالية</h3>
-<p>يواجه المختصون الأمنيون تحديات مثل تشتت البيانات، صعوبة التحليل الفني للمخرجات الخام، والفجوة الكبيرة بين اكتشاف الثغرة وتوافر كود الاستغلال (Exploit).</p>
+<div class="page-break"></div>
 
-<h3 id="sec1-3">1.3 الحل المقترح (المنصة الذكية)</h3>
-<p>يقدم المشروع منصة متكاملة تعمل كمحلل ذكي يقوم بأتمتة دورة حياة إدارة الثغرات بالكامل، من الفحص إلى مطابقة الثغرات العالمية وصولاً للتقارير.</p>
+<h3 id="sec1-2">1.2 هندسة الواجهات الأمامية التفاعلية (The Power of React & TypeScript)</h3>
+<p>
+استخدام React مع TypeScript ليس مجرد خيار تقني، بل هو توجه نحو بناء واجهات "Type-Safe" تمنع أخطاء البرمجة في وقت التشغيل. النظام يوفر لوحة تحكم (Dashboard) تعرض إحصائيات حية حول حالة النظام الأمني.
+الواجهة الاحترافية هي أول ما يراه المقيم، واستخدام TypeScript يعكس نضجاً برمجياً في بناء تطبيقات الويب الضخمة والمستقرة، حيث يتم التعامل مع الحالات المعقدة (State Management) لعرض نتائج الفحص الضخمة دون تأخير.
+</p>
 
-<h3 id="sec1-4">1.4 أهداف البحث والنتائج المتوقعة</h3>
-<p>بناء نظام مركزي، تطوير محرك تحليل ذكي، وتوفير قاعدة بيانات محلية محدثة للثغرات وأكواد الاستغلال لضمان سرعة الاستجابة.</p>
+<div class="page-break"></div>
 
-<hr>
+<h3 id="sec1-3">1.3 بروتوكول CVSS وتصنيف المخاطر الديناميكي</h3>
+<p>
+يتم حساب درجة خطورة الثغرة آلياً بناءً على معايير عالمية (Common Vulnerability Scoring System). هذا يثبت أن المشروع يتبع المعايير القياسية العالمية (Global Standards)، وهو ما يعزز القيمة الأكاديمية والمهنية للمنصة.
+</p>
 
-<h2 id="ch2">الفصل الثاني: هيكلية النظام التقنية (System Architecture)</h2>
+<h3 id="sec1-4">1.4 استراتيجية "الاستجابة الاستباقية" (Proactive Risk Management)</h3>
+<p>
+يعتمد المشروع على تحول الفلسفة الأمنية من "رد الفعل" إلى "الفعل الاستباقي". يتم أتمتة عمليات الفحص وربطها بقواعد بيانات الثغرات العالمية المحدثة لحظياً.
+هذه الرؤية تعالج مشكلة "تراكم التنبيهات الأمنية" (Alert Fatigue)، من خلال التفريق بين الثغرة النظرية والخطر الحقيقي المهدد للأعمال، مما يقلل الفجوة الزمنية للإصلاح (Time-to-Remediate).
+</p>
 
-<h3 id="sec2-1">2.1 المكونات الرئيسية للنظام (Frontend, Backend, Database)</h3>
-<p>يعتمد النظام على React في الواجهة الأمامية، Python في محرك الذكاء، و Supabase كقاعدة بيانات سحابية متطورة توفر الأمان والسرعة.</p>
+<div class="page-break"></div>
 
-<h3 id="sec2-2">2.2 تدفق البيانات وعملية الفحص الذكي</h3>
-<p>تنتقل البيانات من طلب المستخدم إلى أدوات الفحص، ثم تعالج في محرك البايثون لاستخراج المعلومات المفيدة قبل حفظها وعرضها للمستخدم.</p>
+<!-- الصفحة 8: الفصل الثاني -->
+<h2 id="ch2">الفصل الثاني: بنية النظام الهجينة (The Architecture & Backend Hardening)</h2>
 
-<h3 id="sec2-3">2.3 منطق الأمان وفصل الصلاحيات</h3>
-<p>يتم تطبيق نظام Row Level Security لضمان أن كل مستخدم لا يرى إلا بياناته الخاصة، مع توفير واجهة إدارة للمسؤولين.</p>
+<h3 id="sec2-1">2.1 معمارية "الخادم اللامرئي" (Supabase & RLS Architecture)</h3>
+<p>
+يعتمد المشروع على Supabase كنظام "Backend-as-a-Service". يتم عزل البيانات الحساسة باستخدام سياسات أمن مستوى السطر (Row Level Security - RLS).
+هذا التوجه يعني أن الأمان مبني داخل قاعدة البيانات (Security at the Database Level)، مما يحقق معمارية "متعددة المستأجرين" (Multi-tenant Architecture) آمنة تماماً، ويقلل من سطح الهجوم (Attack Surface).
+</p>
 
-<hr>
+<div class="page-break"></div>
 
-<h2 id="ch3">الفصل الثالث: الميزات الابتكارية ومحركات التحليل</h2>
+<h3 id="sec2-2">2.2 التكامل البرمجي عبر الـ API (Integration Layer)</h3>
+<p>
+يعمل النظام كـ "Orchestrator" يربط بين أدوات الفحص المختلفة وقاعدة البيانات عبر APIs. يبرز هذا قدرة النظام على تصميم أنظمة معقدة تتحدث فيها المكونات المختلفة مع بعضها بسلاسة (System Integration).
+</p>
 
-<h3 id="sec3-1">3.1 محرك استخراج البصمات الرقمية (Fingerprinting Engine)</h3>
-<p>خوارزمية مخصصة لتحليل النصوص تستخرج اسم المنتج وإصداره بدقة عالية من مخرجات أدوات مثل Nmap و Nikto.</p>
+<h3 id="sec2-3">2.3 أمن البيانات وهندسة قواعد البيانات</h3>
+<p>
+تم تصميم مخطط (Schema) قاعدة البيانات لضمان عدم تكرار البيانات (Normalization) وسرعة الاستعلام عنها، مما يجعلها العمود الفقري لنظام الإدارة الكفؤ.
+</p>
 
-<h3 id="sec3-2">3.2 مطابقة الثغرات والاستخبارات (CVE & Exploit Matcher)</h3>
-<p>ربط لحظي بين الإصدارات المكتشفة وقواعد بيانات NVD العالمية و Exploit-DB لتوفير روابط مباشرة لأكواد الاستغلال.</p>
+<h3 id="sec2-4">2.4 التوثيق والمصادقة اللامركزية (Authentication & RBAC)</h3>
+<p>
+استخدام بروتوكولات حديثة (JWT) لمنح الصلاحيات (Role-Based Access Control)، مما يسمح بوجود أدوار مختلفة (مدير، محلل) داخل المنصة، وهو ما يضيف صبغة احترافية على المشروع.
+</p>
 
-<h3 id="sec3-3">3.3 خوارزمية التصنيف الذكي للمخاطر</h3>
-<p>منطق برمي يقوم بتصنيف خطورة الثغرات بناءً على معايير CVSS العالمية وتصنيفات مخصصة للمكتشفات غير الموثقة برقم CVE.</p>
+<div class="page-break"></div>
 
-<hr>
+<!-- الصفحة 12: الفصل الثالث -->
+<h2 id="ch3">الفصل الثالث: التطبيق العملي والنتائج (Vulnerability Assessment in Action)</h2>
 
-<h2 id="ch4">الفصل الرابع: هندسة التقارير وأمن المنصة المتقدم</h2>
+<h3 id="sec3-1">3.1 أدوات الفحص والتحليل (Nmap, Ffuf, SQLmap, Nikto)</h3>
+<table class="comparison">
+    <thead>
+        <tr>
+            <th>الأداة</th>
+            <th>النطاق (Scope)</th>
+            <th>القيمة الهندسية المضافة للمشروع</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Nmap</td>
+            <td>الشبكة والمنافذ</td>
+            <td>رسم خارطة الأصول وتحديد سطح الهجوم واستكشاف الخدمات.</td>
+        </tr>
+        <tr>
+            <td>Ffuf</td>
+            <td>بنية الروابط</td>
+            <td>اكتشاف الملفات الحساسة المنسية والمسارات المخفية (Fuzzing).</td>
+        </tr>
+        <tr>
+            <td>SQLmap</td>
+            <td>طبقة البيانات</td>
+            <td>ضمان سلامة قاعدة البيانات ومنع تسريب المعلومات (SQLi).</td>
+        </tr>
+        <tr>
+            <td>Nikto</td>
+            <td>خادم الويب</td>
+            <td>التحقق من أمان إعدادات الاستضافة وبرمجيات الخادم والملفات الخطيرة.</td>
+        </tr>
+    </tbody>
+</table>
+<p>
+تحقق هذه الأدوات مبدأ "الدفاع العميق" (Defense in Depth). النظام "ذكي" بحيث يستخدم التسلسل المنطقي للهجوم (Attack Chain Logic)، حيث يوجه الأدوات بناءً على مخرجات الاستطلاع الأولي.
+</p>
 
-<h3 id="sec4-1">4.1 نظام التقارير الاحترافي الموجه للطباعة</h3>
-<p>توليد تقارير PDF احترافية تتضمن توزيع المخاطر، الأدلة التقنية، وجداول زمنية مقترحة للإصلاح والعلاج.</p>
+<div class="page-break"></div>
 
-<h3 id="sec4-2">4.2 حماية البيانات باستخدام RLS والتحكم في الوصول</h3>
-<p>ضمان خصوصية التقارير والنتائج من خلال سياسات أمنية صارمة على مستوى قاعدة البيانات تمنع الوصول غير المصرح به.</p>
+<h3 id="sec3-2">3.2 سيناريو فحص بيئة عمل حقيقية</h3>
+<p class="center-text"><strong>(هنا يتم إدراج صورة واجهة إدخال النطاق المراد فحصه)</strong></p>
+<p>يصف هذا الجزء عملية البدء بالفحص وكيف يقوم النظام بتحليل الأهداف وجمع المعلومات الأولية (Reconnaissance).</p>
 
-<hr>
+<h3 id="sec3-3">3.3 لوحة التحكم والتحليل الإحصائي (Analytics Dashboard)</h3>
+<p class="center-text"><strong>(هنا يتم إدراج صورة الرسوم البيانية لتوزيع الثغرات)</strong></p>
+<p>تتحول البيانات التقنية الجافة إلى "معلومات بصرية" (Data Visualization) سهلة الفهم، مما يوفر رؤية مركزية (Centralized Visibility) للحالة الأمنية.</p>
 
-<h2 id="ch5">الفصل الخامس: الخلاصة والتوصيات المستقبلية</h2>
+<h3 id="sec3-4">3.4 تقارير المعالجة (Remediation Reports)</h3>
+<p class="center-text"><strong>(هنا يتم إدراج صورة تقرير PDF أو واجهة نصائح الإصلاح)</strong></p>
+<p>الميزة الإبداعية هنا هي تقديم "نصائح الإصلاح" (Remediation Roadmap) بناءً على مراجع عالمية مثل OWASP أو CVE، مما يحول الأداة من وسيلة كشف سلبية إلى أداة حل إيجابية.</p>
 
-<h3 id="sec5-1">5.1 النتائج المستخلصة من المشروع</h3>
-<p>أثبت المشروع فعاليته في ردم الفجوة بين أدوات الفحص التقليدية واحتياجات المؤسسات من خلال التحليل المؤتمت والذكي.</p>
+<div class="page-break"></div>
 
-<h3 id="sec5-2">5.2 الرؤية التطويرية المستقبلية</h3>
-<p>تشمل خطط التطوير دمج الذكاء الاصطناعي التوليدي لتقديم حلول برمجية للثغرات، ودعم الفحص المجدول والتنبيهات الفورية.</p>
+<div class="center-text">
+    <h2>الخاتمة</h2>
+    <p>
+        "إن الهدف من هذا التطبيق العملي ليس مجرد إثبات وجود ثغرات، بل هو إثبات أن هندسة البرمجيات الصحيحة
+        يمكنها أن توفر بيئة آمنة وقابلة للإدارة والنمو (Scalable & Secure Environment)."
+    </p>
+</div>
 
 </body>
 </html>
