@@ -52,10 +52,11 @@ def build_payload(
         # Smart Title Generation
         if r.cves:
             # Highlight CVE ID for NVD matches to show credibility
-            cve_ids = ", ".join([c.cve_id for c in r.cves[:1]]) # Just 1 for brevity in UI
+            cve_ids = ", ".join([c.cve_id for c in r.cves[:1]])
             if len(r.cves) > 1:
                 cve_ids += f" (+{len(r.cves)-1})"
-            title = f"VULNERABILITY DETECTED: {cve_ids} | {fp.product} {fp.version or '*'}"
+            # Use a very clear prefix for official NVD matches
+            title = f"OFFICIAL VULNERABILITY: {cve_ids} | {fp.product} {fp.version or '*'}"
         elif fp.vendor == "generic":
             if "port-" in fp.product:
                 title = f"Open Port: {fp.product.replace('port-','')}"
@@ -158,6 +159,7 @@ def severity_counts(payload: dict) -> dict[str, int]:
 
     # 2. Assign severity to each finding
     by_finding: dict[str, str] = {}
+    is_nvd_assigned: dict[str, bool] = {} # track if finding severity came from NVD
 
     # Initialize with suggested_severity from metadata (Smart Classification)
     for f in findings:
@@ -165,16 +167,25 @@ def severity_counts(payload: dict) -> dict[str, int]:
         suggested = (f.get("metadata", {}).get("suggested_severity") or "").upper()
         if suggested in sev_order:
             by_finding[cid] = suggested
+            is_nvd_assigned[cid] = False
 
-    # Overwrite/Upgrade with NVD severity if CVEs are linked (Priority to NVD)
+    # Overwrite with NVD severity if CVEs are linked (Strict Priority to NVD)
     for link in payload.get("finding_cves", []):
+        cid = link["client_id"]
         sev = cve_sev.get(link["cve_id"], "")
         if sev not in sev_order:
             continue
-        cur = by_finding.get(link["client_id"])
-        # If no severity yet, or this CVE is more severe than current
-        if cur is None or sev_order[sev] < sev_order[cur]:
-            by_finding[link["client_id"]] = sev
+
+        cur_sev = by_finding.get(cid)
+        # NVD wins if:
+        # 1. No severity assigned yet
+        # 2. Current severity was NOT from NVD (it's from Smart logic)
+        # 3. Current severity IS from NVD, but this new CVE is MORE SEVERE than previous NVD match
+        if (cur_sev is None or
+            not is_nvd_assigned.get(cid) or
+            sev_order[sev] < sev_order[cur_sev]):
+            by_finding[cid] = sev
+            is_nvd_assigned[cid] = True
 
     # 3. Roll up totals
     for sev in by_finding.values():

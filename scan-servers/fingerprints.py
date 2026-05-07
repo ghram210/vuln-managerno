@@ -111,11 +111,11 @@ _SENSITIVE_PATTERNS = {
     ],
     "HIGH": [
         r"/admin\b", r"/phpmyadmin\b", r"/vnc\b", r"/console\b", r"/dashboard\b",
-        r"/config$", r"/settings$", r"/setup$", r"\.htaccess$"
+        r"/config$", r"/settings$", r"/setup$", r"\.htaccess$", r"wp-config\.php$"
     ],
     "MEDIUM": [
         r"test\.php$", r"info\.php$", r"phpinfo\.php$", r"README", r"CHANGELOG",
-        r"/logs/", r"\.log$", r"wp-config\.php$"
+        r"/logs/", r"\.log$"
     ]
 }
 
@@ -131,11 +131,14 @@ _NOISE_PATTERNS = [
     r"/assets/", r"/images/", r"/fonts/", r"/favicon\.ico$"
 ]
 
-# Nikto specific patterns (More conservative to avoid noise)
+# Nikto specific patterns (Strictly categorized to avoid "Medium" clutter)
 _NIKTO_PATTERNS = {
     "HIGH": [r"\bvulnerable\b", r"\boutdated\b", r"\bcritical\b", r"\brce\b", r"\bexploit\b"],
-    "MEDIUM": [r"\bsensitive\b", r"\bbypass\b", r"\bdirectory index\b", r"\breadme\b"],
-    "LOW": [r"\bheader\b", r"\bcookie\b", r"\bnot present\b", r"\bmissing\b", r"\binteresting\b"]
+    "MEDIUM": [r"\bsensitive\b", r"\bbypass\b", r"\bdirectory index\b"],
+    "LOW": [
+        r"\bheader\b", r"\bcookie\b", r"\bnot present\b", r"\bmissing\b",
+        r"\binteresting\b", r"\breadme\b", r"\bconfig\b", r"\boptions\b"
+    ]
 }
 
 
@@ -232,16 +235,14 @@ def from_nmap(output: str) -> list[Fingerprint]:
                             is_risky = True
                         break
 
-                # We only add a generic port finding if:
-                # a) No software was extracted from this line
-                # b) OR the port itself is considered risky (Medium/High)
-                if not extracted or is_risky:
-                    fps.append(Fingerprint(
-                        vendor="generic", product=f"port-{port_num}/tcp",
-                        version=service_name, source="nmap",
-                        evidence=line.strip()[:300],
-                        suggested_severity=sev
-                    ))
+                # Always add the generic port finding as requested by the user,
+                # ensuring visibility of all open ports regardless of software detection.
+                fps.append(Fingerprint(
+                    vendor="generic", product=f"port-{port_num}/tcp",
+                    version=service_name, source="nmap",
+                    evidence=line.strip()[:300],
+                    suggested_severity=sev
+                ))
         elif "http-server-header" in line.lower():
             fps.extend(_pairs_from_line(line, source="nmap"))
     return _dedup(fps)
