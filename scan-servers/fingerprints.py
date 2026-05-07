@@ -102,6 +102,45 @@ _PRODUCT_KEYS_LONGEST_FIRST = sorted(PRODUCT_MAP.keys(), key=len, reverse=True)
 # Reasonable version pattern: 1, 1.2, 1.2.3, 1.2.3a, 1.2.3-rc1, 1.0.1f
 _VERSION_RE = re.compile(r"\b(\d+(?:\.\d+){0,4}[A-Za-z]?(?:[-_.][A-Za-z0-9]+)?)\b")
 
+# Smart Keywords for non-software findings
+# Patterns for sensitive file exposure (FFUF)
+_SENSITIVE_PATTERNS = {
+    "CRITICAL": [
+        r"\.env$", r"\.git/", r"config\.php\.bak$", r"backup\.sql$",
+        r"wp-config\.php\.bak$", r"\.ssh/", r"id_rsa", r"shadow$"
+    ],
+    "HIGH": [
+        r"/admin\b", r"/phpmyadmin\b", r"/vnc\b", r"/console\b", r"/dashboard\b",
+        r"/config$", r"/settings$", r"/setup$", r"\.htaccess$", r"wp-config\.php$"
+    ],
+    "MEDIUM": [
+        r"test\.php$", r"info\.php$", r"phpinfo\.php$", r"README", r"CHANGELOG",
+        r"/logs/", r"\.log$"
+    ]
+}
+
+# Dangerous/Interesting ports for Nmap
+_RISKY_PORTS = {
+    "MEDIUM": ["21", "23", "3389", "5900", "5901", "161", "162", "445", "139"],
+    "LOW": ["80", "443", "22", "53", "25", "110", "143", "3306", "5432"]
+}
+
+# Noise patterns to ignore in FFUF
+_NOISE_PATTERNS = [
+    r"\.png$", r"\.jpg$", r"\.jpeg$", r"\.gif$", r"\.css$", r"\.js$",
+    r"/assets/", r"/images/", r"/fonts/", r"/favicon\.ico$"
+]
+
+# Nikto specific patterns (Strictly categorized to avoid "Medium" clutter)
+_NIKTO_PATTERNS = {
+    "HIGH": [r"\bvulnerable\b", r"\boutdated\b", r"\bcritical\b", r"\brce\b", r"\bexploit\b"],
+    "MEDIUM": [r"\bsensitive\b", r"\bbypass\b", r"\bdirectory index\b"],
+    "LOW": [
+        r"\bheader\b", r"\bcookie\b", r"\bnot present\b", r"\bmissing\b",
+        r"\binteresting\b", r"\breadme\b", r"\bconfig\b", r"\boptions\b"
+    ]
+}
+
 
 def _lookup_product(text: str) -> tuple[str, str] | None:
     t = text.lower()
@@ -175,7 +214,35 @@ def from_nmap(output: str) -> list[Fingerprint]:
     fps: list[Fingerprint] = []
     for line in output.splitlines():
         if "/tcp" in line and "open" in line:
-            fps.extend(_pairs_from_line(line, source="nmap"))
+            # 1. Extract software fingerprints
+            extracted = _pairs_from_line(line, source="nmap")
+            fps.extend(extracted)
+
+            # 2. Extract port details for smart classification
+            # ONLY if no specific software was found on this line, or if it's a risky port
+            m = re.search(r"(\d+)/tcp\s+open\s+(\S+)", line)
+            if m:
+                port_num = m.group(1)
+                service_name = m.group(2)
+
+                # Determine smart severity for the port
+                sev = "INFO"
+                is_risky = False
+                for s, ports in _RISKY_PORTS.items():
+                    if port_num in ports:
+                        sev = s
+                        if s in ("HIGH", "MEDIUM"):
+                            is_risky = True
+                        break
+
+                # Always add the generic port finding as requested by the user,
+                # ensuring visibility of all open ports regardless of software detection.
+                fps.append(Fingerprint(
+                    vendor="generic", product=f"port-{port_num}/tcp",
+                    version=service_name, source="nmap",
+                    evidence=line.strip()[:300],
+                    suggested_severity=sev
+                ))
         elif "http-server-header" in line.lower():
             fps.extend(_pairs_from_line(line, source="nmap"))
     return _dedup(fps)
@@ -198,7 +265,33 @@ def from_nikto(output: str) -> list[Fingerprint]:
             "+ host:", "+ root page", "+ no cgi",
         )):
             continue
-        fps.extend(_pairs_from_line(line, source="nikto"))
+
+        # 1. Standard software extraction
+        extracted = _pairs_from_line(line, source="nikto")
+        fps.extend(extracted)
+
+        # 2. Smart Nikto Finding Extraction
+        # Look for security issues reported with "+ "
+        if line.startswith("+ ") and not extracted:
+            # Smart Severity Logic for Nikto
+            sev = "INFO"
+            for s, patterns in _NIKTO_PATTERNS.items():
+                if any(re.search(p, low, re.I) for p in patterns):
+                    sev = s
+                    break
+
+            # Extract path if any
+            path_match = re.search(r"(/[A-Za-z0-9_\-./%]+)", line)
+            path = path_match.group(1) if path_match else None
+
+            fps.append(Fingerprint(
+                vendor="generic", product="nikto-finding",
+                version="issue", source="nikto",
+                evidence=line.strip()[:300],
+                path=path,
+                suggested_severity=sev
+            ))
+
     return _dedup(fps)
 
 
@@ -210,19 +303,58 @@ def from_sqlmap(output: str) -> list[Fingerprint]:
     fps: list[Fingerprint] = []
     for line in output.splitlines():
         low = line.lower()
+        # 1. Standard software extraction
         if "back-end dbms" in low or "web application technology" in low:
             fps.extend(_pairs_from_line(line, source="sqlmap"))
+
+        # 2. Smart SQLMap Injection Extraction
+        # Look for "Parameter: <name> (<type>)" or confirmed vulnerabilities
+        if "parameter:" in low and "(" in line:
+            m = re.search(r"parameter:\s+([^\s(]+)\s+\(([^)]+)\)", line, re.I)
+            if m:
+                fps.append(Fingerprint(
+                    vendor="generic", product="sql-injection",
+                    version=f"{m.group(1)} ({m.group(2)})",
+                    source="sqlmap",
+                    evidence=line.strip()[:300],
+                    suggested_severity="CRITICAL"
+                ))
     return _dedup(fps)
 
 
 def from_ffuf(output: str) -> list[Fingerprint]:
-    """ffuf is mostly path discovery; it rarely yields version fingerprints.
-    We scan response banners only when a Server: line is logged.
+    """ffuf is mostly path discovery. We extract software banners if present,
+    but we also extract the discovered paths as generic findings.
     """
     fps: list[Fingerprint] = []
     for line in output.splitlines():
         if "server:" in line.lower():
             fps.extend(_pairs_from_line(line, source="ffuf"))
+
+        # Extract discovered paths (e.g. "[Status: 200, Size: 123, Words: 456, Lines: 789] | /admin")
+        if "|" in line and "Status:" in line:
+            parts = line.split("|", 1)
+            if len(parts) > 1:
+                path = parts[1].strip()
+
+                # Check for noise
+                if any(re.search(p, path, re.I) for p in _NOISE_PATTERNS):
+                    continue
+
+                # Smart Severity Logic
+                sev = "INFO"
+                for s, patterns in _SENSITIVE_PATTERNS.items():
+                    if any(re.search(p, path, re.I) for p in patterns):
+                        sev = s
+                        break
+
+                fps.append(Fingerprint(
+                    vendor="generic", product="discovered-path",
+                    version=path, source="ffuf",
+                    evidence=line.strip()[:300],
+                    path=path,
+                    suggested_severity=sev
+                ))
     return _dedup(fps)
 
 
@@ -246,10 +378,17 @@ def extract(tool: str, raw_output: str) -> list[Fingerprint]:
 
 
 def _dedup(fps: Iterable[Fingerprint]) -> list[Fingerprint]:
-    seen: set[tuple[str, str, str | None]] = set()
+    # Dedup based on vendor, product, version AND evidence to allow multiple findings
+    # per tool if they refer to different issues, but prevent exact line duplicates.
+    seen: set[tuple[str, str, str | None, str | None]] = set()
     out: list[Fingerprint] = []
     for fp in fps:
-        key = (fp.vendor.lower(), fp.product.lower(), (fp.version or "").lower())
+        key = (
+            fp.vendor.lower(),
+            fp.product.lower(),
+            (fp.version or "").lower(),
+            (fp.evidence or "").strip().lower()
+        )
         if key in seen:
             continue
         seen.add(key)

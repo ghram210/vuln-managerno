@@ -148,7 +148,12 @@ def count_findings_detailed(tool: str, output: str) -> tuple[int, dict[str, int]
         # Count unique parameters in the "Parameter: <name> (<type>)" blocks
         # this is the most reliable way to count confirmed vulnerabilities.
         params_confirmed = re.findall(r"^Parameter:\s+([^\s(]+)", output, re.IGNORECASE | re.MULTILINE)
-        critical = len(set(params_confirmed))
+
+        # Also look for specific payload injections confirmed
+        payload_confirmed = re.findall(r"confirmed\s+vulnerability\s+'([^']+)'", output, re.IGNORECASE)
+
+        unique_findings = set(params_confirmed) | set(payload_confirmed)
+        critical = len(unique_findings)
 
         # Fallback if the full summary wasn't reached but vulnerabilities were found
         if critical == 0:
@@ -347,6 +352,11 @@ async def run_scan_background(
             # add up to `total_findings`. The raw tool item count remains
             # available in raw_output for context.
             if intel_ran:
+                # The intel pipeline now performs "Smart Classification"
+                # (CVE-based + Tool-based Discovery). The severity counts
+                # returned in intel_summary['severity_counts'] are now
+                # the definitive, deduplicated counts for the entire scan.
+                sev = intel_summary.get("severity_counts") or {}
                 critical = sev.get("critical_count", 0)
                 high     = sev.get("high_count", 0)
                 medium   = sev.get("medium_count", 0)

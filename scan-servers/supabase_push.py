@@ -46,11 +46,31 @@ def build_payload(
     links: list[dict] = []
 
     for r in results:
-        if not r.cves:
-            continue
         fp = r.fingerprint
         client_id = f"{fp.vendor}:{fp.product}:{fp.version or '*'}"
-        title = f"{fp.product} {fp.version or '*'} ({fp.vendor})"
+
+        # Smart Title Generation
+        if r.cves:
+            # Highlight CVE ID for NVD matches to show credibility
+            cve_ids = ", ".join([c.cve_id for c in r.cves[:1]])
+            if len(r.cves) > 1:
+                cve_ids += f" (+{len(r.cves)-1})"
+            # Use a very clear prefix for official NVD matches
+            title = f"OFFICIAL VULNERABILITY: {cve_ids} | {fp.product} {fp.version or '*'}"
+        elif fp.vendor == "generic":
+            if "port-" in fp.product:
+                title = f"Open Port: {fp.product.replace('port-','')}"
+            elif fp.product == "discovered-path":
+                title = f"Discovered Path: {fp.version}"
+            elif fp.product == "sql-injection":
+                title = f"SQL Injection: {fp.version}"
+            elif fp.product == "nikto-finding":
+                title = f"Nikto: {fp.evidence[:50]}..."
+            else:
+                title = f"{fp.product} ({fp.vendor})"
+        else:
+            title = f"{fp.product} {fp.version or '*'} ({fp.vendor})"
+
         service = f"{fp.vendor}/{fp.product}@{fp.version or '*'}"
 
         findings.append({
@@ -62,6 +82,7 @@ def build_payload(
             "service": service[:200],
             "path": fp.path,
             "evidence": fp.evidence or None,  # Removed truncation
+            "status": "open",
             "metadata": {
                 "vendor": fp.vendor,
                 "product": fp.product,
@@ -69,6 +90,8 @@ def build_payload(
                 "source": fp.source,
                 "cve_count": r.total_cves,
                 "exploit_count": r.total_exploits,
+                "suggested_severity": fp.suggested_severity,
+                "classification_source": "NVD (CVE Match)" if r.cves else "Smart Intelligence",
             },
         })
 
@@ -126,26 +149,54 @@ def build_payload(
 
 def severity_counts(payload: dict) -> dict[str, int]:
     counts = {f"{s.lower()}_count": 0 for s in SEVERITIES}
-    counts["total_findings"] = len(payload.get("scan_findings", []))
+    findings = payload.get("scan_findings", [])
+    counts["total_findings"] = len(findings)
 
-    # Per-finding severity = max severity across its linked CVEs
+    # 1. Map CVEs to their severities
     cve_sev = {c["cve_id"]: (c.get("cvss_v3_severity") or "").upper()
                for c in payload.get("cve_catalog", [])}
     sev_order = {s: i for i, s in enumerate(SEVERITIES)}  # 0 = highest
 
-    by_finding: dict[str, str] = {}
+    # 2. Assign severity to each finding
+    # mapping: client_id -> (severity, is_nvd_priority)
+    final_sevs: dict[str, tuple[str, bool]] = {}
+
+    # Initialize with suggested_severity from metadata (Smart Classification)
+    for f in findings:
+        cid = f["client_id"]
+        suggested = (f.get("metadata", {}).get("suggested_severity") or "LOW").upper()
+        # Fallback to LOW if the tool didn't suggest anything valid
+        if suggested not in sev_order:
+            suggested = "LOW"
+        final_sevs[cid] = (suggested, False)
+
+    # Overwrite with NVD severity if CVEs are linked (Strict Priority to NVD)
     for link in payload.get("finding_cves", []):
-        sev = cve_sev.get(link["cve_id"], "")
+        cid = link["client_id"]
+        sev = cve_sev.get(link["cve_id"], "").upper()
         if sev not in sev_order:
             continue
-        cur = by_finding.get(link["client_id"])
-        if cur is None or sev_order[sev] < sev_order[cur]:
-            by_finding[link["client_id"]] = sev
 
-    for sev in by_finding.values():
+        cur_sev, cur_is_nvd = final_sevs.get(cid, ("LOW", False))
+
+        # NVD wins if:
+        # 1. Finding has no real severity assigned yet
+        # 2. Current severity was NOT from NVD (it's from Smart logic)
+        # 3. Current severity IS from NVD, but this new CVE is MORE SEVERE
+        if (not cur_is_nvd or sev_order[sev] < sev_order.get(cur_sev, 99)):
+            final_sevs[cid] = (sev, True)
+
+    # 3. Roll up totals
+    # We iterate over the actual findings list to ensure total_findings match
+    for f in findings:
+        cid = f["client_id"]
+        sev, _ = final_sevs.get(cid, ("LOW", False))
         key = f"{sev.lower()}_count"
         if key in counts:
             counts[key] += 1
+        else:
+            counts["low_count"] += 1
+
     return counts
 
 
