@@ -1,0 +1,481 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import type { DonutSegment } from "@/components/DonutChart";
+
+// ─── Segment Definitions ─────────────────────────────────────────────────────
+
+const SEVERITY_SEGS: (DonutSegment & { order: number; key: string })[] = [
+  { name: "Critical", color: "hsl(0 84% 55%)",   order: 1, key: "critical", value: 0 },
+  { name: "High",     color: "hsl(22 90% 54%)",  order: 2, key: "high",     value: 0 },
+  { name: "Medium",   color: "hsl(38 95% 52%)",  order: 3, key: "medium",   value: 0 },
+  { name: "Low",      color: "hsl(142 68% 45%)", order: 4, key: "low",      value: 0 },
+  { name: "Info",     color: "hsl(270 60% 60%)", order: 5, key: "info",     value: 0 },
+];
+
+const TOOL_SEGS: (DonutSegment & { order: number; keys: string[] })[] = [
+  { name: "FFUF",   color: "hsl(243 72% 68%)", order: 1, keys: ["ffuf"],                     value: 0 },
+  { name: "SQLMap", color: "hsl(195 85% 48%)", order: 2, keys: ["sqlmap"],                   value: 0 },
+  { name: "Nmap",   color: "hsl(210 90% 52%)", order: 3, keys: ["nmap"],                     value: 0 },
+  { name: "Nikto",  color: "hsl(228 80% 62%)", order: 4, keys: ["nikto"],                    value: 0 },
+  { name: "Other",  color: "hsl(215 22% 58%)", order: 5, keys: ["other", "unknown", ""],     value: 0 },
+];
+
+const EXPOSURE_SEGS: (DonutSegment & { order: number })[] = [
+  { name: "Web Application", color: "hsl(315 95% 52%)", order: 1, value: 0 },
+  { name: "External Host",   color: "hsl(335 88% 58%)", order: 2, value: 0 },
+  { name: "Internal Host",   color: "hsl(350 78% 65%)", order: 3, value: 0 },
+  { name: "Network Service", color: "hsl(300 70% 60%)", order: 4, value: 0 },
+];
+
+const EXPLOIT_SEGS: (DonutSegment & { order: number })[] = [
+  { name: "Weaponized",  color: "hsl(120 75% 38%)", order: 1, value: 0 },
+  { name: "Public PoC",  color: "hsl(140 68% 48%)", order: 2, value: 0 },
+  { name: "Known CVE",   color: "hsl(158 62% 55%)", order: 3, value: 0 },
+  { name: "Theoretical", color: "hsl(175 50% 60%)", order: 4, value: 0 },
+];
+
+const VECTOR_SEGS: (DonutSegment & { order: number })[] = [
+  { name: "Network",  color: "hsl(185 95% 40%)", order: 1, value: 0 },
+  { name: "Adjacent", color: "hsl(174 82% 46%)", order: 2, value: 0 },
+  { name: "Local",    color: "hsl(163 74% 52%)", order: 3, value: 0 },
+  { name: "Physical", color: "hsl(152 62% 58%)", order: 4, value: 0 },
+  { name: "Unknown",  color: "hsl(215 18% 60%)", order: 5, value: 0 },
+];
+
+const STATUS_SEGS: (DonutSegment & { order: number; keys: string[] })[] = [
+  { name: "Open",           color: "hsl(0 82% 55%)",   order: 1, keys: ["open"],                        value: 0 },
+  { name: "In Progress",    color: "hsl(205 82% 52%)",  order: 2, keys: ["in_progress", "triaged"],      value: 0 },
+  { name: "Fixed",          color: "hsl(145 65% 44%)",  order: 3, keys: ["fixed", "resolved", "closed"], value: 0 },
+  { name: "False Positive", color: "hsl(270 58% 60%)",  order: 4, keys: ["false_positive"],              value: 0 },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function zeroSegs<T extends DonutSegment>(segs: T[]): DonutSegment[] {
+  return [...segs]
+    .sort((a: any, b: any) => a.order - b.order)
+    .map(({ name, color }) => ({ name, color, value: 0 }));
+}
+
+async function getUser() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+}
+
+function classifyTarget(target: string): string {
+  if (/^https?:\/\//i.test(target)) return "Web Application";
+  if (/^10\./.test(target) || /^192\.168\./.test(target) ||
+      /^172\.(1[6-9]|2[0-9]|3[01])\./.test(target) || /^127\./.test(target))
+    return "Internal Host";
+  if (/^\d{1,3}(\.\d{1,3}){3}/.test(target)) return "External Host";
+  return "Network Service";
+}
+
+function classifyVector(vec: string | null): string {
+  if (!vec) return "Unknown";
+  const v = vec.toUpperCase();
+  if (v.includes("AV:N")) return "Network";
+  if (v.includes("AV:A")) return "Adjacent";
+  if (v.includes("AV:L")) return "Local";
+  if (v.includes("AV:P")) return "Physical";
+  return "Unknown";
+}
+
+// ─── Scan Targets Dropdown ────────────────────────────────────────────────────
+export interface ScanTarget {
+  url: string;
+  scanCount: number;
+  totalFindings: number;
+}
+
+export function useScanTargets() {
+  return useQuery<ScanTarget[]>({
+    queryKey: ["scan_targets_summary"],
+    queryFn: async () => {
+      const user = await getUser();
+      if (!user) return [];
+
+      const { data, error } = await (supabase as any)
+        .from("scan_results")
+        .select("target, tool, total_findings")
+        .eq("user_id", user.id);
+
+      if (error || !data?.length) return [];
+
+      const raw = data as { target: string; tool: string | null; total_findings: number | null }[];
+
+      // Deduplicate by (target, tool) — keep max findings per combination
+      const toolMap = new Map<string, number>();
+      for (const row of raw) {
+        const url = row.target?.trim();
+        if (!url) continue;
+        const key = `${url}||${(row.tool ?? "").toLowerCase().trim()}`;
+        const prev = toolMap.get(key) ?? 0;
+        toolMap.set(key, Math.max(prev, row.total_findings ?? 0));
+      }
+
+      // Aggregate by unique URL
+      const urlMap = new Map<string, ScanTarget>();
+      for (const [key, findings] of toolMap.entries()) {
+        const url = key.split("||")[0];
+        if (!urlMap.has(url)) urlMap.set(url, { url, scanCount: 0, totalFindings: 0 });
+        const t = urlMap.get(url)!;
+        t.scanCount += 1;
+        t.totalFindings += findings;
+      }
+
+      return [...urlMap.values()].sort((a, b) => b.totalFindings - a.totalFindings || b.scanCount - a.scanCount);
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type ScanRow = {
+  target: string;
+  tool: string | null;
+  total_findings: number | null;
+  critical_count: number | null;
+  high_count: number | null;
+  medium_count: number | null;
+  low_count: number | null;
+};
+
+type FindingRow = { id: string; target: string; tool: string | null };
+
+type VulnRow = {
+  cve_id: string;
+  cvss_severity: string | null;
+  exploit_status: string | null;
+  status: string | null;
+};
+
+// ─── Core Helper: scan_results deduplicated by (target, tool) ─────────────────
+// For each (target, tool) pair keep only the scan with the highest total_findings.
+async function getScanRows(targetFilter: string | null): Promise<ScanRow[]> {
+  const user = await getUser();
+  if (!user) return [];
+
+  let q = (supabase as any)
+    .from("scan_results")
+    .select("target, tool, total_findings, critical_count, high_count, medium_count, low_count")
+    .eq("user_id", user.id);
+  if (targetFilter) q = q.eq("target", targetFilter);
+
+  const { data, error } = await q;
+  if (error || !data?.length) return [];
+
+  // Deduplicate: for each (target, tool) keep the scan with highest total_findings
+  const dedup = new Map<string, ScanRow>();
+  for (const r of data as ScanRow[]) {
+    const key = `${r.target ?? ""}||${(r.tool ?? "").toLowerCase().trim()}`;
+    const prev = dedup.get(key);
+    if (!prev || (r.total_findings ?? 0) > (prev.total_findings ?? 0)) {
+      dedup.set(key, r);
+    }
+  }
+  return [...dedup.values()];
+}
+
+// ─── Core Helper: unique targets for this user ────────────────────────────────
+async function getUserTargets(targetFilter: string | null): Promise<string[]> {
+  const user = await getUser();
+  if (!user) return [];
+  let q = (supabase as any)
+    .from("scan_results")
+    .select("target")
+    .eq("user_id", user.id);
+  if (targetFilter) q = q.eq("target", targetFilter);
+  const { data } = await q;
+  return [...new Set((data ?? []).map((r: any) => (r as any).target as string).filter(Boolean))] as string[];
+}
+
+// ─── Core Helper: scan_findings for given targets, deduplicated by (target, tool) ──
+// Filters findings by user_id via join with scan_results to ensure data isolation.
+// Uses strict matching to prevent mixing findings between different subdomains.
+async function getScanFindings(targets: string[]): Promise<FindingRow[]> {
+  if (!targets.length) return [];
+  const user = await getUser();
+  if (!user) return [];
+
+  // Normalize targets: include both bare hostname and protocol-prefixed versions
+  // to account for tool normalization, but AVOID fuzzy domain matches.
+  const expandedTargets = new Set<string>();
+  for (const t of targets) {
+    expandedTargets.add(t);
+    const clean = t.replace(/\/$/, "");
+    if (/^https?:\/\//i.test(t)) {
+      expandedTargets.add(t.replace(/^https?:\/\//i, ""));
+    } else {
+      expandedTargets.add(`http://${clean}`);
+      expandedTargets.add(`https://${clean}`);
+    }
+  }
+
+  const { data, error } = await (supabase as any)
+    .from("scan_findings")
+    .select("id, target, tool, scan_results!inner(user_id)")
+    .eq("scan_results.user_id", user.id)
+    .in("target", Array.from(expandedTargets));
+
+  if (error || !data) return [];
+
+  // Deduplicate by (target, tool) — keep first occurrence
+  const dedup = new Map<string, FindingRow>();
+  for (const f of data as any[]) {
+    const key = `${f.target ?? ""}||${(f.tool ?? "").toLowerCase().trim()}`;
+    if (!dedup.has(key)) dedup.set(key, f);
+  }
+  return [...dedup.values()];
+}
+
+// ─── Core Helper: vulnerabilities for user's targets via scan_findings chain ──
+// Chain: user targets → scan_findings (by target URL) → finding_cves → vulnerabilities
+async function getVulnsForUser(targetFilter: string | null): Promise<VulnRow[]> {
+  const targets = await getUserTargets(targetFilter);
+  if (!targets.length) return [];
+
+  const findings = await getScanFindings(targets);
+  if (!findings.length) return [];
+
+  const findingIds = findings.map(f => f.id);
+
+  const { data: fcData, error: fcErr } = await (supabase as any)
+    .from("finding_cves")
+    .select("cve_id")
+    .in("finding_id", findingIds);
+  if (fcErr || !fcData?.length) return [];
+
+  const cveIds = [...new Set((fcData as { cve_id: string }[]).map(r => r.cve_id))];
+
+  const { data: vulnData, error: vErr } = await (supabase as any)
+    .from("vulnerabilities")
+    .select("cve_id, cvss_severity, exploit_status, status")
+    .in("cve_id", cveIds);
+  if (vErr || !vulnData?.length) return [];
+
+  return vulnData as VulnRow[];
+}
+
+// ─── 1. Finding Severity ──────────────────────────────────────────────────────
+// CVE severities from vulnerabilities + non-CVE scan findings counted as "Info"
+export function useChartSeverity(target: string | null = null) {
+  return useQuery<DonutSegment[]>({
+    queryKey: ["chart_severity", target],
+    queryFn: async () => {
+      // CVE-classified findings
+      const [vulns, scanRows] = await Promise.all([
+        getVulnsForUser(target),
+        getScanRows(target),
+      ]);
+
+      let critical = 0, high = 0, medium = 0, low = 0;
+      for (const v of vulns) {
+        const sev = (v.cvss_severity ?? "").toLowerCase().trim();
+        if (sev === "critical")    critical++;
+        else if (sev === "high")   high++;
+        else if (sev === "medium") medium++;
+        else if (sev === "low")    low++;
+      }
+
+      // Non-CVE findings (SQLMap, FFUF, etc.) → Info
+      const totalFromScans = scanRows.reduce((s, r) => s + (r.total_findings ?? 0), 0);
+      const cveCount = critical + high + medium + low;
+      const info = Math.max(0, totalFromScans - cveCount);
+
+      if (critical + high + medium + low + info === 0) return zeroSegs(SEVERITY_SEGS);
+
+      return SEVERITY_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
+        name: seg.name,
+        color: seg.color,
+        value:
+          seg.key === "critical" ? critical :
+          seg.key === "high"     ? high     :
+          seg.key === "medium"   ? medium   :
+          seg.key === "low"      ? low      : info,
+      }));
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ─── 2. Findings by Tool ──────────────────────────────────────────────────────
+// Combines: scan_results.total_findings (for SQLMap/FFUF/Nmap) +
+//           CVE counts per tool from scan_findings (for Nikto/Nmap)
+//           Uses max(scan_results count, CVE count) per tool to avoid double-counting
+export function useChartByTool(target: string | null = null) {
+  return useQuery<DonutSegment[]>({
+    queryKey: ["chart_by_tool", target],
+    queryFn: async () => {
+      const scanRows = await getScanRows(target);
+      if (!scanRows.length) return zeroSegs(TOOL_SEGS);
+
+      // Part 1: total_findings per tool from scan_results (deduplicated)
+      const scanCounts: Record<string, number> = {};
+      for (const r of scanRows) {
+        const k = (r.tool ?? "").toLowerCase().trim();
+        scanCounts[k] = (scanCounts[k] ?? 0) + (r.total_findings ?? 0);
+      }
+
+      // Part 2: CVE counts per tool from scan_findings
+      const targets = [...new Set(scanRows.map(r => r.target).filter(Boolean))];
+      const findings = await getScanFindings(targets);
+
+      if (findings.length) {
+        const findingIds = findings.map(f => f.id);
+        const { data: fcData } = await (supabase as any)
+          .from("finding_cves")
+          .select("finding_id, cve_id")
+          .in("finding_id", findingIds);
+
+        // Map finding_id → tool
+        const findingToolMap: Record<string, string> = {};
+        for (const f of findings) {
+          findingToolMap[f.id] = (f.tool ?? "").toLowerCase().trim();
+        }
+
+        // Build tool → unique CVE set
+        const toolCveSet: Record<string, Set<string>> = {};
+        for (const fc of (fcData ?? []) as { finding_id: string; cve_id: string }[]) {
+          const tool = findingToolMap[fc.finding_id] ?? "";
+          if (!toolCveSet[tool]) toolCveSet[tool] = new Set();
+          toolCveSet[tool].add(fc.cve_id);
+        }
+
+        // Use max(scan_results count, CVE count) per tool
+        for (const [tool, cveSet] of Object.entries(toolCveSet)) {
+          const cveCount = cveSet.size;
+          if (cveCount > 0) {
+            scanCounts[tool] = Math.max(scanCounts[tool] ?? 0, cveCount);
+          }
+        }
+      }
+
+      if (Object.values(scanCounts).every(v => v === 0)) return zeroSegs(TOOL_SEGS);
+
+      return TOOL_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
+        name: seg.name,
+        color: seg.color,
+        value: seg.keys.reduce((s, k) => s + (scanCounts[k] ?? 0), 0),
+      }));
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ─── 3. Asset Exposure ────────────────────────────────────────────────────────
+// Unique targets from scan_results classified by type
+export function useChartExposure(target: string | null = null) {
+  return useQuery<DonutSegment[]>({
+    queryKey: ["chart_exposure", target],
+    queryFn: async () => {
+      const rows = await getScanRows(target);
+      if (!rows.length) return zeroSegs(EXPOSURE_SEGS);
+
+      const counts: Record<string, number> = {};
+      const seen = new Set<string>();
+      for (const r of rows) {
+        if (!r.target || seen.has(r.target)) continue;
+        seen.add(r.target);
+        const bucket = classifyTarget(r.target);
+        counts[bucket] = (counts[bucket] ?? 0) + 1;
+      }
+
+      return EXPOSURE_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
+        name: seg.name,
+        color: seg.color,
+        value: counts[seg.name] ?? 0,
+      }));
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ─── 4. Exploitability Risk ───────────────────────────────────────────────────
+// CVEs classified by exploit availability — filtered by user's scanned targets
+export function useChartExploitability(target: string | null = null) {
+  return useQuery<DonutSegment[]>({
+    queryKey: ["chart_exploitability", target],
+    queryFn: async () => {
+      const vulns = await getVulnsForUser(target);
+      if (!vulns.length) return zeroSegs(EXPLOIT_SEGS);
+
+      const counts = { Weaponized: 0, "Public PoC": 0, "Known CVE": 0, Theoretical: 0 };
+      for (const row of vulns) {
+        const exploit = (row.exploit_status ?? "").toLowerCase().trim();
+        const sev     = (row.cvss_severity  ?? "").toLowerCase().trim();
+        if (exploit === "weaponized" || exploit === "active") { counts.Weaponized++;      continue; }
+        if (exploit === "poc"        || exploit === "public")  { counts["Public PoC"]++; continue; }
+        if (sev === "critical" || sev === "high" || sev === "medium") { counts["Known CVE"]++; continue; }
+        counts.Theoretical++;
+      }
+
+      return EXPLOIT_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
+        name: seg.name,
+        color: seg.color,
+        value: counts[seg.name as keyof typeof counts] ?? 0,
+      }));
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ─── 5. Attack Vector ────────────────────────────────────────────────────────
+// CVEs classified by CVSS attack vector — filtered by user's scanned targets
+export function useChartAttackVector(target: string | null = null) {
+  return useQuery<DonutSegment[]>({
+    queryKey: ["chart_attack_vector", target],
+    queryFn: async () => {
+      const vulns = await getVulnsForUser(target);
+      if (!vulns.length) return zeroSegs(VECTOR_SEGS);
+
+      const cveIds = [...new Set(vulns.map(r => r.cve_id))];
+
+      const { data: cveRows, error: cveErr } = await (supabase as any)
+        .from("cve_catalog")
+        .select("cvss_v3_vector")
+        .in("cve_id", cveIds);
+
+      if (cveErr || !cveRows?.length) return zeroSegs(VECTOR_SEGS);
+
+      const counts: Record<string, number> = {};
+      for (const row of cveRows as { cvss_v3_vector: string | null }[]) {
+        const bucket = classifyVector(row.cvss_v3_vector);
+        counts[bucket] = (counts[bucket] ?? 0) + 1;
+      }
+
+      return VECTOR_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
+        name: seg.name,
+        color: seg.color,
+        value: counts[seg.name] ?? 0,
+      }));
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ─── 6. Finding Status ────────────────────────────────────────────────────────
+// CVEs classified by remediation status — filtered by user's scanned targets
+export function useChartStatus(target: string | null = null) {
+  return useQuery<DonutSegment[]>({
+    queryKey: ["chart_status", target],
+    queryFn: async () => {
+      const vulns = await getVulnsForUser(target);
+      if (!vulns.length) return zeroSegs(STATUS_SEGS);
+
+      const counts: Record<string, number> = {};
+      for (const row of vulns) {
+        const k = (row.status ?? "open").toLowerCase().trim();
+        counts[k] = (counts[k] ?? 0) + 1;
+      }
+
+      return STATUS_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
+        name: seg.name,
+        color: seg.color,
+        value: seg.keys.reduce((s, k) => s + (counts[k] ?? 0), 0),
+      }));
+    },
+    staleTime: 60_000,
+  });
+}
