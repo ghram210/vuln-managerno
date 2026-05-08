@@ -2,10 +2,37 @@
 -- Dashboard User Isolation & Security Hardening (BULLETPROOF VERSION)
 -- =============================================================
 -- This migration ensures absolute isolation between admin accounts
--- by injecting auth.uid() filters directly into the views.
+-- by injecting auth.uid() filters directly into the views and
+-- converting legacy tables into security-aware views.
 -- =============================================================
 
 BEGIN;
+
+-- 0. Drop Legacy Tables to allow View creation
+DROP VIEW IF EXISTS public.vuln_rating_overview_filtered CASCADE;
+DROP VIEW IF EXISTS public.remediation_open_filtered CASCADE;
+DROP VIEW IF EXISTS public.vuln_top_assets CASCADE;
+DROP VIEW IF EXISTS public.vuln_by_tool CASCADE;
+DROP VIEW IF EXISTS public.vuln_risk_score CASCADE;
+DROP VIEW IF EXISTS public.vuln_daily_open CASCADE;
+DROP VIEW IF EXISTS public.remediation_closed CASCADE;
+DROP VIEW IF EXISTS public.vuln_status_overview CASCADE;
+DROP VIEW IF EXISTS public.vulnerabilities CASCADE;
+DROP VIEW IF EXISTS public.scanned_assets CASCADE;
+DROP VIEW IF EXISTS public.dash_kpi_mttr CASCADE;
+DROP VIEW IF EXISTS public.dash_kpi_weaponized CASCADE;
+DROP VIEW IF EXISTS public.dash_kpi_compliance CASCADE;
+
+DROP TABLE IF EXISTS public.vuln_rating_overview CASCADE;
+DROP TABLE IF EXISTS public.vuln_top_assets CASCADE;
+DROP TABLE IF EXISTS public.vuln_by_tool CASCADE;
+DROP TABLE IF EXISTS public.vuln_risk_score CASCADE;
+DROP TABLE IF EXISTS public.vuln_daily_open CASCADE;
+DROP TABLE IF EXISTS public.remediation_open CASCADE;
+DROP TABLE IF EXISTS public.remediation_closed CASCADE;
+DROP TABLE IF EXISTS public.vuln_status_overview CASCADE;
+DROP TABLE IF EXISTS public.vulnerabilities CASCADE;
+DROP TABLE IF EXISTS public.scanned_assets CASCADE;
 
 -- 1. Tables: Forced Isolation & Policy Cleanup
 ALTER TABLE public.scan_results ENABLE ROW LEVEL SECURITY;
