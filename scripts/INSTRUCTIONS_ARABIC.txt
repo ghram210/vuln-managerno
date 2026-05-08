@@ -1,0 +1,14 @@
+
+التعليمات المطلوبة لربط قاعدة البيانات وتفعيل النظام:
+
+1. لربط ثغرات NVD التي قمت بتحميلها:
+python3 scripts/download_nvd.py --start-year 2017 --skip-download
+
+2. لربط الأكواد الاستغلالية (Exploits):
+python3 scripts/index_exploitdb.py
+
+3. لتشغيل النظام وتفعيل التعديلات الجديدة:
+./start.sh
+
+ملاحظة: تأكد من وضع ملفات NVD في المجلد التالي قبل البدء:
+/home/jihan/vuln-data/nvd/raw/

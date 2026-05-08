@@ -52,6 +52,7 @@ class Fingerprint:
     path: str | None = None
     source: str | None = None      # e.g. "nmap", "nikto", "sqlmap"
     evidence: str | None = None    # raw text the fingerprint was derived from
+    suggested_severity: str | None = None
 
     def normalised(self) -> "Fingerprint":
         return Fingerprint(
@@ -61,6 +62,7 @@ class Fingerprint:
             path=self.path,
             source=self.source,
             evidence=self.evidence,
+            suggested_severity=self.suggested_severity,
         )
 
 

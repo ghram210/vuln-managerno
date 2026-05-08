@@ -20,6 +20,7 @@ import httpx
 from typing import Any
 
 from matcher import MatchResult
+import classifier
 
 
 SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
@@ -45,13 +46,34 @@ def build_payload(
     exploit_map: dict[int, dict] = {}
     links: list[dict] = []
 
+    sev_order = {s: i for i, s in enumerate(SEVERITIES)}
+
     for r in results:
-        if not r.cves:
-            continue
         fp = r.fingerprint
-        client_id = f"{fp.vendor}:{fp.product}:{fp.version or '*'}"
-        title = f"{fp.product} {fp.version or '*'} ({fp.vendor})"
+        client_id = f"{fp.vendor}:{fp.product}:{fp.version or '*'}:{fp.path or '*'}:{fp.evidence or '*'}"[:200]
+        
+        # Determine Title
+        if fp.vendor == "Intelligence":
+            title = fp.product
+        else:
+            title = f"{fp.product} {fp.version or '*'} ({fp.vendor})"
+            
         service = f"{fp.vendor}/{fp.product}@{fp.version or '*'}"
+
+        # 1. Smart Classification (Baseline)
+        smart_sev = classifier.classify(fp.source or tool, fp.evidence, fp.path)
+        
+        # 2. NVD Severity (Override if CVEs found)
+        nvd_sev = None
+        if r.cves:
+            for c in r.cves:
+                c_sev = (c.cvss_severity or "").upper()
+                if c_sev in sev_order:
+                    if nvd_sev is None or sev_order[c_sev] < sev_order[nvd_sev]:
+                        nvd_sev = c_sev
+        
+        final_severity = nvd_sev if nvd_sev else smart_sev
+        source_label = "NVD (CVE Match)" if nvd_sev else "Smart Intelligence"
 
         findings.append({
             "client_id": client_id,            # internal — stripped before insert
@@ -61,7 +83,8 @@ def build_payload(
             "title": title[:200],
             "service": service[:200],
             "path": fp.path,
-            "evidence": fp.evidence or None,  # Removed truncation
+            "evidence": fp.evidence or None,
+            "severity": final_severity.lower(),
             "metadata": {
                 "vendor": fp.vendor,
                 "product": fp.product,
@@ -69,6 +92,8 @@ def build_payload(
                 "source": fp.source,
                 "cve_count": r.total_cves,
                 "exploit_count": r.total_exploits,
+                "classification_source": source_label,
+                "smart_severity": smart_sev,
             },
         })
 
@@ -126,24 +151,12 @@ def build_payload(
 
 def severity_counts(payload: dict) -> dict[str, int]:
     counts = {f"{s.lower()}_count": 0 for s in SEVERITIES}
-    counts["total_findings"] = len(payload.get("scan_findings", []))
+    findings = payload.get("scan_findings", [])
+    counts["total_findings"] = len(findings)
 
-    # Per-finding severity = max severity across its linked CVEs
-    cve_sev = {c["cve_id"]: (c.get("cvss_v3_severity") or "").upper()
-               for c in payload.get("cve_catalog", [])}
-    sev_order = {s: i for i, s in enumerate(SEVERITIES)}  # 0 = highest
-
-    by_finding: dict[str, str] = {}
-    for link in payload.get("finding_cves", []):
-        sev = cve_sev.get(link["cve_id"], "")
-        if sev not in sev_order:
-            continue
-        cur = by_finding.get(link["client_id"])
-        if cur is None or sev_order[sev] < sev_order[cur]:
-            by_finding[link["client_id"]] = sev
-
-    for sev in by_finding.values():
-        key = f"{sev.lower()}_count"
+    for f in findings:
+        sev = (f.get("severity") or "info").lower()
+        key = f"{sev}_count"
         if key in counts:
             counts[key] += 1
     return counts

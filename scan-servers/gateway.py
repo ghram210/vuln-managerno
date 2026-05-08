@@ -336,10 +336,8 @@ async def run_scan_background(
                   f"errors={intel_summary.get('errors')}",
                   flush=True)
             sev = intel_summary.get("severity_counts") or {}
-            intel_ran = (
-                not intel_summary.get("skipped")
-                and not intel_summary.get("errors")
-            )
+            # Run intel rollup even if local DBs are missing (Smart Intelligence fallback)
+            intel_ran = not intel_summary.get("skipped")
             # When the intel pipeline ran successfully (whether or not it
             # produced matches), the canonical finding count is the number
             # of CVE-classified findings — i.e. the sum of severity buckets.
