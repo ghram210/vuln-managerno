@@ -455,7 +455,7 @@ SELECT
      AND jsonb_array_length(c.references_urls) > 0 THEN 1
     ELSE 0
   END                                     AS remediations,
-  COALESCE(cf.first_seen, c.published_at, NOW()) AS created_at
+  COALESCE(cf.first_seen, c.published_date, NOW()) AS created_at
 FROM public.cve_catalog c
 JOIN cve_findings cf ON cf.cve_id = c.cve_id
 LEFT JOIN cve_exploits ce ON ce.cve_id = c.cve_id;
