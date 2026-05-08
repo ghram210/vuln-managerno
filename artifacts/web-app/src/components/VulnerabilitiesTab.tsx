@@ -260,8 +260,6 @@ const VulnerabilitiesTab = () => {
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">⊕ Grouped by Vulnerability ID</span>
-            <span>Create scheduled report</span>
-            <span>↓ Export</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 mb-2">

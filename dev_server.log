@@ -1,0 +1,13 @@
+
+> @workspace/web-app@0.0.0 dev /app/artifacts/web-app
+> vite --config vite.config.ts --host 0.0.0.0
+
+◇ injected env (4) from ../../.env // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+Port 22965 is in use, trying another one...
+Port 22966 is in use, trying another one...
+
+  VITE v7.3.2  ready in 256 ms
+
+  ➜  Local:   http://localhost:22967/
+  ➜  Network: http://192.168.0.2:22967/

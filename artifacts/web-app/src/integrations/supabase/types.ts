@@ -256,6 +256,8 @@ export type Database = {
           target: string
           tool: string
           total_findings: number
+          user_id: string | null
+          raw_output: string | null
         }
         Insert: {
           completed_at?: string | null
@@ -273,6 +275,8 @@ export type Database = {
           target: string
           tool: string
           total_findings?: number
+          user_id?: string | null
+          raw_output?: string | null
         }
         Update: {
           completed_at?: string | null
@@ -290,6 +294,8 @@ export type Database = {
           target?: string
           tool?: string
           total_findings?: number
+          user_id?: string | null
+          raw_output?: string | null
         }
         Relationships: []
       }
