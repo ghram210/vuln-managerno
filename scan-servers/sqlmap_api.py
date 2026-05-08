@@ -36,7 +36,7 @@ PROTECTED_FLAGS = {
     "--delay", "--output-dir",
     "-v", "--keep-alive", "--random-agent", "--tamper",
     "--text-only", "--titles", "--parse-errors",
-    "--smart", "--forms", "--crawl", "--dbs",
+    "--smart",
     # We always inject `--cookie` ourselves from the dedicated `cookie`
     # field, so silently drop a `--cookie=` someone tucked into options
     # to avoid sqlmap getting two of them.
@@ -398,7 +398,7 @@ def run_sqlmap(req: ScanRequest):
         "--keep-alive",
         "--timeout=30",
         "--retries=2",
-    ]
+    ])
 
     if req.stealth:
         cmd = common + [
@@ -412,12 +412,14 @@ def run_sqlmap(req: ScanRequest):
             "--time-sec=5",
         ]
 
-    # Always test for DBs against the supplied URL AND crawl/scan
-    # forms on the host. This way URLs with parameters AND general
-    # URLs (no query string) both get a proper inspection — no more
-    # "one path yes, the other no".
+    # If the URL has parameters, focus on it directly (like manual tool).
+    # If it's a "clean" URL, crawl and check forms to find parameters.
+    # This ensures specific lab links (e.g. PortSwigger) are targeted correctly.
     cmd.append("--dbs")
-    cmd.extend(["--forms", "--crawl=2"])
+    if has_query:
+        print(f"[SQLMAP-API] URL has query string; skipping auto-crawl/forms to focus on provided parameters.", flush=True)
+    else:
+        cmd.extend(["--forms", "--crawl=2"])
     # Always exclude logout/reset/delete links to avoid losing the session.
     cmd.append("--crawl-exclude=logout|signout|delete|reset|change-password")
 

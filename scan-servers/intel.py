@@ -76,10 +76,9 @@ async def process_scan_intelligence(
         "errors": [],
     }
 
-    ok, why = indexes_available()
-    if not ok:
-        summary["skipped"] = why
-        return summary
+    indices_ok, why = indexes_available()
+    if not indices_ok:
+        summary["errors"].append(f"Matching skipped: {why}")
 
     # 1. Extract fingerprints
     fps = fingerprints.extract(tool, raw_output)
@@ -88,21 +87,22 @@ async def process_scan_intelligence(
         summary["skipped"] = "no fingerprints extracted from scan output"
         return summary
 
-    # 2. Match against local NVD + Exploit-DB
-    try:
-        with Matcher(NVD_DB, EXPLOITDB_DB) as m:
-            results: list[MatchResult] = m.match(fps)
-    except Exception as e:
-        summary["errors"].append(f"matcher: {type(e).__name__}: {e}")
-        return summary
+    # 2. Match against local NVD + Exploit-DB (if available)
+    results = []
+    if indices_ok:
+        try:
+            with Matcher(NVD_DB, EXPLOITDB_DB) as m:
+                results = m.match(fps)
+        except Exception as e:
+            summary["errors"].append(f"matcher: {type(e).__name__}: {e}")
+            results = [MatchResult(fingerprint=fp) for fp in fps]
+    else:
+        results = [MatchResult(fingerprint=fp) for fp in fps]
 
     matched = [r for r in results if r.cves]
     summary["matched_fingerprints"] = len(matched)
     summary["cves"]     = sum(r.total_cves     for r in matched)
     summary["exploits"] = sum(r.total_exploits for r in matched)
-    if not matched:
-        summary["skipped"] = "fingerprints matched no CVEs"
-        return summary
 
     # 3. Build & push payload
     payload = build_payload(scan_id, tool, target, results)

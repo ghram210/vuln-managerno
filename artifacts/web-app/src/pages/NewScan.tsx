@@ -25,6 +25,7 @@ const NewScan = () => {
   const [description, setDescription] = useState("");
   const [selectedTool, setSelectedTool] = useState("");
   const [options, setOptions] = useState("");
+  const [cookie, setCookie] = useState("");
   const navigate = useNavigate();
 
   const mutation = useMutation({
@@ -46,6 +47,7 @@ const NewScan = () => {
           tool: selectedTool,
           description,
           options,
+          cookie,
         }),
       });
 
@@ -115,6 +117,15 @@ const NewScan = () => {
                   value={options}
                   onChange={(e) => setOptions(e.target.value)}
                   placeholder="e.g. --top-ports 100"
+                  className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1.5 block">Auth Cookie / Session (optional)</label>
+                <input
+                  value={cookie}
+                  onChange={(e) => setCookie(e.target.value)}
+                  placeholder="e.g. session=abc123xyz"
                   className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>

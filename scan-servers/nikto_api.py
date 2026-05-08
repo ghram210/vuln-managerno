@@ -50,9 +50,9 @@ META_PREFIXES = (
 
 # Pure noise lines that aren't findings at all (cookie echoes, version notice).
 NOISE_PATTERNS = (
-    re.compile(r"sent cookie:\s*JSESSIONID", re.IGNORECASE),
-    re.compile(r"sent cookie:\s*PHPSESSID",  re.IGNORECASE),
-    re.compile(r"sent cookie:\s*ASP\.NET_SessionId", re.IGNORECASE),
+    re.compile(r"^\+ .*sent cookie:\s*JSESSIONID", re.IGNORECASE),
+    re.compile(r"^\+ .*sent cookie:\s*PHPSESSID",  re.IGNORECASE),
+    re.compile(r"^\+ .*sent cookie:\s*ASP\.NET_SessionId", re.IGNORECASE),
     re.compile(r"installation is out of date", re.IGNORECASE),
 )
 

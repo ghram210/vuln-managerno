@@ -94,6 +94,8 @@ PRODUCT_MAP: dict[str, tuple[str, str]] = {
     "fortios":         ("fortinet",  "fortios"),
     "fortigate":       ("fortinet",  "fortios"),
     "pan-os":          ("paloaltonetworks", "pan-os"),
+    "apache-coyote":   ("apache",    "tomcat"),
+    "apache tomcat":   ("apache",    "tomcat"),
 }
 
 # Sorted longest-first so "apache httpd" matches before "apache" etc.
@@ -175,6 +177,19 @@ def from_nmap(output: str) -> list[Fingerprint]:
     fps: list[Fingerprint] = []
     for line in output.splitlines():
         if "/tcp" in line and "open" in line:
+            # Always add a generic port discovery finding (Smart Intelligence)
+            port_match = re.search(r"(\d+)/tcp", line)
+            if port_match:
+                port = port_match.group(1)
+                fps.append(Fingerprint(
+                    vendor="Intelligence",
+                    product=f"Port {port}",
+                    version=None,
+                    path=None,
+                    source="nmap",
+                    evidence=line.strip()
+                ))
+            # Also extract specific software fingerprints for NVD matching
             fps.extend(_pairs_from_line(line, source="nmap"))
         elif "http-server-header" in line.lower():
             fps.extend(_pairs_from_line(line, source="nmap"))
@@ -189,16 +204,36 @@ def from_nikto(output: str) -> list[Fingerprint]:
     """
     fps: list[Fingerprint] = []
     for line in output.splitlines():
-        if not line.strip():
+        line_clean = line.strip()
+        if not line_clean:
             continue
+
+        # Support both raw Nikto (+ ...) and formatted output (  ...)
+        is_raw = line_clean.startswith("+")
+        is_formatted = line.startswith("  ") and not line_clean.startswith("[HTTP")
+
+        if not (is_raw or is_formatted):
+            continue
+
         # Skip lines that are pure metadata (start time, scan terminated, etc.)
-        low = line.lower()
+        low = line_clean.lower()
         if any(s in low for s in (
             "+ start time", "+ end time", "+ scan terminated",
-            "+ host:", "+ root page", "+ no cgi",
+            "+ host:", "+ root page", "+ no cgi", "+ target ip",
+            "+ target hostname", "+ target port", "+ site link",
         )):
             continue
-        fps.extend(_pairs_from_line(line, source="nikto"))
+
+        # Add as smart finding (Intelligence)
+        fps.append(Fingerprint(
+            vendor="Intelligence",
+            product="Security Discovery",
+            version=None,
+            source="nikto",
+            evidence=line_clean.lstrip("+ ").strip()
+        ))
+
+        fps.extend(_pairs_from_line(line_clean, source="nikto"))
     return _dedup(fps)
 
 
@@ -212,17 +247,48 @@ def from_sqlmap(output: str) -> list[Fingerprint]:
         low = line.lower()
         if "back-end dbms" in low or "web application technology" in low:
             fps.extend(_pairs_from_line(line, source="sqlmap"))
+
+        # Capture confirmed vulnerabilities as smart findings
+        if "is vulnerable" in low or "parameter:" in low:
+            fps.append(Fingerprint(
+                vendor="Intelligence",
+                product="SQL Injection",
+                version=None,
+                source="sqlmap",
+                evidence=line.strip()
+            ))
     return _dedup(fps)
 
 
 def from_ffuf(output: str) -> list[Fingerprint]:
-    """ffuf is mostly path discovery; it rarely yields version fingerprints.
-    We scan response banners only when a Server: line is logged.
+    """ffuf is mostly path discovery. We capture discovered paths
+    and filter out noise (images, css, etc.).
     """
     fps: list[Fingerprint] = []
+    noise_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.css', '.ico', '.woff', '.svg')
+
     for line in output.splitlines():
+        # Capture Server header fingerprints if present
         if "server:" in line.lower():
             fps.extend(_pairs_from_line(line, source="ffuf"))
+
+        # Capture discovered paths (Formatted output looks like "  /path  [HTTP ...]")
+        if " [HTTP " in line:
+            path_match = re.search(r"^\s*([^\s]+)", line)
+            if path_match:
+                path = path_match.group(1)
+                # Noise filtering
+                if any(path.lower().endswith(ext) for ext in noise_extensions):
+                    continue
+
+                fps.append(Fingerprint(
+                    vendor="Intelligence",
+                    product="Sensitive Path",
+                    version=None,
+                    path=path,
+                    source="ffuf",
+                    evidence=line.strip()
+                ))
     return _dedup(fps)
 
 
@@ -246,10 +312,23 @@ def extract(tool: str, raw_output: str) -> list[Fingerprint]:
 
 
 def _dedup(fps: Iterable[Fingerprint]) -> list[Fingerprint]:
-    seen: set[tuple[str, str, str | None]] = set()
+    seen: set[tuple] = set()
     out: list[Fingerprint] = []
     for fp in fps:
-        key = (fp.vendor.lower(), fp.product.lower(), (fp.version or "").lower())
+        # For Intelligence findings, we want to keep them unique based on path/evidence
+        # so they don't all collapse into a single row in the dashboard.
+        if fp.vendor.lower() == "intelligence":
+            key = (
+                fp.vendor.lower(),
+                fp.product.lower(),
+                (fp.version or "").lower(),
+                (fp.path or "").lower(),
+                (fp.evidence or "").lower()[:200]
+            )
+        else:
+            # For real products, we dedupe by version for CVE matching efficiency.
+            key = (fp.vendor.lower(), fp.product.lower(), (fp.version or "").lower())
+
         if key in seen:
             continue
         seen.add(key)
