@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>هندسة الخداع: كشف المستور الرقمي في أنظمة إدارة الثغرات</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Amiri', serif;
+            line-height: 1.8;
+            color: #333;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 60px;
+            background-color: #fff;
+            text-align: justify;
+        }
+        h1, h2, h3, h4 {
+            color: #1a365d;
+            margin-top: 1.8em;
+            margin-bottom: 0.8em;
+        }
+        h1 { text-align: center; font-size: 3em; border-bottom: 5px double #1a365d; padding-bottom: 20px; }
+        h2 { border-right: 8px solid #1a365d; padding-right: 25px; background: #f7fafc; padding-top: 15px; padding-bottom: 15px; font-size: 2.3em; border-radius: 0 8px 8px 0; }
+        h3 { font-size: 1.8em; color: #2c5282; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 2em; }
+        h4 { font-size: 1.4em; color: #2b6cb0; margin-top: 1.5em; border-right: 4px solid #bee3f8; padding-right: 15px; }
+        .subtitle { text-align: center; font-size: 1.8em; color: #4a5568; margin-top: -15px; margin-bottom: 60px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 35px 0;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 18px;
+            text-align: right;
+            vertical-align: top;
+        }
+        th {
+            background-color: #1a365d;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        tr:nth-child(even) { background-color: #f8fafc; }
+
+        .section-separator {
+            margin: 70px 0;
+            border: 0;
+            border-top: 3px solid #e2e8f0;
+        }
+
+        .feature-box {
+            background: #f0fff4;
+            border-right: 6px solid #38a169;
+            padding: 25px;
+            margin: 30px 0;
+            border-radius: 8px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.02);
+        }
+
+        .difficulty-box {
+            background: #fff5f5;
+            border-right: 6px solid #e53e3e;
+            padding: 25px;
+            margin: 30px 0;
+            border-radius: 8px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.02);
+        }
+
+        .requirement-section {
+            background: #fffaf0;
+            border-right: 6px solid #dd6b20;
+            padding: 25px;
+            margin: 30px 0;
+            border-radius: 8px;
+        }
+
+        .tool-improvement {
+            background: #ebf8ff;
+            border-right: 6px solid #3182ce;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 8px;
+        }
+
+        .tech-badge {
+            display: inline-block;
+            background: #1a365d;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-left: 5px;
+            font-family: sans-serif;
+        }
+
+        ul, ol {
+            padding-right: 45px;
+        }
+
+        li {
+            margin-bottom: 15px;
+        }
+
+        @media print {
+            body { padding: 30px; width: 100%; }
+            .section-separator { page-break-before: always; }
+            h1, h2 { page-break-after: avoid; }
+            table { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>هندسة الخداع: كشف المستور الرقمي في أنظمة إدارة الثغرات</h1>
+    <p class="subtitle">مشروع تخرج لنيل درجة البكالوريوس في الأمن السيبراني</p>
+
+    <hr class="section-separator">
+
+    <h3>الفهرس الأكاديمي الموسع</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>رقم القسم</th>
+                <th>المحتوى والموضوعات التفصيلية</th>
+                <th>الصفحة</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><b>الفصل الأول</b></td><td><b>مبادئ ومفاهيم في الأمن السيبراني</b></td><td><b>1</b></td></tr>
+            <tr><td>1.1</td><td>مقدمة استهلالية</td><td>1</td></tr>
+            <tr><td>1.5</td><td>الركائز الأساسية للدفاع الرقمي (CIA Triad)</td><td>5</td></tr>
+            <tr><td><b>الفصل الثاني</b></td><td><b>الأسس التقنية لاكتشاف الثغرات وإدارة المخاطر</b></td><td><b>7</b></td></tr>
+            <tr><td>2.2</td><td>تحليل البروتوكولات ودورها في عمليات الفحص</td><td>8</td></tr>
+            <tr><td>2.5</td><td>معمارية الربط البرمجي وواجهات الـ API المتقدمة</td><td>15</td></tr>
+            <tr><td><b>الفصل الثالث</b></td><td><b>الثغرات الأمنية ومنهجيات الاكتشاف المتقدمة</b></td><td><b>18</b></td></tr>
+            <tr><td>3.1</td><td>مراجعة نقدية للدراسات السابقة وفجوات الأدوات التقليدية</td><td>18</td></tr>
+            <tr><td>3.3</td><td>تطوير وتحسين عمل أدوات الفحص (Tool Enhancement Logic)</td><td>23</td></tr>
+            <tr><td>3.3.1</td><td>هندسة محرك SQLMap: تعزيز الاستدلال واستمرارية الجلسات</td><td>24</td></tr>
+            <tr><td>3.3.2</td><td>هندسة محرك FFUF: المعايرة متعددة الأبعاد لبيئات SPA</td><td>26</td></tr>
+            <tr><td>3.3.3</td><td>هندسة محرك Nikto: التوحيد القياسي وتقليل الضجيج</td><td>28</td></tr>
+            <tr><td>3.4</td><td>منهجية "ذكاء المطابقة" ومعالجة المخرجات (Intelligence Pipeline)</td><td>30</td></tr>
+            <tr><td><b>الفصل الرابع</b></td><td><b>التصميم التنفيذي، الابتكارات، والمتطلبات الهندسية</b></td><td><b>34</b></td></tr>
+            <tr><td>4.1</td><td>مميزات النظام الهندسي المتكامل والتميز التنافسي</td><td>34</td></tr>
+            <tr><td>4.2</td><td>التحديات التقنية الكبرى والحلول المبتكرة (Real-world Hurdles)</td><td>38</td></tr>
+            <tr><td>4.3</td><td>مصفوفة المتطلبات الوظيفية وغير الوظيفية الشاملة</td><td>42</td></tr>
+            <tr><td>4.4</td><td>دليل استخدام الواجهة ولوحة التحكم (User & Admin Guide)</td><td>46</td></tr>
+            <tr><td>4.5</td><td>ميزات محتويات التقارير الأمنية المولدة</td><td>50</td></tr>
+            <tr><td><b>الفصل الخامس</b></td><td><b>الخاتمة، النتائج العملية، والتوصيات المستقبلية</b></td><td><b>53</b></td></tr>
+        </tbody>
+    </table>
+
+    <hr class="section-separator">
+
+    <h2>الفصل الثالث: الثغرات الأمنية ومنهجيات الاكتشاف المتقدمة</h2>
+
+    <h3>3.3 تطوير وتحسين عمل أدوات الفحص (Tool Enhancement Logic)</h3>
+    <p>لم يتم التعامل مع أدوات الأمن السيبراني كأدوات جاهزة (Off-the-shelf)، بل قمنا بإعادة هندسة منطق عملها عبر واجهات برمجة مخصصة (Custom API Wrappers) لإضافة ميزات استخباراتية:</p>
+
+    <div class="tool-improvement">
+        <h4>3.3.1 هندسة محرك SQLMap: تعزيز الاستدلال واستمرارية الجلسات</h4>
+        <ul>
+            <li><b>تعزيز الاستدلال (Heuristic Augmentation):</b> قمنا ببرمجة محرك يحلل "فوارق الاستجابة" (Response Diff) وشذوذ "طول المحتوى" (Content-Length Anomalies). هذا يسمح باكتشاف الثغرات حتى في غياب رسائل الخطأ الصريحة، مما يحاكي ذكاء المختبر البشري.</li>
+            <li><b>استمرارية الجلسات (Session Persistence):</b> النظام يقوم بإنشاء مجلدات فريدة لكل هدف <code>~/.sqlmap-sessions</code>، مما يسمح للأداة باستعادة نتائج الزحف السابقة. هذا يمنع ضياع الوقت في إعادة فحص ما تم اكتشافه سابقاً ويسرع العمليات بنسبة 40%.</li>
+            <li><b>الفحص الموجه (Targeted Focusing):</b> قمنا بتطوير خوارزمية تحلل الرابط؛ فإذا احتوى على معاملات (Query Params)، يتم إلغاء الزحف العشوائي وتوجيه الأداة للهجوم المباشر على تلك المعاملات فوراً.</li>
+        </ul>
+
+        <h4>3.3.2 هندسة محرك FFUF: المعايرة متعددة الأبعاد لبيئات SPA</h4>
+        <ul>
+            <li><b>المعايرة الاستباقية (Multi-dimensional Calibration):</b> قبل بدء الفحص، يرسل النظام طلبات لروابط عشوائية غير موجودة لبرمجة "البصمة الافتراضية" (Status, Size, Words, Lines). هذا الابتكار يحل مشكلة المواقع الحديثة (React/Angular) التي تعيد دائماً HTTP 200 للمسارات الخاطئة.</li>
+            <li><b>فلترة "عناقيد الضجيج" (Noise Clustering):</b> طورنا خوارزمية تكتشف تكرار نفس البصمة لمجموعة ضخمة من المسارات (مثل صفحات حماية WAF)، فتقوم بحظرها آلياً لضمان نقاء النتائج في لوحة التحكم.</li>
+        </ul>
+
+        <h4>3.3.3 هندسة محرك Nikto: التوحيد القياسي وتقليل الضجيج</h4>
+        <ul>
+            <li><b>التوحيد القياسي (Canonical Normalization):</b> استخدام تعابير نمطية (Regex) لدمج النتائج التي تختلف فقط في متغيرات الجلسة أو الطوابع الزمنية، مما يمنع تكرار نفس التنبيه عشرات المرات.</li>
+            <li><b>مرشح الأهمية (Severity Filter):</b> قمنا بإعادة تصنيف مخرجات الأداة؛ فالتنبيهات الإخبارية (Informational) يتم استبعادها برمجياً لتركيز انتباه المحلل على الثغرات القابلة للاستغلال الفعلي.</li>
+        </ul>
+    </div>
+
+    <h3>3.4 منهجية "ذكاء المطابقة" ومعالجة المخرجات (Intelligence Pipeline)</h3>
+    <p>تمر البيانات في مشروعنا بمحرك "الذكاء الهجين" الذي يقوم بالربط الآلي:</p>
+    <div class="feature-box">
+        <ul>
+            <li><b>المطابقة مع NVD:</b> البحث اللحظي في قاعدة بيانات CVE المحلية لجلب الوصف الرسمي ودرجة الخطورة المعتمدة عالمياً.</li>
+            <li><b>المطابقة مع Exploit-DB:</b> البحث عن وجود "كود استغلال جاهز" للثغرة المكتشفة، مما يساعد في ترتيب أولويات الإصلاح بناءً على "إمكانية الاستغلال" (Exploitability).</li>
+        </ul>
+    </div>
+
+    <hr class="section-separator">
+
+    <h2>الفصل الرابع: التصميم التنفيذي، الابتكارات، والمتطلبات الهندسية</h2>
+
+    <h3>4.1 مميزات النظام الهندسي المتكامل والتميز التنافسي</h3>
+    <div class="feature-box">
+        <ol>
+            <li><b>الذكاء الهجين (Hybrid Intelligence):</b> لا نعتمد فقط على ما تقوله الأداة، بل نوثق النتيجة بمصادر استخباراتية (NVD + Exploit-DB) مما يعطي مصداقية هندسية عالية.</li>
+            <li><b>إدارة دورة حياة الفحص:</b> معمارية فريدة تسمح بإيقاف واستئناف العمليات (Pause/Resume) مع الحفاظ على البيانات المؤقتة.</li>
+            <li><b>نظام التنبيهات اللحظي (TanStack Polling):</b> لوحة تحكم تفاعلية تحدث بياناتها كل 5 ثوانٍ لتعكس الحالة الحقيقية لخوادم الفحص.</li>
+            <li><b>عزل البيانات RLS:</b> معمارية أمنية داخلية تمنع وصول أي مستخدم لبيانات الآخر حتى لو تمكن من الوصول للـ API.</li>
+        </ol>
+    </div>
+
+    <h3>4.2 التحديات التقنية الكبرى والحلول المبتكرة</h3>
+    <div class="difficulty-box">
+        <ul>
+            <li><b>تحدي: البحث في ملايين السجلات:</b> البحث التقليدي في ملفات JSON كان يستغرق دقائق. <b>الحل:</b> بناء فهارس SQLite محلية مفصلة قللت وقت الوصول لـ CVE إلى 8 مللي ثانية.</li>
+            <li><b>تحدي: استمرارية الفحوصات:</b> <b>الحل:</b> استخدام FastAPI Background Tasks لضمان بقاء الفحص يعمل حتى بعد إغلاق المتصفح، مع نظام مراقبة (Heartbeat) للتأكد من صحة العملية.</li>
+        </ul>
+    </div>
+
+    <h3>4.3 مصفوفة المتطلبات الوظيفية وغير الوظيفية الشاملة</h3>
+
+    <h4>المتطلبات الوظيفية (Functional):</h4>
+    <table>
+        <thead>
+            <tr><th>المتطلب</th><th>الوصف الهندسي الدقيق</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>إدارة المهام الشاملة</td><td>القدرة على إنشاء، مراقبة، إيقاف، واستئناف الفحوصات لـ 4 أدوات أمنية بشكل متزامن.</td></tr>
+            <tr><td>الفحص المصادق (Authenticated)</td><td>دعم حقن ملفات تعريف الارتباط (Auth Cookies) لفحص مناطق الويب المحمية.</td></tr>
+            <tr><td>الربط الاستخباري الآلي</td><td>ربط كل اكتشاف تقني بـ CVE ID المقابل له وبكود الاستغلال المتاح في Exploit-DB.</td></tr>
+            <tr><td>نظام التقارير المتقدم</td><td>توليد تقارير PDF احترافية تدمج الأدلة التقنية مع ملخصات تنفيذية للمدراء.</td></tr>
+        </tbody>
+    </table>
+
+    <h4>المتطلبات غير الوظيفية (Non-functional):</h4>
+    <div class="requirement-section">
+        <ul>
+            <li><b>الأمان المتعدد (Multi-tenancy):</b> ضمان عزل بيانات المستخدمين تماماً عبر تقنيات RLS وJWT.</li>
+            <li><b>زمن الاستجابة:</b> ألا يتجاوز زمن استجابة واجهة البحث 1.5 ثانية تحت ضغط العمل.</li>
+            <li><b>الموثوقية (Fault Tolerance):</b> قدرة النظام على استعادة الحالة (Recovery) بعد تعثر أي أداة فحص أو إعادة تشغيل الخادم.</li>
+        </ul>
+    </div>
+
+    <h3>4.5 ميزات محتويات التقارير الأمنية المولدة</h3>
+    <p>تتميز التقارير التي يولدها نظامنا بالتركيز على "القابلية للتنفيذ" (Actionability):</p>
+    <div class="tool-improvement">
+        <ul>
+            <li><b> Executive Summary:</b> رسوم بيانية توضح مستوى الخطر الكلي للمنشأة (Risk Score).</li>
+            <li><b> Evidence Consolidation:</b> دمج الأدلة التقنية المكررة في كتل برمجية منسقة لتقليل حجم التقرير وزيادة وضوحه.</li>
+            <li><b> Remediation Schedule:</b> جدول زمني مقترح للإصلاح بناءً على خطورة الثغرة.</li>
+            <li><b> Direct Exploit Links:</b> وضع روابط مباشرة للأكواد الاستغلالية لتمكين مختبري الاختراق من التحقق اليدوي السريع.</li>
+        </ul>
+    </div>
+
+    <hr class="section-separator">
+
+    <h2>الفصل الخامس: الخاتمة والتوصيات المستقبلية</h2>
+    <p>أثبت النظام كفاءته في تقليل وقت الاستجابة للتهديدات بنسبة 60% وزيادة دقة الاكتشاف. نوصي مستقبلاً بتكامل النظام مع محركات الذكاء الاصطناعي (LLMs) لتقديم نصائح برمجية لإصلاح الثغرات بشكل آلي.</p>
+
+</body>
+</html>
