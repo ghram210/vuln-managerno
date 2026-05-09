@@ -286,6 +286,7 @@ const VulnerabilitiesTab = () => {
           <thead>
             <tr className="border-b border-border bg-secondary/30">
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVE</th>
+              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Scan Name</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exprt Rating</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Severity</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Description</th>
@@ -317,6 +318,11 @@ const VulnerabilitiesTab = () => {
                         {v.cve_id ?? "—"}
                       </span>
                     </div>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className="text-foreground/80 font-medium truncate max-w-[150px] block" title={v.scan_names ?? ""}>
+                      {v.scan_names ?? "—"}
+                    </span>
                   </td>
                   <td className="px-5 py-3.5">
                     <SeverityCell value={v.exprt_rating} />

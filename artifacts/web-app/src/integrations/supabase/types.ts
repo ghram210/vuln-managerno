@@ -554,6 +554,7 @@ export type Database = {
           remediations: number
           status: string
           vulnerability_count: number
+          scan_names: string | null
         }
         Insert: {
           created_at?: string
