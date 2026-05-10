@@ -159,7 +159,7 @@ FROM public.scan_findings f JOIN public.scan_results sr ON sr.id = f.scan_id WHE
 CREATE OR REPLACE VIEW public.vulnerabilities WITH (security_invoker = true) AS
 WITH cve_findings AS (
     SELECT
-        fc.cve_id,
+        UPPER(TRIM(fc.cve_id)) as cve_id,
         COUNT(DISTINCT fc.finding_id)::int AS vulnerability_count,
         BOOL_OR(f.status = 'open') AS any_open,
         BOOL_OR(f.status = 'triaged') AS any_triaged,
@@ -170,16 +170,16 @@ WITH cve_findings AS (
     JOIN public.scan_findings f ON f.id = fc.finding_id
     JOIN public.scan_results sr ON sr.id = f.scan_id
     WHERE sr.user_id = auth.uid()
-    GROUP BY fc.cve_id
+    GROUP BY UPPER(TRIM(fc.cve_id))
 ),
 cve_exploits AS (
     SELECT
-        TRIM(cve_id) as cve_id,
+        UPPER(TRIM(cve_id)) as cve_id,
         COUNT(*)::int AS exploit_count,
         BOOL_OR(verified IS TRUE) AS any_verified
     FROM public.exploits
     WHERE cve_id IS NOT NULL
-    GROUP BY TRIM(cve_id)
+    GROUP BY UPPER(TRIM(cve_id))
 )
 SELECT
     md5('vuln|' || c.cve_id)::uuid AS id,
@@ -194,8 +194,8 @@ SELECT
     CASE WHEN c.references_urls IS NOT NULL AND jsonb_array_length(c.references_urls) > 0 THEN 1 ELSE 0 END AS remediations,
     COALESCE(cf.first_seen, c.published_date, NOW()) AS created_at
 FROM public.cve_catalog c
-JOIN cve_findings cf ON cf.cve_id = c.cve_id
-LEFT JOIN cve_exploits ce ON TRIM(ce.cve_id) = TRIM(c.cve_id);
+JOIN cve_findings cf ON cf.cve_id = UPPER(TRIM(c.cve_id))
+LEFT JOIN cve_exploits ce ON ce.cve_id = UPPER(TRIM(c.cve_id));
 
 CREATE OR REPLACE VIEW public.scanned_assets WITH (security_invoker = true) AS
 WITH latest_scans AS ( SELECT DISTINCT ON (target, tool) * FROM public.scan_results WHERE user_id = auth.uid() ORDER BY target, tool, COALESCE(completed_at, started_at, created_at) DESC ),

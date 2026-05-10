@@ -2,16 +2,22 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, MoreHorizontal } from "lucide-react";
+import { AlertTriangle, MoreHorizontal, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const filterTags = [
   "Open vulnerabilities",
+  "CISA KEV",
   "Adversaries",
   "Asset confidence",
   "Asset criticality",
   "Asset roles",
-  "CISA KEV",
   "CISA KEV due date compliant",
   "Cloud provider",
   "CVSS complexity",
@@ -89,9 +95,16 @@ const VulnerabilitiesTab = () => {
   const [filterRating, setFilterRating] = useState("all");
   const [filterExploit, setFilterExploit] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>(["Open vulnerabilities"]);
   const [showRatingDrop, setShowRatingDrop] = useState(false);
   const [showExploitDrop, setShowExploitDrop] = useState(false);
   const [showStatusDrop, setShowStatusDrop] = useState(false);
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
 
   const { data: vulnerabilities = [] } = useQuery({
     queryKey: ["vulnerabilities"],
@@ -147,6 +160,14 @@ const VulnerabilitiesTab = () => {
     if (filterRating !== "all" && v.cvss_severity !== filterRating) return false;
     if (filterExploit !== "all" && v.exploit_status !== filterExploit) return false;
     if (filterStatus !== "all" && v.status !== filterStatus) return false;
+
+    // Apply tag filters
+    if (selectedTags.includes("Open vulnerabilities") && v.status !== "Open") return false;
+
+    // Logic for CISA KEV - typically these are critical/high exploits.
+    // Since we don't have a direct flag, we use 'Actively Used' as a proxy for this academic version.
+    if (selectedTags.includes("CISA KEV") && v.exploit_status !== "Actively Used") return false;
+
     return true;
   });
 
@@ -263,20 +284,31 @@ const VulnerabilitiesTab = () => {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 mb-2">
-          {filterTags.map((tag, i) => (
-            <span key={i} className="text-xs px-2 py-1 rounded text-muted-foreground">
-              {tag}
-              {i === 2 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-severity-high/20 text-severity-high text-xs">
-                  1 excluded
-                </span>
-              )}
-            </span>
-          ))}
-          <span className="text-xs text-primary cursor-pointer">Add/remove filters</span>
+          {filterTags.map((tag, i) => {
+            const isActive = selectedTags.includes(tag);
+            return (
+              <button
+                key={i}
+                onClick={() => toggleTag(tag)}
+                className={cn(
+                  "text-xs px-2 py-1 rounded transition-colors",
+                  isActive
+                    ? "bg-primary/20 text-primary font-medium border border-primary/30"
+                    : "text-muted-foreground hover:bg-secondary border border-transparent"
+                )}
+              >
+                {tag}
+              </button>
+            );
+          })}
         </div>
         <div className="text-right">
-          <span className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Clear all</span>
+          <button
+            onClick={() => setSelectedTags([])}
+            className="text-xs text-muted-foreground cursor-pointer hover:text-foreground"
+          >
+            Clear all
+          </button>
         </div>
       </div>
 
@@ -320,9 +352,33 @@ const VulnerabilitiesTab = () => {
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className="text-foreground/80 font-medium truncate max-w-[150px] block" title={v.scan_names ?? ""}>
-                      {v.scan_names ?? "—"}
-                    </span>
+                    <TooltipProvider>
+                      <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5 cursor-help">
+                            <span className="text-foreground/80 font-medium truncate max-w-[120px] block">
+                              {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
+                            </span>
+                            {v.scan_names && v.scan_names.split(', ').length > 1 && (
+                              <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full bg-secondary text-[10px] font-bold text-muted-foreground border border-border">
+                                +{v.scan_names.split(', ').length - 1}
+                              </span>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-popover border border-border p-2 shadow-xl">
+                          <div className="space-y-1">
+                            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Associated Scans</p>
+                            {v.scan_names?.split(', ').map((name, idx) => (
+                              <div key={idx} className="flex items-center gap-2 text-xs text-foreground py-0.5">
+                                <div className="w-1 h-1 rounded-full bg-primary" />
+                                {name}
+                              </div>
+                            ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </td>
                   <td className="px-5 py-3.5">
                     <SeverityCell value={v.exprt_rating} />
