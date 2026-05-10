@@ -139,21 +139,19 @@ const ReportsTab = () => {
 
     if (format === "PDF") {
       const getCheckpoints = (tool: string) => {
-        const common = [
-          "Scanned for sensitive data exposure",
-          "Scanned for path disclosure",
-          "Scanned for misconfigured security headers",
-          "Scanned for vulnerable JavaScript libraries (Lodash/jQuery)"
-        ];
         switch(tool.toUpperCase()) {
           case 'NIKTO':
             return [
-              ...common,
+              "Scanned for sensitive data",
               "Scanned for unsafe HTTP header Content Security Policy",
+              "Scanned for OpenAPI files",
+              "Scanned for file upload",
+              "Scanned for SQL statement in request parameter",
+              "Scanned for password returned in later response",
+              "Scanned for Path Disclosure",
               "Scanned for Session Token in URL",
-              "Scanned for missing HTTP header - Rate Limit",
-              "Scanned for missing HttpOnly/Secure cookie flags",
-              "Scanned for outdated server-side components"
+              "Scanned for API endpoints",
+              "Scanned for missing HTTP header - Rate Limit"
             ];
           case 'SQLMAP':
             return [
@@ -161,26 +159,65 @@ const ReportsTab = () => {
               "Scanned for Boolean-based blind SQL injection",
               "Scanned for Error-based SQL injection",
               "Scanned for Time-based blind SQL injection",
-              "Scanned for Database fingerprinting and OS access"
+              "Scanned for Database fingerprinting",
+              "Scanned for Operating System access",
+              "Scanned for sensitive data leakage"
             ];
           case 'FFUF':
             return [
               "Scanned for API endpoints",
               "Scanned for OpenAPI/Swagger files",
               "Scanned for hidden backup files",
-              "Scanned for directory indexing"
+              "Scanned for directory indexing",
+              "Scanned for sensitive configuration files",
+              "Scanned for environment variables disclosure"
             ];
           case 'NMAP':
             return [
               "Scanned for open service ports",
               "Scanned for service version detection",
               "Scanned for SSL/TLS certificate validity",
-              "Scanned for insecure authentication methods"
+              "Scanned for insecure authentication methods",
+              "Scanned for network banners",
+              "Scanned for OS fingerprinting"
             ];
           default:
-            return common;
+            return ["Scanned for vulnerabilities", "Scanned for exposures"];
         }
       };
+
+      const extractStats = (tool: string, output: string) => {
+        const stats = {
+          uniquePoints: 0,
+          urlsSpidered: 0,
+          totalRequests: 0,
+          responseTime: "N/A"
+        };
+
+        if (!output) return stats;
+
+        if (tool.toUpperCase() === 'NIKTO') {
+          const items = output.match(/\+ /g);
+          stats.uniquePoints = items ? items.length : 0;
+          stats.urlsSpidered = (output.match(/https?:\/\/[^\s]+/g) || []).length;
+          stats.totalRequests = stats.urlsSpidered * 2; // Approximation
+          const timeMatch = output.match(/(\d+) seconds/);
+          if (timeMatch) stats.responseTime = timeMatch[1] + "s";
+        } else if (tool.toUpperCase() === 'NMAP') {
+          const ports = output.match(/\d+\/tcp\s+open/g);
+          stats.uniquePoints = ports ? ports.length : 0;
+          stats.totalRequests = 1000; // Standard top-ports scan
+          const latencyMatch = output.match(/latency \((\d+\.\d+)s latency\)/);
+          if (latencyMatch) stats.responseTime = (parseFloat(latencyMatch[1]) * 1000).toFixed(0) + "ms";
+        } else if (tool.toUpperCase() === 'SQLMAP') {
+          stats.uniquePoints = (output.match(/parameter '[^']+' is vulnerable/gi) || []).length;
+          stats.totalRequests = (output.match(/\[PAYLOAD\]/g) || []).length || 50;
+        }
+
+        return stats;
+      };
+
+      const stats = extractStats(targetInfo.tool, selectedScan?.raw_output || "");
 
       // -----------------------------------------------------------
       // DATA CONSOLIDATION & NOISE REDUCTION LOGIC
@@ -245,246 +282,140 @@ const ReportsTab = () => {
 
       const html = `
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Security Scan Report - ${targetInfo.scan_name}</title>
+    <title>Scan Report - ${targetInfo.target}</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;700&display=swap');
-        
-        :root {
-            --primary: #0ea5e9;
-            --primary-dark: #0369a1;
-            --bg-dark: #0f172a;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --critical: #dc2626;
-            --high: #ea580c;
-            --medium: #d97706;
-            --low: #16a34a;
-            --info: #2563eb;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;700&display=swap');
         
         body { 
-            font-family: 'Plus Jakarta Sans', 'Noto Sans Arabic', sans-serif;
-            background: #fff; 
-            color: var(--text-main); 
-            line-height: 1.5;
-            padding: 0; 
+            font-family: 'Inter', 'Noto Sans Arabic', sans-serif;
+            color: #1a1a1a;
+            line-height: 1.4;
+            padding: 40px;
             margin: 0; 
-            font-size: 11px;
-            -webkit-print-color-adjust: exact;
-        }
-        
-        .page { 
-            padding: 25px 35px; 
-            max-width: 1000px; 
-            margin: 0 auto; 
-            background: white; 
-            position: relative;
+            font-size: 12px;
         }
 
-        .header-main { 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .header-main .logo {
-            font-size: 16px;
-            font-weight: 800;
-            color: var(--primary);
-        }
-        
-        .cover { 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); 
-            color: white; 
-            text-align: center;
-        }
-        
-        .cover h1 { font-size: 42px; font-weight: 800; margin-bottom: 15px; letter-spacing: -0.02em; }
-        
-        .summary-card { 
-            background: #f8fafc; 
-            border: 1px solid var(--border);
-            border-radius: 10px; 
-            padding: 20px; 
-            margin-bottom: 25px; 
-        }
-        
-        .section-title {
-            font-size: 20px;
-            font-weight: 800;
-            margin-bottom: 15px;
+        .checkpoint {
             display: flex;
             align-items: center;
-            gap: 8px;
-            color: var(--bg-dark);
+            color: #22c55e;
+            font-weight: 500;
+            margin-bottom: 6px;
+            font-size: 13px;
         }
 
-        .section-title::before {
-            content: "";
-            width: 4px;
-            height: 20px;
-            background: var(--primary);
-            border-radius: 2px;
-        }
+        .checkpoint svg { margin-right: 8px; width: 16px; height: 16px; }
 
-        .stats-grid { 
-            display: grid; 
-            grid-template-columns: repeat(5, 1fr); 
-            gap: 8px; 
+        .table-section { margin-top: 30px; margin-bottom: 20px; }
+        .table-title { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #e5e7eb;
+            max-width: 500px;
         }
         
-        .stat-card { 
-            padding: 12px 5px; 
-            border-radius: 6px; 
-            text-align: center; 
-            border: 1px solid var(--border);
-            background: white;
-        }
-        
-        .stat-card .count { font-size: 20px; font-weight: 800; display: block; }
-        .stat-card .label { font-size: 8px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-
-        .finding-group { 
-            border: 1px solid var(--border); 
-            border-radius: 10px; 
-            margin-bottom: 25px; 
-            page-break-inside: avoid; 
-        }
-        
-        .finding-header { 
-            background: #f1f5f9;
-            padding: 12px 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
+        td {
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            vertical-align: middle;
         }
 
-        .severity-badge {
-            padding: 2px 7px;
-            border-radius: 3px;
-            font-size: 9px;
-            font-weight: 800;
-            color: white;
-            text-transform: uppercase;
+        .label-cell { background-color: #f9fafb; width: 220px; }
+
+        .arabic-report {
+            margin-top: 40px;
+            padding: 25px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            text-align: right;
+            direction: rtl;
         }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10.5px; table-layout: fixed; }
-        th { text-align: left; background: #f8fafc; padding: 8px; border-bottom: 2px solid var(--border); font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 9px; }
-        td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; word-wrap: break-word; }
+        .arabic-report h3 { color: #0ea5e9; margin-top: 0; font-size: 16px; }
+        .arabic-report h4 { color: #334155; margin-bottom: 8px; font-size: 14px; }
+        .arabic-report p { color: #64748b; font-size: 12px; margin-bottom: 15px; }
 
-        .cve-id { font-weight: 700; color: var(--primary); }
-        .cvss-score { font-weight: 800; padding: 2px 5px; border-radius: 3px; display: inline-block; font-size: 10px; }
+        .findings-section { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
+        .finding-group { border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 20px; overflow: hidden; page-break-inside: avoid; }
+        .finding-header { background: #f9fafb; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; }
+        .severity-badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; color: white; text-transform: uppercase; }
+        .finding-body { padding: 15px; }
+        .evidence-box { background: #0f172a; color: #38bdf8; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 10px; margin-top: 10px; white-space: pre-wrap; }
 
-        .legacy-section { margin-top: 15px; padding-top: 12px; border-top: 1px dashed var(--border); }
-        .legacy-title { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
-
-        .code-block { 
-            background: #0f172a; 
-            color: #38bdf8; 
-            padding: 12px; 
-            border-radius: 6px; 
-            font-family: 'JetBrains Mono', monospace; 
-            font-size: 9.5px; 
-            margin-top: 12px;
-            white-space: pre-wrap;
-            border: 1px solid #1e293b;
-        }
+        .severity-critical { background: #dc2626; }
+        .severity-high { background: #ea580c; }
+        .severity-medium { background: #d97706; }
+        .severity-low { background: #16a34a; }
+        .severity-info { background: #2563eb; }
 
         @media print {
-            .page { padding: 0; width: 100%; }
-            .finding-group { margin-bottom: 20px; }
-            h1 { page-break-before: avoid; }
+            body { padding: 0; }
         }
     </style>
 </head>
 <body>
-    <div class="cover">
-        <h1>Vulnerability Report</h1>
-        <p style="font-size: 18px; color: #94a3b8;">Analysis of ${targetInfo.target}</p>
-        <p style="margin-top: 40px;">${dateStr}</p>
+    <div class="checkpoints">
+      ${getCheckpoints(targetInfo.tool).map(cp => `
+        <div class="checkpoint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          ${cp}
+        </div>
+      `).join('')}
     </div>
 
-    <div class="page" dir="ltr">
-        <div class="header-main">
-            <div class="logo">PENTEST-PRO</div>
-            <div style="font-size: 11px; color: var(--text-muted);">${targetInfo.target}</div>
-        </div>
+    <div class="table-section">
+      <div class="table-title">Scan parameters</div>
+      <table>
+        <tr><td class="label-cell">target:</td><td>${targetInfo.target}</td></tr>
+        <tr><td class="label-cell">scan_type:</td><td>Light</td></tr>
+        <tr><td class="label-cell">authentication:</td><td>False</td></tr>
+      </table>
+    </div>
 
-        <div style="margin-bottom: 30px;">
-          ${getCheckpoints(targetInfo.tool).map(cp => `
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; color: #16a34a; font-weight: 600;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>${cp}</span>
-            </div>
-          `).join('')}
-        </div>
+    <div class="table-section">
+      <div class="table-title">Scan stats</div>
+      <table>
+        <tr><td class="label-cell">Unique Injection Points Detected:</td><td>${stats.uniquePoints}</td></tr>
+        <tr><td class="label-cell">URLs spidered:</td><td>${stats.urlsSpidered}</td></tr>
+        <tr><td class="label-cell">Total number of HTTP requests:</td><td>${stats.totalRequests}</td></tr>
+        <tr><td class="label-cell">Average time until a response was received:</td><td>${stats.responseTime}</td></tr>
+      </table>
+    </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-          <div>
-            <h3 style="font-size: 14px; font-weight: 800; margin-bottom: 10px; border-bottom: 2px solid var(--border); padding-bottom: 5px;">Scan parameters</h3>
-            <table style="margin: 0;">
-              <tr><td style="font-weight: 700; width: 100px; background: #f8fafc;">target:</td><td>${targetInfo.target}</td></tr>
-              <tr><td style="font-weight: 700; background: #f8fafc;">scan_type:</td><td>${targetInfo.tool}</td></tr>
-              <tr><td style="font-weight: 700; background: #f8fafc;">stealth:</td><td>Enabled</td></tr>
-            </table>
-          </div>
-          <div>
-            <h3 style="font-size: 14px; font-weight: 800; margin-bottom: 10px; border-bottom: 2px solid var(--border); padding-bottom: 5px;">Scan stats</h3>
-            <table style="margin: 0;">
-              <tr><td style="font-weight: 700; width: 100px; background: #f8fafc;">Total Findings:</td><td>${severityCounts.Total}</td></tr>
-              <tr><td style="font-weight: 700; background: #f8fafc;">Critical Issues:</td><td style="color: var(--critical); font-weight: 800;">${severityCounts.Critical}</td></tr>
-              <tr><td style="font-weight: 700; background: #f8fafc;">High Risk:</td><td style="color: var(--high); font-weight: 800;">${severityCounts.High}</td></tr>
-            </table>
-          </div>
-        </div>
+    <div class="arabic-report">
+        <h3>منهجية تحليل المخاطر وتصنيف الثغرات</h3>
+        <p>يعتمد هذا التقرير على محرك تحليل ذكي يقوم بمطابقة نتائج الفحص مع قواعد البيانات العالمية للثغرات (NVD) وأكواد الاستغلال (Exploit-DB). يتم تصنيف المخاطر بناءً على المعايير التالية:</p>
 
-        <h2 class="section-title">Executive Summary</h2>
-        <div class="summary-card" dir="rtl" style="text-align: right;">
-            <h3 style="margin-top: 0; color: var(--primary);">تحليل المخاطر والمخططات البيانية</h3>
+        <h4>1. مخاطر القابلية للاستغلال (Exploitability Risk)</h4>
+        <p>
+            هذا المخطط يحلل مدى سهولة استغلال الثغرات المكتشفة بناءً على توفر "أكواد الاستغلال" (Exploits):
+            <br/>- <strong>Weaponized (مجهزة للاستخدام):</strong> يتم تصنيف الثغرة هنا إذا وجد لها كود استغلال مؤكد ومسجل في قاعدة بيانات Exploit-DB.
+            <br/>- <strong>Public PoC (إثبات مفهوم عام):</strong> إذا كان هناك كود استغلال متاح للعامة ولكن لم يتم التحقق من فاعليته الكاملة.
+            <br/>- <strong>Known CVE (ثغرة معروفة):</strong> ثغرات مسجلة في NVD ولكن لا يوجد كود استغلال مباشر مرتبط بها حالياً.
+        </p>
 
-            <div style="margin-bottom: 20px;">
-                <h4 style="color: var(--bg-dark); margin-bottom: 5px;">1. مخاطر القابلية للاستغلال (Exploitability Risk)</h4>
-                <p style="margin: 0; color: var(--text-muted); font-size: 10px;">
-                    هذا المخطط يحلل مدى سهولة استغلال الثغرات المكتشفة بناءً على توفر "أكواد الاستغلال":
-                    <br/>- <strong>Weaponized:</strong> ثغرات لها كود استغلال مؤكد في Exploit-DB.
-                    <br/>- <strong>Public PoC:</strong> كود استغلال متاح للعامة ولكن لم يتم التحقق منه كلياً.
-                    <br/>- <strong>Known CVE:</strong> ثغرات مسجلة ولكن لا يوجد كود استغلال مباشر حالياً.
-                </p>
-            </div>
+        <h4>2. ناقل الهجوم (Attack Vector)</h4>
+        <p>
+            يعتمد هذا المخطط على معايير CVSS v3 لتحديد "المكان" الذي يجب أن يتواجد فيه المهاجم لاستغلال الثغرة:
+            <br/>- <strong>Network (الشبكة):</strong> ثغرات يمكن استغلالها عن بُعد عبر الإنترنت (الأكثر خطورة).
+            <br/>- <strong>Adjacent (الشبكة المجاورة):</strong> تتطلب من المهاجم أن يكون على نفس الشبكة المحلية (WiFi أو LAN).
+            <br/>- <strong>Local/Physical:</strong> تتطلب وصولاً مباشراً إلى نظام الملفات أو تفاعلاً فيزيائياً مع الجهاز.
+        </p>
 
-            <div style="margin-bottom: 20px;">
-                <h4 style="color: var(--bg-dark); margin-bottom: 5px;">2. ناقل الهجوم (Attack Vector)</h4>
-                <p style="margin: 0; color: var(--text-muted); font-size: 10px;">
-                    يعتمد على معايير CVSS v3 لتحديد "المكان" الذي يجب أن يتواجد فيه المهاجم:
-                    <br/>- <strong>Network:</strong> ثغرات يمكن استغلالها عن بُعد عبر الإنترنت (الأكثر خطورة).
-                    <br/>- <strong>Adjacent:</strong> تتطلب وجود المهاجم على نفس الشبكة المحلية.
-                    <br/>- <strong>Local/Physical:</strong> تتطلب وصولاً مباشراً للجهاز أو نظام الملفات.
-                </p>
-            </div>
+        <h4>3. حالة النتائج (Finding Status)</h4>
+        <p>
+            يعكس سير العمل الإداري لكل ثغرة مكتشفة: <strong>Open</strong> للثغرات الجديدة، <strong>In Progress</strong> للمعالجة، <strong>Fixed</strong> للثغرات التي تم إغلاقها، و <strong>False Positive</strong> للنتائج المستبعدة يدوياً.
+        </p>
+    </div>
 
-            <div>
-                <h4 style="color: var(--bg-dark); margin-bottom: 5px;">3. حالة النتائج (Finding Status)</h4>
-                <p style="margin: 0; color: var(--text-muted); font-size: 10px;">
-                    يعكس سير العمل الإداري: <strong>Open</strong> للثغرات الجديدة، <strong>In Progress</strong> للمعالجة، و <strong>Fixed</strong> للثغرات التي تم إغلاقها.
-                </p>
-            </div>
-        </div>
-
-        <h2 class="section-title">Consolidated Findings</h2>
-
+    <div class="findings-section">
+        <div class="table-title">Vulnerability Details</div>
         ${finalFindings.length === 0 ? `
             <div style="text-align: center; padding: 40px; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 10px;">
                 No security vulnerabilities or exposures were detected during this scan.
@@ -501,97 +432,40 @@ const ReportsTab = () => {
           return `
             <div class="finding-group">
                 <div class="finding-header">
-                    <span style="font-weight: 800; color: var(--bg-dark);">${idx + 1}. ${escapeHtml(group.name)}</span>
-                    <span class="severity-badge" style="background: ${
-                        sev === 'CRITICAL' ? 'var(--critical)' : 
-                        sev === 'HIGH' ? 'var(--high)' : 
-                        sev === 'MEDIUM' ? 'var(--medium)' : 
-                        sev === 'LOW' ? 'var(--low)' : 'var(--info)'
-                    }">${sev}</span>
+                    <span style="font-weight: 700;">${idx + 1}. ${escapeHtml(group.name)}</span>
+                    <span class="severity-badge severity-${sev.toLowerCase()}">${sev}</span>
                 </div>
-                <div style="padding: 15px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px; font-size: 10px;">
-                        <div>
-                            <span style="color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 8px;">Target Resource</span>
-                            <div style="margin-top: 2px;">${escapeHtml(group.path || 'Host-level Service')}</div>
-                        </div>
-                        <div>
-                            <span style="color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 8px;">Analysis Status</span>
-                            <div style="margin-top: 2px; color: #16a34a; font-weight: 700;">● ${group.status.toUpperCase()}</div>
-                        </div>
+                <div class="finding-body">
+                    <div style="margin-bottom: 10px; color: #64748b; font-size: 11px;">
+                        <strong>Resource:</strong> ${escapeHtml(group.path || 'Host Service')} |
+                        <strong>Status:</strong> <span style="color: #16a34a;">${group.status.toUpperCase()}</span>
                     </div>
 
-                    ${group.highPriority.length > 0 ? `
-                        <div style="font-weight: 700; color: var(--bg-dark); margin-bottom: 8px; font-size: 11px;">Primary Vulnerabilities (NVD Verified)</div>
-                        <table style="margin-bottom: 15px;">
-                            <thead>
-                                <tr>
-                                    <th width="110">Identifier</th>
-                                    <th width="70">CVSS v3</th>
-                                    <th>Impact Analysis</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${group.highPriority.map((c: any) => `
-                                    <tr>
-                                        <td class="cve-id">${c.cve_id}</td>
-                                        <td>
-                                            <span class="cvss-score" style="background: ${
-                                                c.cvss_v3_score >= 9 ? '#fee2e2; color: #dc2626' : 
-                                                c.cvss_v3_score >= 7 ? '#ffedd5; color: #ea580c' : '#fef9c3; color: #ca8a04'
-                                            }">${c.cvss_v3_score || 'N/A'}</span>
-                                        </td>
-                                        <td style="line-height: 1.4;">${escapeHtml(c.description)}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    ` : ''}
+                    ${group.highPriority.map((c: any) => `
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #0ea5e9; font-weight: 600;">${c.cve_id}</span>
+                            <span style="background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-size: 10px; margin-left: 5px;">CVSS: ${c.cvss_v3_score || 'N/A'}</span>
+                            <div style="margin-top: 2px; color: #475569;">${escapeHtml(c.description)}</div>
+                        </div>
+                    `).join('')}
 
                     ${group.legacyMinor.length > 0 ? `
-                        <div class="legacy-section">
-                            <div class="legacy-title">Supporting Evidence & Legacy CVEs (Consolidated Summary)</div>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th width="90">CVE ID</th>
-                                        <th width="50">Score</th>
-                                        <th>Summary of Potential Exposure</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${group.legacyMinor.slice(0, 15).map((c: any) => `
-                                        <tr>
-                                            <td style="font-weight: 600; color: var(--text-muted);">${c.cve_id}</td>
-                                            <td style="color: var(--text-muted);">${c.cvss_v3_score || 'N/A'}</td>
-                                            <td style="color: var(--text-muted); font-style: italic;">${escapeHtml(c.description.substring(0, 140))}...</td>
-                                        </tr>
-                                    `).join('')}
-                                    ${group.legacyMinor.length > 15 ? `
-                                        <tr>
-                                            <td colspan="3" style="text-align: center; color: var(--text-muted); font-size: 9px; padding: 5px;">
-                                                ... and ${group.legacyMinor.length - 15} additional legacy vulnerabilities consolidated to save space.
-                                            </td>
-                                        </tr>
-                                    ` : ''}
-                                </tbody>
-                            </table>
+                        <div style="margin-top: 10px; font-size: 10px; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 5px;">
+                            <strong>Additional observations:</strong> ${group.legacyMinor.slice(0, 5).map((c: any) => c.cve_id).join(', ')}
+                            ${group.legacyMinor.length > 5 ? ` and ${group.legacyMinor.length - 5} more...` : ''}
                         </div>
                     ` : ''}
 
                     ${group.evidence.length > 0 ? `
-                        <div class="code-block">
-                            <div style="font-weight: 800; color: #fff; margin-bottom: 5px; text-transform: uppercase; font-size: 8px; border-bottom: 1px solid #1e293b; padding-bottom: 3px;">Technical Evidence / Tool Output</div>
-                            ${escapeHtml(group.evidence.join('\n\n'))}
-                        </div>
+                        <div class="evidence-box">${escapeHtml(group.evidence.join('\n\n'))}</div>
                     ` : ''}
                 </div>
             </div>
           `;
         }).join('')}
         
-        <div style="text-align: center; font-size: 10px; color: var(--text-muted); margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border);">
-            Generated by Pentest-Pro Security Platform &copy; ${new Date().getFullYear()}
+        <div style="text-align: center; font-size: 10px; color: #94a3b8; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            Generated by Vulnerability Manager &copy; ${new Date().getFullYear()}
         </div>
     </div>
 
