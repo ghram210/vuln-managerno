@@ -1,5 +1,5 @@
 -- =============================================================
--- Fix Nmap Ports Extraction and Risk Level Logic
+-- Final Fix: Nmap Ports Extraction and Risk Level Logic (Always fallback to Info)
 -- =============================================================
 
 BEGIN;
@@ -16,19 +16,25 @@ WITH latest_scans AS (
   ORDER BY target, tool, COALESCE(completed_at, started_at, created_at) DESC
 ),
 scan_ports AS (
-  -- Extract numeric port numbers from findings
-  -- We look for :port in target OR "Port <number>" in title (common for Nmap)
+  -- Extract numeric port numbers from findings بـ 3 طرق مختلفة لضمان الدقة
   SELECT
     scan_id,
     string_agg(DISTINCT port, ',') AS port_list
   FROM (
+    -- 1. From Target if it has :port
     SELECT scan_id, substring(target from ':(\d+)') AS port
     FROM public.scan_findings
     WHERE target ~ ':\d+'
     UNION
+    -- 2. From Finding Title (Nmap style "Port X")
     SELECT scan_id, substring(title from '(?i)Port\s+(\d+)') AS port
     FROM public.scan_findings
     WHERE title ~* 'Port\s+\d+'
+    UNION
+    -- 3. From Evidence (e.g. "80/tcp open")
+    SELECT scan_id, substring(evidence from '(\d+)/tcp') AS port
+    FROM public.scan_findings
+    WHERE evidence ~ '\d+/tcp'
   ) sub
   GROUP BY scan_id
 ),
@@ -61,8 +67,7 @@ SELECT
     WHEN ls.high_count     > 0 THEN 'High'
     WHEN ls.medium_count   > 0 THEN 'Medium'
     WHEN ls.low_count      > 0 THEN 'Low'
-    WHEN ls.total_findings > 0 THEN 'Info'
-    ELSE 'None'
+    ELSE 'Info'
   END AS risk,
   COALESCE(ls.completed_at, ls.started_at, ls.created_at) AS last_scan,
   ls.created_at AS created_at
