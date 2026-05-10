@@ -2,25 +2,12 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, MoreHorizontal, Info } from "lucide-react";
+import { AlertTriangle, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 const filterTags = [
   "Open vulnerabilities",
   "CISA KEV",
-  "Adversaries",
-  "Asset confidence",
-  "Asset criticality",
-  "Asset roles",
-  "CISA KEV due date compliant",
-  "Cloud provider",
-  "CVSS complexity",
 ];
 
 type SeverityKey = "Critical" | "High" | "Medium" | "Low" | "Info" | "None";
@@ -352,33 +339,9 @@ const VulnerabilitiesTab = () => {
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
-                    <TooltipProvider>
-                      <Tooltip delayDuration={300}>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-1.5 cursor-help">
-                            <span className="text-foreground/80 font-medium truncate max-w-[120px] block">
-                              {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
-                            </span>
-                            {v.scan_names && v.scan_names.split(', ').length > 1 && (
-                              <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full bg-secondary text-[10px] font-bold text-muted-foreground border border-border">
-                                +{v.scan_names.split(', ').length - 1}
-                              </span>
-                            )}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-popover border border-border p-2 shadow-xl">
-                          <div className="space-y-1">
-                            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Associated Scans</p>
-                            {v.scan_names?.split(', ').map((name, idx) => (
-                              <div key={idx} className="flex items-center gap-2 text-xs text-foreground py-0.5">
-                                <div className="w-1 h-1 rounded-full bg-primary" />
-                                {name}
-                              </div>
-                            ))}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
+                      {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
+                    </span>
                   </td>
                   <td className="px-5 py-3.5">
                     <SeverityCell value={v.exprt_rating} />
