@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Globe, Check } from "lucide-react";
+import { ChevronDown, Globe, Check, ShieldCheck, ShieldAlert } from "lucide-react";
 import DonutChart from "@/components/DonutChart";
 import {
   useChartSeverity,
@@ -9,12 +9,10 @@ import {
   useChartAttackVector,
   useChartStatus,
   useScanTargets,
+  type ScanTarget
 } from "@/hooks/useAssetCharts";
 
 // ─── URL middle-truncation ────────────────────────────────────────────────────
-// Shows the START and END of a long URL with "…" in the middle.
-// e.g. "https://0a170028.web-security-academy.net/filter?category=Gifts"
-//   →  "0a170028.web-security-academy.net/fil…?category=Gifts"
 function midTruncate(raw: string, maxLen = 52): string {
   const s = raw.replace(/^https?:\/\//, "");
   if (s.length <= maxLen) return s;
@@ -30,7 +28,7 @@ function TargetFilter({
   onChange,
 }: {
   selected: string | null;
-  onChange: (v: string | null) => void;
+  onChange: (v: ScanTarget | null) => void;
 }) {
   const { data: targets, isLoading } = useScanTargets();
   const [open, setOpen] = useState(false);
@@ -44,7 +42,7 @@ function TargetFilter({
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
-  const selectedTarget = targets?.find((t) => t.url === selected);
+  const selectedTarget = targets?.find((t) => t.displayHost === selected);
   const displayLabel   = selected ? midTruncate(selected) : "All Targets";
 
   return (
@@ -130,43 +128,37 @@ function TargetFilter({
               </div>
             ) : (
               targets.map((t) => {
-                const isSelected = selected === t.url;
-                const isHttps    = t.url.startsWith("https://");
-                const stripped   = t.url.replace(/^https?:\/\//, "");
+                const isSelected = selected === t.displayHost;
+                const hasHttps   = t.urls.some(u => u.startsWith("https://"));
+                const hasHttp    = t.urls.some(u => u.startsWith("http://"));
 
                 return (
                   <button
-                    key={t.url}
+                    key={t.displayHost}
                     type="button"
-                    onClick={() => { onChange(t.url); setOpen(false); }}
+                    onClick={() => { onChange(t); setOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors
                                 border-b border-border/20 last:border-0
                                 ${isSelected ? "bg-cyan-500/10" : "hover:bg-secondary/40"}`}
                   >
-                    {/* Protocol badge */}
-                    <div
-                      className={`w-9 h-7 rounded-lg flex items-center justify-center shrink-0
-                                  text-[8.5px] font-bold
-                                  ${isHttps
-                                    ? "bg-emerald-500/15 text-emerald-400"
-                                    : "bg-amber-500/15 text-amber-400"}`}
-                    >
-                      {isHttps ? "HTTPS" : "HTTP"}
+                    {/* Protocol indicator */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {hasHttps && <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />}
+                      {!hasHttps && hasHttp && <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />}
                     </div>
 
-                    {/* URL — full string, no clipping, horizontal scroll if needed */}
                     <div className="flex-1 min-w-0">
                       <div
                         className={`text-[12px] font-mono font-semibold whitespace-nowrap overflow-x-auto
                                     scrollbar-none
                                     ${isSelected ? "text-cyan-300" : "text-foreground/90"}`}
-                        title={t.url}
+                        title={t.displayHost}
                       >
-                        {stripped}
+                        {t.displayHost}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-muted-foreground/60">
-                          {t.scanCount} {t.scanCount === 1 ? "tool" : "tools"}
+                          {t.scanCount} {t.scanCount === 1 ? "scan" : "scans"}
                         </span>
                         {t.totalFindings > 0 && (
                           <>
@@ -176,6 +168,10 @@ function TargetFilter({
                             </span>
                           </>
                         )}
+                        <span className="text-muted-foreground/30">·</span>
+                        <span className="text-[9px] text-muted-foreground/40 tabular-nums">
+                          {new Date(t.latestDate).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
 
@@ -194,17 +190,17 @@ function TargetFilter({
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 const DashboardDonuts = () => {
-  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
+  const [selectedHost, setSelectedHost] = useState<string | null>(null);
+  const [selectedUrls, setSelectedUrls] = useState<string[] | null>(null);
 
-  // All 6 hooks now accept the same target — bottom 3 are fully target-aware
-  const severity       = useChartSeverity(selectedTarget);
-  const byTool         = useChartByTool(selectedTarget);
-  const exposure       = useChartExposure(selectedTarget);
-  const exploitability = useChartExploitability(selectedTarget);
-  const attackVector   = useChartAttackVector(selectedTarget);
-  const status         = useChartStatus(selectedTarget);
+  const severity       = useChartSeverity(selectedUrls);
+  const byTool         = useChartByTool(selectedUrls);
+  const exposure       = useChartExposure(selectedUrls);
+  const exploitability = useChartExploitability(selectedUrls);
+  const attackVector   = useChartAttackVector(selectedUrls);
+  const status         = useChartStatus(selectedUrls);
 
-  const selectedLabel = selectedTarget ? midTruncate(selectedTarget, 60) : null;
+  const selectedLabel = selectedHost ? midTruncate(selectedHost, 60) : null;
 
   return (
     <div className="space-y-4">
@@ -219,7 +215,13 @@ const DashboardDonuts = () => {
         </div>
 
         {/* Filter — always left-anchored, never wraps */}
-        <TargetFilter selected={selectedTarget} onChange={setSelectedTarget} />
+        <TargetFilter
+          selected={selectedHost}
+          onChange={(t) => {
+            setSelectedHost(t?.displayHost ?? null);
+            setSelectedUrls(t?.urls ?? null);
+          }}
+        />
       </div>
 
       {/* ── 6 donut charts (all now respond to the target filter) ── */}

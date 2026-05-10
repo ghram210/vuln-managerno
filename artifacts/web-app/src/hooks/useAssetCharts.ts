@@ -83,9 +83,11 @@ function classifyVector(vec: string | null): string {
 
 // ─── Scan Targets Dropdown ────────────────────────────────────────────────────
 export interface ScanTarget {
-  url: string;
+  displayHost: string;
+  urls: string[]; // All variations (http, https)
   scanCount: number;
   totalFindings: number;
+  latestDate: string;
 }
 
 export function useScanTargets() {
@@ -105,32 +107,46 @@ export function useScanTargets() {
 
       const raw = data as { target: string; tool: string | null; total_findings: number | null; created_at: string }[];
 
-      // Deduplicate by (target, tool) — keep LATEST scan per combination
-      const toolMap = new Map<string, number>();
-      const seenTools = new Set<string>();
-
+      // 1. Group by Tool to get latest unique tool findings per URL
+      const toolMap = new Map<string, { findings: number, date: string }>();
       for (const row of raw) {
         const url = row.target?.trim();
         if (!url) continue;
         const key = `${url}||${(row.tool ?? "").toLowerCase().trim()}`;
-
-        if (!seenTools.has(key)) {
-          seenTools.add(key);
-          toolMap.set(key, row.total_findings ?? 0);
+        if (!toolMap.has(key)) {
+          toolMap.set(key, { findings: row.total_findings ?? 0, date: row.created_at });
         }
       }
 
-      // Aggregate by unique URL
-      const urlMap = new Map<string, ScanTarget>();
-      for (const [key, findings] of toolMap.entries()) {
+      // 2. Group by canonical host (ignoring http/https)
+      const hostMap = new Map<string, ScanTarget>();
+      for (const [key, info] of toolMap.entries()) {
         const url = key.split("||")[0];
-        if (!urlMap.has(url)) urlMap.set(url, { url, scanCount: 0, totalFindings: 0 });
-        const t = urlMap.get(url)!;
+        const displayHost = url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+
+        if (!hostMap.has(displayHost)) {
+          hostMap.set(displayHost, {
+            displayHost,
+            urls: [],
+            scanCount: 0,
+            totalFindings: 0,
+            latestDate: info.date
+          });
+        }
+
+        const t = hostMap.get(displayHost)!;
+        if (!t.urls.includes(url)) t.urls.push(url);
         t.scanCount += 1;
-        t.totalFindings += findings;
+        t.totalFindings += info.findings;
+        if (new Date(info.date) > new Date(t.latestDate)) {
+          t.latestDate = info.date;
+        }
       }
 
-      return [...urlMap.values()].sort((a, b) => b.totalFindings - a.totalFindings || b.scanCount - a.scanCount);
+      // Sort by newest scan first
+      return [...hostMap.values()].sort((a, b) =>
+        new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime()
+      );
     },
     staleTime: 60_000,
   });
@@ -161,7 +177,7 @@ type VulnRow = {
 // ─── Core Helper: scan_results deduplicated by (target, tool) ─────────────────
 // For each (target, tool) pair keep only the LATEST scan.
 // This matches the logic in the 'scanned_assets' view used by the table.
-async function getScanRows(targetFilter: string | null): Promise<ScanRow[]> {
+async function getScanRows(targetFilter: string | string[] | null): Promise<ScanRow[]> {
   const user = await getUser();
   if (!user) return [];
 
@@ -174,7 +190,11 @@ async function getScanRows(targetFilter: string | null): Promise<ScanRow[]> {
     .order("created_at", { ascending: false });
 
   if (targetFilter) {
-    q = q.eq("target", targetFilter);
+    if (Array.isArray(targetFilter)) {
+      q = q.in("target", targetFilter);
+    } else {
+      q = q.eq("target", targetFilter);
+    }
   }
 
   const { data, error } = await q;
@@ -192,14 +212,21 @@ async function getScanRows(targetFilter: string | null): Promise<ScanRow[]> {
 }
 
 // ─── Core Helper: unique targets for this user ────────────────────────────────
-async function getUserTargets(targetFilter: string | null): Promise<string[]> {
+async function getUserTargets(targetFilter: string | string[] | null): Promise<string[]> {
   const user = await getUser();
   if (!user) return [];
   let q = (supabase as any)
     .from("scan_results")
     .select("target")
     .eq("user_id", user.id);
-  if (targetFilter) q = q.eq("target", targetFilter);
+
+  if (targetFilter) {
+    if (Array.isArray(targetFilter)) {
+      q = q.in("target", targetFilter);
+    } else {
+      q = q.eq("target", targetFilter);
+    }
+  }
   const { data } = await q;
   return [...new Set((data ?? []).map((r: any) => (r as any).target as string).filter(Boolean))] as string[];
 }
@@ -223,7 +250,7 @@ async function getScanFindings(scanIds: string[]): Promise<FindingRow[]> {
 // ─── Core Helper: vulnerabilities for user's targets via scan_findings chain ──
 // Chain: user targets → scan_results → scan_findings (by scan_id) → finding_cves → cve_catalog
 // We query the catalog directly to bypass potentially buggy views and ensure we get all data.
-async function getVulnsForUser(targetFilter: string | null): Promise<VulnRow[]> {
+async function getVulnsForUser(targetFilter: string | string[] | null): Promise<VulnRow[]> {
   const scanRows = await getScanRows(targetFilter);
   if (!scanRows.length) return [];
 
@@ -271,7 +298,7 @@ async function getVulnsForUser(targetFilter: string | null): Promise<VulnRow[]> 
 
 // ─── 1. Finding Severity ──────────────────────────────────────────────────────
 // Uses the severity counts directly from the scan_results table to ensure consistency with the asset table.
-export function useChartSeverity(target: string | null = null) {
+export function useChartSeverity(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_severity", target],
     queryFn: async () => {
@@ -309,7 +336,7 @@ export function useChartSeverity(target: string | null = null) {
 // ─── 2. Findings by Tool ──────────────────────────────────────────────────────
 // Uses total_findings directly from scan_results (populated by gateway)
 // This ensures that non-CVE findings (like Nmap ports) are correctly counted.
-export function useChartByTool(target: string | null = null) {
+export function useChartByTool(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_by_tool", target],
     queryFn: async () => {
@@ -336,7 +363,7 @@ export function useChartByTool(target: string | null = null) {
 
 // ─── 3. Asset Exposure ────────────────────────────────────────────────────────
 // Unique targets from scan_results classified by type
-export function useChartExposure(target: string | null = null) {
+export function useChartExposure(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_exposure", target],
     queryFn: async () => {
@@ -344,10 +371,13 @@ export function useChartExposure(target: string | null = null) {
       if (!rows.length) return zeroSegs(EXPOSURE_SEGS);
 
       const counts: Record<string, number> = {};
-      const seen = new Set<string>();
+      const seenHost = new Set<string>();
       for (const r of rows) {
-        if (!r.target || seen.has(r.target)) continue;
-        seen.add(r.target);
+        if (!r.target) continue;
+        const host = r.target.replace(/^https?:\/\//i, "").replace(/\/$/, "").toLowerCase();
+        if (seenHost.has(host)) continue;
+
+        seenHost.add(host);
         const bucket = classifyTarget(r.target);
         counts[bucket] = (counts[bucket] ?? 0) + 1;
       }
@@ -364,7 +394,7 @@ export function useChartExposure(target: string | null = null) {
 
 // ─── 4. Exploitability Risk ───────────────────────────────────────────────────
 // Findings classified by exploit availability — filtered by user's scanned targets
-export function useChartExploitability(target: string | null = null) {
+export function useChartExploitability(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_exploitability", target],
     queryFn: async () => {
@@ -433,7 +463,7 @@ export function useChartExploitability(target: string | null = null) {
 
 // ─── 5. Attack Vector ────────────────────────────────────────────────────────
 // Findings classified by CVSS attack vector — filtered by user's scanned targets
-export function useChartAttackVector(target: string | null = null) {
+export function useChartAttackVector(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_attack_vector", target],
     queryFn: async () => {
@@ -487,7 +517,7 @@ export function useChartAttackVector(target: string | null = null) {
 
 // ─── 6. Finding Status ────────────────────────────────────────────────────────
 // Classified by remediation status from scan_findings — filtered by user's scanned targets
-export function useChartStatus(target: string | null = null) {
+export function useChartStatus(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_status", target],
     queryFn: async () => {
