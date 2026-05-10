@@ -35,10 +35,10 @@ const EXPLOIT_SEGS: (DonutSegment & { order: number })[] = [
 ];
 
 const VECTOR_SEGS: (DonutSegment & { order: number })[] = [
-  { name: "Network",  color: "hsl(185 95% 40%)", order: 1, value: 0 },
-  { name: "Adjacent", color: "hsl(174 82% 46%)", order: 2, value: 0 },
-  { name: "Local",    color: "hsl(163 74% 52%)", order: 3, value: 0 },
-  { name: "Physical", color: "hsl(152 62% 58%)", order: 4, value: 0 },
+  { name: "Network",  color: "hsl(335 85% 60%)", order: 1, value: 0 },
+  { name: "Adjacent", color: "hsl(350 85% 65%)", order: 2, value: 0 },
+  { name: "Local",    color: "hsl(315 80% 65%)", order: 3, value: 0 },
+  { name: "Physical", color: "hsl(290 70% 65%)", order: 4, value: 0 },
   { name: "Unknown",  color: "hsl(215 18% 60%)", order: 5, value: 0 },
 ];
 
@@ -133,6 +133,7 @@ export function useScanTargets() {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ScanRow = {
+  id: string;
   target: string;
   tool: string | null;
   total_findings: number | null;
@@ -142,7 +143,7 @@ type ScanRow = {
   low_count: number | null;
 };
 
-type FindingRow = { id: string; target: string; tool: string | null };
+type FindingRow = { id: string; target: string; tool: string | null; scan_id: string };
 
 type VulnRow = {
   cve_id: string;
@@ -159,9 +160,12 @@ async function getScanRows(targetFilter: string | null): Promise<ScanRow[]> {
 
   let q = (supabase as any)
     .from("scan_results")
-    .select("target, tool, total_findings, critical_count, high_count, medium_count, low_count")
+    .select("id, target, tool, total_findings, critical_count, high_count, medium_count, low_count")
     .eq("user_id", user.id);
-  if (targetFilter) q = q.eq("target", targetFilter);
+
+  if (targetFilter) {
+    q = q.eq("target", targetFilter);
+  }
 
   const { data, error } = await q;
   if (error || !data?.length) return [];
@@ -171,7 +175,8 @@ async function getScanRows(targetFilter: string | null): Promise<ScanRow[]> {
   for (const r of data as ScanRow[]) {
     const key = `${r.target ?? ""}||${(r.tool ?? "").toLowerCase().trim()}`;
     const prev = dedup.get(key);
-    if (!prev || (r.total_findings ?? 0) > (prev.total_findings ?? 0)) {
+    // Prefer more findings, then more recent (assuming fetch order)
+    if (!prev || (r.total_findings ?? 0) >= (prev.total_findings ?? 0)) {
       dedup.set(key, r);
     }
   }
@@ -194,49 +199,33 @@ async function getUserTargets(targetFilter: string | null): Promise<string[]> {
 // ─── Core Helper: scan_findings for given targets, deduplicated by (target, tool) ──
 // Filters findings by user_id via join with scan_results to ensure data isolation.
 // Uses strict matching to prevent mixing findings between different subdomains.
-async function getScanFindings(targets: string[]): Promise<FindingRow[]> {
-  if (!targets.length) return [];
-  const user = await getUser();
-  if (!user) return [];
-
-  // Normalize targets: include both bare hostname and protocol-prefixed versions
-  // to account for tool normalization, but AVOID fuzzy domain matches.
-  const expandedTargets = new Set<string>();
-  for (const t of targets) {
-    expandedTargets.add(t);
-    const clean = t.replace(/\/$/, "");
-    if (/^https?:\/\//i.test(t)) {
-      expandedTargets.add(t.replace(/^https?:\/\//i, ""));
-    } else {
-      expandedTargets.add(`http://${clean}`);
-      expandedTargets.add(`https://${clean}`);
-    }
-  }
+async function getScanFindings(scanIds: string[]): Promise<FindingRow[]> {
+  if (!scanIds.length) return [];
 
   const { data, error } = await (supabase as any)
     .from("scan_findings")
-    .select("id, target, tool, scan_results!inner(user_id)")
-    .eq("scan_results.user_id", user.id)
-    .in("target", Array.from(expandedTargets));
+    .select("id, target, tool, scan_id")
+    .in("scan_id", scanIds);
 
   if (error || !data) return [];
 
-  // Deduplicate by (target, tool) — keep first occurrence
+  // Deduplicate by (target, tool, scan_id) — keep first occurrence
   const dedup = new Map<string, FindingRow>();
-  for (const f of data as any[]) {
-    const key = `${f.target ?? ""}||${(f.tool ?? "").toLowerCase().trim()}`;
+  for (const f of data as FindingRow[]) {
+    const key = `${f.target ?? ""}||${(f.tool ?? "").toLowerCase().trim()}||${f.scan_id}`;
     if (!dedup.has(key)) dedup.set(key, f);
   }
   return [...dedup.values()];
 }
 
 // ─── Core Helper: vulnerabilities for user's targets via scan_findings chain ──
-// Chain: user targets → scan_findings (by target URL) → finding_cves → vulnerabilities
+// Chain: user targets → scan_results → scan_findings (by scan_id) → finding_cves → vulnerabilities
 async function getVulnsForUser(targetFilter: string | null): Promise<VulnRow[]> {
-  const targets = await getUserTargets(targetFilter);
-  if (!targets.length) return [];
+  const scanRows = await getScanRows(targetFilter);
+  if (!scanRows.length) return [];
 
-  const findings = await getScanFindings(targets);
+  const scanIds = scanRows.map(r => r.id);
+  const findings = await getScanFindings(scanIds);
   if (!findings.length) return [];
 
   const findingIds = findings.map(f => f.id);
@@ -319,8 +308,8 @@ export function useChartByTool(target: string | null = null) {
       }
 
       // Part 2: CVE counts per tool from scan_findings
-      const targets = [...new Set(scanRows.map(r => r.target).filter(Boolean))];
-      const findings = await getScanFindings(targets);
+      const scanIds = scanRows.map(r => r.id);
+      const findings = await getScanFindings(scanIds);
 
       if (findings.length) {
         const findingIds = findings.map(f => f.id);
