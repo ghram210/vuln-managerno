@@ -157,6 +157,13 @@ const VulnDashboard = () => {
 
   const calculateRemediation = (rows: (RemOpen | RemClosed)[]) => {
     const filtered = rows.filter(r => filterAsset === "all" || r.target === filterAsset);
+    const slaMap: Record<string, string> = {
+      Critical: "7 Days",
+      High: "30 Days",
+      Medium: "90 Days",
+      Low: "180 Days"
+    };
+
     return ["Critical", "High", "Medium", "Low"].map(rating => {
       const matching = filtered.filter(r => r.rating === rating);
       const totalCount = matching.reduce((s, r) => s + (r.total_count || 0), 0);
@@ -166,7 +173,7 @@ const VulnDashboard = () => {
         rating, 
         in_compliance: inCompliance, 
         not_in_compliance: 100 - inCompliance, 
-        time_frame: "last_30_days", 
+        time_frame: slaMap[rating] || "30 Days",
         id: rating, 
         color: severityColors[rating] 
       };
@@ -454,7 +461,7 @@ const RemediationTable = ({ title, data, colorMap }: { title: string; data: any[
       <thead>
         <tr className="text-muted-foreground text-[10px] uppercase tracking-wider">
           <th className="text-left py-2 font-semibold">EXPRT RATING</th>
-          <th className="text-left py-2 font-semibold">TIME FRAME</th>
+          <th className="text-left py-2 font-semibold">SLA GOAL</th>
           <th className="text-left py-2 font-semibold">IN COMPLIANCE</th>
           <th className="text-right py-2 font-semibold">NOT IN COMPLIANCE</th>
         </tr>
