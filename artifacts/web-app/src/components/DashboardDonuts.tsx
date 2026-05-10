@@ -255,8 +255,8 @@ const DashboardDonuts = () => {
 
         <DonutChart
           title="Exploitability Risk"
-          subtitle="CVEs classified by exploit availability"
-          centerLabel="CVEs"
+          subtitle="Findings classified by exploit availability"
+          centerLabel="Findings"
           emptyHint="No CVE data linked to your scans yet."
           accentColor="hsl(120 75% 38%)"
           data={exploitability.data ?? []}
@@ -264,8 +264,8 @@ const DashboardDonuts = () => {
         />
         <DonutChart
           title="Attack Vector"
-          subtitle="Network path for detected CVEs"
-          centerLabel="CVEs"
+          subtitle="Network path for detected findings"
+          centerLabel="Findings"
           emptyHint="No CVSS data linked to your scans yet."
           accentColor="hsl(185 95% 40%)"
           data={attackVector.data ?? []}
@@ -273,8 +273,8 @@ const DashboardDonuts = () => {
         />
         <DonutChart
           title="Finding Status"
-          subtitle="Remediation state of detected CVEs"
-          centerLabel="CVEs"
+          subtitle="Remediation state of detected findings"
+          centerLabel="Findings"
           emptyHint="No findings to track yet."
           accentColor="hsl(0 82% 55%)"
           data={status.data ?? []}

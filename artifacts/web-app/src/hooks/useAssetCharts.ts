@@ -97,21 +97,27 @@ export function useScanTargets() {
 
       const { data, error } = await (supabase as any)
         .from("scan_results")
-        .select("target, tool, total_findings")
-        .eq("user_id", user.id);
+        .select("target, tool, total_findings, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (error || !data?.length) return [];
 
-      const raw = data as { target: string; tool: string | null; total_findings: number | null }[];
+      const raw = data as { target: string; tool: string | null; total_findings: number | null; created_at: string }[];
 
-      // Deduplicate by (target, tool) — keep max findings per combination
+      // Deduplicate by (target, tool) — keep LATEST scan per combination
       const toolMap = new Map<string, number>();
+      const seenTools = new Set<string>();
+
       for (const row of raw) {
         const url = row.target?.trim();
         if (!url) continue;
         const key = `${url}||${(row.tool ?? "").toLowerCase().trim()}`;
-        const prev = toolMap.get(key) ?? 0;
-        toolMap.set(key, Math.max(prev, row.total_findings ?? 0));
+
+        if (!seenTools.has(key)) {
+          seenTools.add(key);
+          toolMap.set(key, row.total_findings ?? 0);
+        }
       }
 
       // Aggregate by unique URL
@@ -143,7 +149,7 @@ type ScanRow = {
   low_count: number | null;
 };
 
-type FindingRow = { id: string; target: string; tool: string | null; scan_id: string; status: string | null };
+type FindingRow = { id: string; target: string; tool: string | null; scan_id: string; status: string | null; severity: string | null };
 
 type VulnRow = {
   cve_id: string;
@@ -206,12 +212,11 @@ async function getScanFindings(scanIds: string[]): Promise<FindingRow[]> {
 
   const { data, error } = await (supabase as any)
     .from("scan_findings")
-    .select("id, target, tool, scan_id, status")
+    .select("id, target, tool, scan_id, status, severity")
     .in("scan_id", scanIds);
 
   if (error || !data) return [];
 
-  // No deduplication here — we want to see all findings associated with these scans
   return data as FindingRow[];
 }
 
@@ -302,9 +307,8 @@ export function useChartSeverity(target: string | null = null) {
 }
 
 // ─── 2. Findings by Tool ──────────────────────────────────────────────────────
-// Combines: scan_results.total_findings (for SQLMap/FFUF/Nmap) +
-//           CVE counts per tool from scan_findings (for Nikto/Nmap)
-//           Uses max(scan_results count, CVE count) per tool to avoid double-counting
+// Uses total_findings directly from scan_results (populated by gateway)
+// This ensures that non-CVE findings (like Nmap ports) are correctly counted.
 export function useChartByTool(target: string | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_by_tool", target],
@@ -312,45 +316,10 @@ export function useChartByTool(target: string | null = null) {
       const scanRows = await getScanRows(target);
       if (!scanRows.length) return zeroSegs(TOOL_SEGS);
 
-      // Part 1: total_findings per tool from scan_results (deduplicated)
       const scanCounts: Record<string, number> = {};
       for (const r of scanRows) {
         const k = (r.tool ?? "").toLowerCase().trim();
         scanCounts[k] = (scanCounts[k] ?? 0) + (r.total_findings ?? 0);
-      }
-
-      // Part 2: CVE counts per tool from scan_findings
-      const scanIds = scanRows.map(r => r.id);
-      const findings = await getScanFindings(scanIds);
-
-      if (findings.length) {
-        const findingIds = findings.map(f => f.id);
-        const { data: fcData } = await (supabase as any)
-          .from("finding_cves")
-          .select("finding_id, cve_id")
-          .in("finding_id", findingIds);
-
-        // Map finding_id → tool
-        const findingToolMap: Record<string, string> = {};
-        for (const f of findings) {
-          findingToolMap[f.id] = (f.tool ?? "").toLowerCase().trim();
-        }
-
-        // Build tool → unique CVE set
-        const toolCveSet: Record<string, Set<string>> = {};
-        for (const fc of (fcData ?? []) as { finding_id: string; cve_id: string }[]) {
-          const tool = findingToolMap[fc.finding_id] ?? "";
-          if (!toolCveSet[tool]) toolCveSet[tool] = new Set();
-          toolCveSet[tool].add(fc.cve_id);
-        }
-
-        // Use max(scan_results count, CVE count) per tool
-        for (const [tool, cveSet] of Object.entries(toolCveSet)) {
-          const cveCount = cveSet.size;
-          if (cveCount > 0) {
-            scanCounts[tool] = Math.max(scanCounts[tool] ?? 0, cveCount);
-          }
-        }
       }
 
       if (Object.values(scanCounts).every(v => v === 0)) return zeroSegs(TOOL_SEGS);
@@ -394,22 +363,62 @@ export function useChartExposure(target: string | null = null) {
 }
 
 // ─── 4. Exploitability Risk ───────────────────────────────────────────────────
-// CVEs classified by exploit availability — filtered by user's scanned targets
+// Findings classified by exploit availability — filtered by user's scanned targets
 export function useChartExploitability(target: string | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_exploitability", target],
     queryFn: async () => {
-      const vulns = await getVulnsForUser(target);
-      if (!vulns.length) return zeroSegs(EXPLOIT_SEGS);
+      const scanRows = await getScanRows(target);
+      if (!scanRows.length) return zeroSegs(EXPLOIT_SEGS);
+
+      const scanIds = scanRows.map(r => r.id);
+      const findings = await getScanFindings(scanIds);
+      if (!findings.length) return zeroSegs(EXPLOIT_SEGS);
+
+      const findingIds = findings.map(f => f.id);
+
+      // 1. Get linked CVEs for these findings
+      const { data: fcData } = await (supabase as any)
+        .from("finding_cves")
+        .select("finding_id, cve_id")
+        .in("finding_id", findingIds);
 
       const counts = { Weaponized: 0, "Public PoC": 0, "Known CVE": 0, Theoretical: 0 };
-      for (const row of vulns) {
-        const exploit = (row.exploit_status ?? "").toLowerCase().trim();
-        const sev     = (row.cvss_severity  ?? "").toLowerCase().trim();
-        if (exploit === "weaponized" || exploit === "active") { counts.Weaponized++;      continue; }
-        if (exploit === "poc"        || exploit === "public")  { counts["Public PoC"]++; continue; }
-        if (sev === "critical" || sev === "high" || sev === "medium") { counts["Known CVE"]++; continue; }
-        counts.Theoretical++;
+
+      if (!fcData?.length) {
+        // All findings are theoretical if no CVEs are linked
+        counts.Theoretical = findings.length;
+      } else {
+        const cveIds = [...new Set(fcData.map((r: any) => r.cve_id))];
+
+        // 2. Fetch CVE details and linked exploits
+        const [{ data: catalog }, { data: exploits }] = await Promise.all([
+          (supabase as any).from("cve_catalog").select("cve_id, cvss_v3_severity").in("cve_id", cveIds),
+          (supabase as any).from("exploits").select("cve_id, verified").in("cve_id", cveIds)
+        ]);
+
+        // 3. Score each finding
+        for (const f of findings) {
+          const linkedCves = fcData.filter((r: any) => r.finding_id === f.id).map((r: any) => r.cve_id);
+          if (linkedCves.length === 0) {
+            counts.Theoretical++;
+            continue;
+          }
+
+          const relevantCatalog = (catalog || []).filter((c: any) => linkedCves.includes(c.cve_id));
+          const relevantExploits = (exploits || []).filter((ex: any) => linkedCves.includes(ex.cve_id));
+
+          const anyWeaponized = relevantExploits.some((ex: any) => ex.verified === true);
+          const anyPoC = relevantExploits.length > 0;
+          const anyHighSev = relevantCatalog.some((c: any) =>
+            ['CRITICAL', 'HIGH', 'MEDIUM'].includes((c.cvss_v3_severity || "").toUpperCase())
+          );
+
+          if (anyWeaponized) counts.Weaponized++;
+          else if (anyPoC)   counts["Public PoC"]++;
+          else if (anyHighSev) counts["Known CVE"]++;
+          else counts.Theoretical++;
+        }
       }
 
       return EXPLOIT_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
@@ -423,7 +432,7 @@ export function useChartExploitability(target: string | null = null) {
 }
 
 // ─── 5. Attack Vector ────────────────────────────────────────────────────────
-// CVEs classified by CVSS attack vector — filtered by user's scanned targets
+// Findings classified by CVSS attack vector — filtered by user's scanned targets
 export function useChartAttackVector(target: string | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_attack_vector", target],
@@ -438,23 +447,32 @@ export function useChartAttackVector(target: string | null = null) {
       const findingIds = findings.map(f => f.id);
       const { data: fcData } = await (supabase as any)
         .from("finding_cves")
-        .select("cve_id")
+        .select("finding_id, cve_id")
         .in("finding_id", findingIds);
 
-      if (!fcData?.length) return zeroSegs(VECTOR_SEGS);
-      const cveIds = [...new Set((fcData as any[]).map(r => r.cve_id))];
-
-      const { data: cveRows, error: cveErr } = await (supabase as any)
-        .from("cve_catalog")
-        .select("cve_id, cvss_v3_vector")
-        .in("cve_id", cveIds);
-
-      if (cveErr || !cveRows?.length) return zeroSegs(VECTOR_SEGS);
-
       const counts: Record<string, number> = {};
-      for (const row of cveRows as { cvss_v3_vector: string | null }[]) {
-        const bucket = classifyVector(row.cvss_v3_vector);
-        counts[bucket] = (counts[bucket] ?? 0) + 1;
+
+      if (!fcData?.length) {
+        counts["Unknown"] = findings.length;
+      } else {
+        const cveIds = [...new Set(fcData.map((r: any) => r.cve_id))];
+        const { data: cveRows } = await (supabase as any)
+          .from("cve_catalog")
+          .select("cve_id, cvss_v3_vector")
+          .in("cve_id", cveIds);
+
+        for (const f of findings) {
+          const linkedCves = fcData.filter((r: any) => r.finding_id === f.id).map((r: any) => r.cve_id);
+          if (linkedCves.length === 0) {
+            counts["Unknown"] = (counts["Unknown"] ?? 0) + 1;
+            continue;
+          }
+
+          const vectors = (cveRows || []).filter((c: any) => linkedCves.includes(c.cve_id)).map((c: any) => c.cvss_v3_vector);
+          // Pick the most common or most severe vector (simplified: pick first)
+          const bucket = classifyVector(vectors[0]);
+          counts[bucket] = (counts[bucket] ?? 0) + 1;
+        }
       }
 
       return VECTOR_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
