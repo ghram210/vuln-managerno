@@ -38,11 +38,15 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
         port_match = re.search(r"(\d+)/tcp", evidence)
         if port_match:
             port = int(port_match.group(1))
-            if port in [21, 445, 3389, 22, 23, 139]: # FTP, SMB, RDP, SSH, Telnet, NetBIOS
+            # Critical/High risk ports (often unauthenticated or highly sensitive)
+            if port in [445, 3389, 23, 139, 137, 135, 5900, 5901]: # SMB, RDP, Telnet, NetBIOS, RPC, VNC
+                return "CRITICAL"
+            if port in [21, 22, 25, 110, 143, 3306, 5432, 1521, 27017, 6379]: # FTP, SSH, SMTP, POP3, IMAP, DBs
                 return "HIGH"
-            if port in [80, 443, 8080, 8443]:
+            # Common web/management ports
+            if port in [80, 443, 8080, 8443, 8000, 8888, 9000, 9090, 10000]:
                 return "MEDIUM"
-        return "INFO"
+        return "LOW"
 
     if tool == "SQLMAP":
         # Confirmed injections

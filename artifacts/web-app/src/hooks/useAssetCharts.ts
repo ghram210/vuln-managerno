@@ -143,7 +143,7 @@ type ScanRow = {
   low_count: number | null;
 };
 
-type FindingRow = { id: string; target: string; tool: string | null; scan_id: string };
+type FindingRow = { id: string; target: string; tool: string | null; scan_id: string; status: string | null };
 
 type VulnRow = {
   cve_id: string;
@@ -153,15 +153,19 @@ type VulnRow = {
 };
 
 // ─── Core Helper: scan_results deduplicated by (target, tool) ─────────────────
-// For each (target, tool) pair keep only the scan with the highest total_findings.
+// For each (target, tool) pair keep only the LATEST scan.
+// This matches the logic in the 'scanned_assets' view used by the table.
 async function getScanRows(targetFilter: string | null): Promise<ScanRow[]> {
   const user = await getUser();
   if (!user) return [];
 
   let q = (supabase as any)
     .from("scan_results")
-    .select("id, target, tool, total_findings, critical_count, high_count, medium_count, low_count")
-    .eq("user_id", user.id);
+    .select("id, target, tool, total_findings, critical_count, high_count, medium_count, low_count, completed_at, started_at, created_at")
+    .eq("user_id", user.id)
+    .order("target")
+    .order("tool")
+    .order("created_at", { ascending: false });
 
   if (targetFilter) {
     q = q.eq("target", targetFilter);
@@ -170,13 +174,11 @@ async function getScanRows(targetFilter: string | null): Promise<ScanRow[]> {
   const { data, error } = await q;
   if (error || !data?.length) return [];
 
-  // Deduplicate: for each (target, tool) keep the scan with highest total_findings
+  // Deduplicate: for each (target, tool) keep the latest scan record
   const dedup = new Map<string, ScanRow>();
-  for (const r of data as ScanRow[]) {
+  for (const r of data as (ScanRow & { created_at: string })[]) {
     const key = `${r.target ?? ""}||${(r.tool ?? "").toLowerCase().trim()}`;
-    const prev = dedup.get(key);
-    // Prefer more findings, then more recent (assuming fetch order)
-    if (!prev || (r.total_findings ?? 0) >= (prev.total_findings ?? 0)) {
+    if (!dedup.has(key)) {
       dedup.set(key, r);
     }
   }
@@ -204,22 +206,18 @@ async function getScanFindings(scanIds: string[]): Promise<FindingRow[]> {
 
   const { data, error } = await (supabase as any)
     .from("scan_findings")
-    .select("id, target, tool, scan_id")
+    .select("id, target, tool, scan_id, status")
     .in("scan_id", scanIds);
 
   if (error || !data) return [];
 
-  // Deduplicate by (target, tool, scan_id) — keep first occurrence
-  const dedup = new Map<string, FindingRow>();
-  for (const f of data as FindingRow[]) {
-    const key = `${f.target ?? ""}||${(f.tool ?? "").toLowerCase().trim()}||${f.scan_id}`;
-    if (!dedup.has(key)) dedup.set(key, f);
-  }
-  return [...dedup.values()];
+  // No deduplication here — we want to see all findings associated with these scans
+  return data as FindingRow[];
 }
 
 // ─── Core Helper: vulnerabilities for user's targets via scan_findings chain ──
-// Chain: user targets → scan_results → scan_findings (by scan_id) → finding_cves → vulnerabilities
+// Chain: user targets → scan_results → scan_findings (by scan_id) → finding_cves → cve_catalog
+// We query the catalog directly to bypass potentially buggy views and ensure we get all data.
 async function getVulnsForUser(targetFilter: string | null): Promise<VulnRow[]> {
   const scanRows = await getScanRows(targetFilter);
   if (!scanRows.length) return [];
@@ -230,50 +228,64 @@ async function getVulnsForUser(targetFilter: string | null): Promise<VulnRow[]> 
 
   const findingIds = findings.map(f => f.id);
 
+  // 1. Get linked CVE IDs
   const { data: fcData, error: fcErr } = await (supabase as any)
     .from("finding_cves")
-    .select("cve_id")
+    .select("cve_id, finding_id")
     .in("finding_id", findingIds);
   if (fcErr || !fcData?.length) return [];
 
   const cveIds = [...new Set((fcData as { cve_id: string }[]).map(r => r.cve_id))];
 
-  const { data: vulnData, error: vErr } = await (supabase as any)
-    .from("vulnerabilities")
-    .select("cve_id, cvss_severity, exploit_status, status")
-    .in("cve_id", cveIds);
-  if (vErr || !vulnData?.length) return [];
+  // 2. Fetch CVE details and linked exploits
+  const [{ data: catalog }, { data: exploits }] = await Promise.all([
+    (supabase as any).from("cve_catalog").select("cve_id, cvss_v3_severity, cvss_v3_score").in("cve_id", cveIds),
+    (supabase as any).from("exploits").select("cve_id, verified").in("cve_id", cveIds)
+  ]);
 
-  return vulnData as VulnRow[];
+  if (!catalog?.length) return [];
+
+  // 3. Map to VulnRow format used by the charts
+  return catalog.map((c: any) => {
+    const relevantExploits = (exploits || []).filter((ex: any) => ex.cve_id === c.cve_id);
+    const anyVerified = relevantExploits.some((ex: any) => ex.verified === true);
+
+    // Attempt to find the specific finding this CVE belongs to for its status
+    // (In case multiple findings point to same CVE, we'll pick first seen)
+    const fid = (fcData as any[]).find((row: any) => row.cve_id === c.cve_id)?.finding_id;
+    const matchingFinding = findings.find(f => f.id === fid);
+
+    return {
+      cve_id: c.cve_id,
+      cvss_severity: (c.cvss_v3_severity || "info").toLowerCase(),
+      exploit_status: anyVerified ? "weaponized" : (relevantExploits.length > 0 ? "poc" : "none"),
+      status: matchingFinding?.status || "open"
+    };
+  });
 }
 
 // ─── 1. Finding Severity ──────────────────────────────────────────────────────
-// CVE severities from vulnerabilities + non-CVE scan findings counted as "Info"
+// Uses the severity counts directly from the scan_results table to ensure consistency with the asset table.
 export function useChartSeverity(target: string | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_severity", target],
     queryFn: async () => {
-      // CVE-classified findings
-      const [vulns, scanRows] = await Promise.all([
-        getVulnsForUser(target),
-        getScanRows(target),
-      ]);
+      const scanRows = await getScanRows(target);
+      if (!scanRows.length) return zeroSegs(SEVERITY_SEGS);
 
-      let critical = 0, high = 0, medium = 0, low = 0;
-      for (const v of vulns) {
-        const sev = (v.cvss_severity ?? "").toLowerCase().trim();
-        if (sev === "critical")    critical++;
-        else if (sev === "high")   high++;
-        else if (sev === "medium") medium++;
-        else if (sev === "low")    low++;
+      let critical = 0, high = 0, medium = 0, low = 0, total = 0;
+      for (const r of scanRows) {
+        critical += (r.critical_count ?? 0);
+        high     += (r.high_count ?? 0);
+        medium   += (r.medium_count ?? 0);
+        low      += (r.low_count ?? 0);
+        total    += (r.total_findings ?? 0);
       }
 
-      // Non-CVE findings (SQLMap, FFUF, etc.) → Info
-      const totalFromScans = scanRows.reduce((s, r) => s + (r.total_findings ?? 0), 0);
-      const cveCount = critical + high + medium + low;
-      const info = Math.max(0, totalFromScans - cveCount);
+      // Any findings not explicitly bucketed by the gateway are "Info"
+      const info = Math.max(0, total - (critical + high + medium + low));
 
-      if (critical + high + medium + low + info === 0) return zeroSegs(SEVERITY_SEGS);
+      if (total === 0) return zeroSegs(SEVERITY_SEGS);
 
       return SEVERITY_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
         name: seg.name,
@@ -416,14 +428,25 @@ export function useChartAttackVector(target: string | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_attack_vector", target],
     queryFn: async () => {
-      const vulns = await getVulnsForUser(target);
-      if (!vulns.length) return zeroSegs(VECTOR_SEGS);
+      const scanRows = await getScanRows(target);
+      if (!scanRows.length) return zeroSegs(VECTOR_SEGS);
 
-      const cveIds = [...new Set(vulns.map(r => r.cve_id))];
+      const scanIds = scanRows.map(r => r.id);
+      const findings = await getScanFindings(scanIds);
+      if (!findings.length) return zeroSegs(VECTOR_SEGS);
+
+      const findingIds = findings.map(f => f.id);
+      const { data: fcData } = await (supabase as any)
+        .from("finding_cves")
+        .select("cve_id")
+        .in("finding_id", findingIds);
+
+      if (!fcData?.length) return zeroSegs(VECTOR_SEGS);
+      const cveIds = [...new Set((fcData as any[]).map(r => r.cve_id))];
 
       const { data: cveRows, error: cveErr } = await (supabase as any)
         .from("cve_catalog")
-        .select("cvss_v3_vector")
+        .select("cve_id, cvss_v3_vector")
         .in("cve_id", cveIds);
 
       if (cveErr || !cveRows?.length) return zeroSegs(VECTOR_SEGS);
@@ -445,17 +468,21 @@ export function useChartAttackVector(target: string | null = null) {
 }
 
 // ─── 6. Finding Status ────────────────────────────────────────────────────────
-// CVEs classified by remediation status — filtered by user's scanned targets
+// Classified by remediation status from scan_findings — filtered by user's scanned targets
 export function useChartStatus(target: string | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_status", target],
     queryFn: async () => {
-      const vulns = await getVulnsForUser(target);
-      if (!vulns.length) return zeroSegs(STATUS_SEGS);
+      const scanRows = await getScanRows(target);
+      if (!scanRows.length) return zeroSegs(STATUS_SEGS);
+
+      const scanIds = scanRows.map(r => r.id);
+      const findings = await getScanFindings(scanIds);
+      if (!findings.length) return zeroSegs(STATUS_SEGS);
 
       const counts: Record<string, number> = {};
-      for (const row of vulns) {
-        const k = (row.status ?? "open").toLowerCase().trim();
+      for (const f of findings) {
+        const k = (f.status ?? "open").toLowerCase().trim();
         counts[k] = (counts[k] ?? 0) + 1;
       }
 
