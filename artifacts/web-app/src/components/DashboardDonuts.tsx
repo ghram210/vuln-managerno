@@ -42,7 +42,7 @@ function TargetFilter({
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
-  const selectedTarget = targets?.find((t) => t.displayHost === selected);
+  const selectedTarget = targets?.find((t) => t.url === selected);
   const displayLabel   = selected ? midTruncate(selected) : "All Targets";
 
   return (
@@ -128,13 +128,12 @@ function TargetFilter({
               </div>
             ) : (
               targets.map((t) => {
-                const isSelected = selected === t.displayHost;
-                const hasHttps   = t.urls.some(u => u.startsWith("https://"));
-                const hasHttp    = t.urls.some(u => u.startsWith("http://"));
+                const isSelected = selected === t.url;
+                const isHttps    = t.url.startsWith("https://");
 
                 return (
                   <button
-                    key={t.displayHost}
+                    key={t.url}
                     type="button"
                     onClick={() => { onChange(t); setOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors
@@ -143,8 +142,11 @@ function TargetFilter({
                   >
                     {/* Protocol indicator */}
                     <div className="flex items-center gap-1 shrink-0">
-                      {hasHttps && <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />}
-                      {!hasHttps && hasHttp && <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />}
+                      {isHttps ? (
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                      )}
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -152,9 +154,9 @@ function TargetFilter({
                         className={`text-[12px] font-mono font-semibold whitespace-nowrap overflow-x-auto
                                     scrollbar-none
                                     ${isSelected ? "text-cyan-300" : "text-foreground/90"}`}
-                        title={t.displayHost}
+                        title={t.url}
                       >
-                        {t.displayHost}
+                        {t.url.replace(/^https?:\/\//i, "")}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] text-muted-foreground/60">
@@ -190,7 +192,7 @@ function TargetFilter({
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 const DashboardDonuts = () => {
-  const [selectedHost, setSelectedHost] = useState<string | null>(null);
+  const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
   const [selectedUrls, setSelectedUrls] = useState<string[] | null>(null);
 
   const severity       = useChartSeverity(selectedUrls);
@@ -200,7 +202,7 @@ const DashboardDonuts = () => {
   const attackVector   = useChartAttackVector(selectedUrls);
   const status         = useChartStatus(selectedUrls);
 
-  const selectedLabel = selectedHost ? midTruncate(selectedHost, 60) : null;
+  const selectedLabel = selectedUrl ? midTruncate(selectedUrl, 60) : null;
 
   return (
     <div className="space-y-4">
@@ -216,9 +218,9 @@ const DashboardDonuts = () => {
 
         {/* Filter — always left-anchored, never wraps */}
         <TargetFilter
-          selected={selectedHost}
+          selected={selectedUrl}
           onChange={(t) => {
-            setSelectedHost(t?.displayHost ?? null);
+            setSelectedUrl(t?.url ?? null);
             setSelectedUrls(t?.urls ?? null);
           }}
         />

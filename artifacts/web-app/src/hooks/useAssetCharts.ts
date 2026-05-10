@@ -83,10 +83,11 @@ function classifyVector(vec: string | null): string {
 
 // ─── Scan Targets Dropdown ────────────────────────────────────────────────────
 export interface ScanTarget {
-  displayHost: string;
-  urls: string[]; // All variations (http, https)
-  scanCount: number;
-  totalFindings: number;
+  url: string;         // Specific URL for this entry (e.g. http://...)
+  displayHost: string; // Canonical host for display
+  urls: string[];      // Unified list for charts (both http & https)
+  scanCount: number;   // Count for THIS specific URL
+  totalFindings: number; // Findings for THIS specific URL
   latestDate: string;
 }
 
@@ -118,24 +119,33 @@ export function useScanTargets() {
         }
       }
 
-      // 2. Group by canonical host (ignoring http/https)
-      const hostMap = new Map<string, ScanTarget>();
+      // 2. First pass: Aggregate by Host (to get the unified 'urls' list)
+      const hostAggMap = new Map<string, string[]>();
+      for (const key of toolMap.keys()) {
+        const url = key.split("||")[0];
+        const host = url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+        if (!hostAggMap.has(host)) hostAggMap.set(host, []);
+        if (!hostAggMap.get(host)!.includes(url)) hostAggMap.get(host)!.push(url);
+      }
+
+      // 3. Second pass: Create entries for each unique URL
+      const urlEntries = new Map<string, ScanTarget>();
       for (const [key, info] of toolMap.entries()) {
         const url = key.split("||")[0];
-        const displayHost = url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+        const host = url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 
-        if (!hostMap.has(displayHost)) {
-          hostMap.set(displayHost, {
-            displayHost,
-            urls: [],
+        if (!urlEntries.has(url)) {
+          urlEntries.set(url, {
+            url,
+            displayHost: host,
+            urls: hostAggMap.get(host) || [url],
             scanCount: 0,
             totalFindings: 0,
             latestDate: info.date
           });
         }
 
-        const t = hostMap.get(displayHost)!;
-        if (!t.urls.includes(url)) t.urls.push(url);
+        const t = urlEntries.get(url)!;
         t.scanCount += 1;
         t.totalFindings += info.findings;
         if (new Date(info.date) > new Date(t.latestDate)) {
@@ -144,7 +154,7 @@ export function useScanTargets() {
       }
 
       // Sort by newest scan first
-      return [...hostMap.values()].sort((a, b) =>
+      return [...urlEntries.values()].sort((a, b) =>
         new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime()
       );
     },
