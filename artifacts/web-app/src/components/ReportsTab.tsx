@@ -261,10 +261,22 @@ const ReportsTab = () => {
           });
           const midPriority = cveList.filter(c => !highPriority.includes(c) && !legacyMinor.includes(c));
 
+          const parseAttackVector = (vector: string) => {
+            if (!vector) return { label: 'Network', class: 'av-network' };
+            if (vector.includes('AV:N')) return { label: 'Network', class: 'av-network' };
+            if (vector.includes('AV:A')) return { label: 'Adjacent', class: 'av-adjacent' };
+            if (vector.includes('AV:L')) return { label: 'Local', class: 'av-local' };
+            if (vector.includes('AV:P')) return { label: 'Physical', class: 'av-physical' };
+            return { label: 'Network', class: 'av-network' };
+          };
+
           return {
             ...group,
             evidence: Array.from(group.evidence as Set<string>),
-            highPriority: [...highPriority, ...midPriority].sort((a,b) => (b.cvss_v3_score || 0) - (a.cvss_v3_score || 0)),
+            highPriority: [...highPriority, ...midPriority].sort((a,b) => (b.cvss_v3_score || 0) - (a.cvss_v3_score || 0)).map(c => ({
+              ...c,
+              av: parseAttackVector(c.cvss_v3_vector)
+            })),
             legacyMinor: legacyMinor.sort((a,b) => (b.cvss_v3_score || 0) - (a.cvss_v3_score || 0)),
           };
         });
@@ -322,7 +334,10 @@ const ReportsTab = () => {
                 return `
                   <div class="finding-card">
                     <div class="finding-header">
-                      <div class="finding-title">#${idx + 1} ${escapeHtml(group.name)}</div>
+                      <div class="finding-title-container">
+                        <svg class="finding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                        <div class="finding-title">${escapeHtml(group.name)}</div>
+                      </div>
                       <div class="severity-tag sev-${sev.toLowerCase()}">${sev}</div>
                     </div>
 
@@ -344,6 +359,7 @@ const ReportsTab = () => {
                           <tr>
                             <th width="110">CVE ID</th>
                             <th width="60">CVSS</th>
+                            <th width="100">Vector</th>
                             <th>Threat Description</th>
                           </tr>
                         </thead>
@@ -352,6 +368,7 @@ const ReportsTab = () => {
                             <tr>
                               <td class="cve-link">${c.cve_id}</td>
                               <td><span class="score-pill">${c.cvss_v3_score || 'N/A'}</span></td>
+                              <td><span class="av-badge ${c.av.class}">${c.av.label}</span></td>
                               <td class="cve-desc">${escapeHtml(c.description)}</td>
                             </tr>
                           `).join('')}
@@ -427,16 +444,19 @@ const ReportsTab = () => {
           background: #ffffff;
           border: 1px solid #e2e8f0;
           border-radius: 12px;
-          padding: 25px;
-          margin-bottom: 30px;
+          padding: 30px;
+          margin-bottom: 40px;
           page-break-inside: avoid;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          position: relative;
         }
         
-        .finding-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-        .finding-title { font-size: 16px; font-weight: 700; color: #0f172a; max-width: 80%; }
+        .finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9; }
+        .finding-title-container { display: flex; align-items: center; gap: 12px; max-width: 75%; }
+        .finding-icon { color: #3b82f6; width: 20px; height: 20px; }
+        .finding-title { font-size: 18px; font-weight: 700; color: #0f172a; }
 
-        .severity-tag { padding: 4px 12px; border-radius: 6px; font-size: 10px; font-weight: 800; color: white; text-transform: uppercase; }
+        .severity-tag { padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 800; color: white; text-transform: uppercase; letter-spacing: 0.5px; }
         .sev-critical { background: #ef4444; }
         .sev-high { background: #f97316; }
         .sev-medium { background: #f59e0b; }
@@ -462,6 +482,12 @@ const ReportsTab = () => {
         .legacy-tags { display: flex; flex-wrap: wrap; gap: 8px; }
         .legacy-tag { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; border: 1px solid #e2e8f0; }
         .legacy-tag-more { color: #94a3b8; font-size: 10px; padding: 4px 10px; font-weight: 600; }
+
+        .av-badge { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; display: inline-block; }
+        .av-network { background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; }
+        .av-adjacent { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+        .av-local { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
+        .av-physical { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
 
         .terminal-evidence {
           background: #0f172a;
