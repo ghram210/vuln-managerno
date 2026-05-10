@@ -214,8 +214,9 @@ async def update_scan_in_supabase(scan_id: str, data: dict):
 
 async def reconcile_fixed_findings(scan_id: str, target: str, tool: str):
     """
-    Finds findings that existed in previous scans for this target/tool but are
-    missing in the current scan, and marks them as 'fixed'.
+    Finds findings that existed in previous scans for this target/tool:
+    - If missing in current scan -> mark as 'fixed'.
+    - If still present in current scan -> mark previous record as 'resolved' (superseded).
     """
     try:
         async with httpx.AsyncClient() as client:
@@ -247,15 +248,16 @@ async def reconcile_fixed_findings(scan_id: str, target: str, tool: str):
                     break
                 offset += limit
 
-            # 2. Fetch previous open findings for same target/tool (handle pagination)
-            to_fix = []
+            # 2. Fetch previous open findings for same target/tool (case-insensitive tool)
+            to_fix = []     # Truly missing -> Fixed
+            to_supersede = [] # Still present -> Resolved (to avoid duplicate counts)
             offset = 0
             while True:
                 resp_old = await client.get(
                     f"{SUPABASE_URL}/rest/v1/scan_findings",
                     params={
                         "target": f"eq.{target}",
-                        "tool": f"eq.{tool.upper()}",
+                        "tool": f"ilike.{tool}",
                         "status": f"eq.open",
                         "scan_id": f"neq.{scan_id}",
                         "select": "id,title,path,service",
@@ -276,24 +278,35 @@ async def reconcile_fixed_findings(scan_id: str, target: str, tool: str):
                     fp = (old.get('title'), old.get('path'), old.get('service'))
                     if fp not in new_fingerprints:
                         to_fix.append(old['id'])
+                    else:
+                        to_supersede.append(old['id'])
 
                 if len(data) < limit:
                     break
                 offset += limit
 
-            # 3. Mark missing findings as fixed in chunks (to avoid URL length limits)
-            chunk_size = 50
-            for i in range(0, len(to_fix), chunk_size):
-                chunk = to_fix[i : i + chunk_size]
-                print(f"[reconcile] Marking {len(chunk)} finding(s) as FIXED for {target} ({tool})", flush=True)
-                ids_param = ",".join([f"{fid}" for fid in chunk])
-                await client.patch(
-                    f"{SUPABASE_URL}/rest/v1/scan_findings",
-                    params={"id": f"in.({ids_param})"},
-                    headers=SUPABASE_HEADERS,
-                    json={"status": "fixed"},
-                    timeout=15
-                )
+            # 3. Apply updates in chunks
+            async def _bulk_update(ids, status):
+                chunk_size = 50
+                for i in range(0, len(ids), chunk_size):
+                    chunk = ids[i : i + chunk_size]
+                    print(f"[reconcile] Marking {len(chunk)} finding(s) as {status.upper()} for {target} ({tool})", flush=True)
+                    ids_param = ",".join([f"{fid}" for fid in chunk])
+                    await client.patch(
+                        f"{SUPABASE_URL}/rest/v1/scan_findings",
+                        params={"id": f"in.({ids_param})"},
+                        headers=SUPABASE_HEADERS,
+                        json={"status": status},
+                        timeout=15
+                    )
+
+            if to_fix:
+                await _bulk_update(to_fix, "fixed")
+            if to_supersede:
+                # Mark as 'superseded' to avoid double-counting in 'Open' views,
+                # but NOT as 'resolved/fixed' so it doesn't inflate compliance.
+                await _bulk_update(to_supersede, "superseded")
+
     except Exception as e:
         print(f"[reconcile] Error during reconciliation: {type(e).__name__}: {e}", flush=True)
 
