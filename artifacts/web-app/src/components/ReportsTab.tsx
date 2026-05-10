@@ -341,12 +341,81 @@ const ReportsTab = () => {
         .arabic-report h4 { color: #334155; margin-bottom: 8px; font-size: 14px; }
         .arabic-report p { color: #64748b; font-size: 12px; margin-bottom: 15px; }
 
-        .findings-section { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
-        .finding-group { border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 20px; overflow: hidden; page-break-inside: avoid; }
-        .finding-header { background: #f9fafb; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; }
-        .severity-badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; color: white; text-transform: uppercase; }
-        .finding-body { padding: 15px; }
-        .evidence-box { background: #0f172a; color: #38bdf8; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 10px; margin-top: 10px; white-space: pre-wrap; }
+        .findings-section { margin-top: 40px; }
+        .finding-item { margin-bottom: 50px; page-break-inside: avoid; }
+
+        .finding-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+
+        .finding-title { font-size: 15px; font-weight: 700; color: #0f172a; }
+
+        .severity-badge {
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 800;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 20px;
+        }
+
+        .meta-item .label {
+            font-size: 9px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .meta-item .value { font-size: 11px; font-weight: 600; }
+
+        .section-header {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 25px 0 10px 0;
+        }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; table-layout: fixed; }
+        th { text-align: left; padding: 10px 8px; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px; }
+        td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; word-wrap: break-word; }
+
+        .cve-id { color: #0ea5e9; font-weight: 600; text-decoration: none; }
+
+        .cvss-score-badge {
+            background: #fff1f2;
+            color: #e11d48;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 10px;
+        }
+
+        .legacy-row td { color: #64748b; font-style: italic; font-size: 10px; }
+
+        .evidence-box {
+            background: #0f172a;
+            color: #38bdf8;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            border: 1px solid #1e293b;
+        }
 
         .severity-critical { background: #dc2626; }
         .severity-high { background: #ea580c; }
@@ -415,9 +484,8 @@ const ReportsTab = () => {
     </div>
 
     <div class="findings-section">
-        <div class="table-title">Vulnerability Details</div>
         ${finalFindings.length === 0 ? `
-            <div style="text-align: center; padding: 40px; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 10px;">
+            <div style="text-align: center; padding: 40px; color: #64748b; border: 1px dashed #e2e8f0; border-radius: 10px;">
                 No security vulnerabilities or exposures were detected during this scan.
             </div>
         ` : finalFindings.map((group, idx) => {
@@ -429,37 +497,83 @@ const ReportsTab = () => {
           const sevLabels = ['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
           const sev = sevLabels[group.severity_score] || 'INFO';
 
+          // Data Limiting to avoid massive reports
+          const displayedPrimary = group.highPriority.slice(0, 5);
+          const displayedLegacy = group.legacyMinor.slice(0, 10);
+          const hiddenLegacyCount = Math.max(0, group.legacyMinor.length - 10);
+
           return `
-            <div class="finding-group">
-                <div class="finding-header">
-                    <span style="font-weight: 700;">${idx + 1}. ${escapeHtml(group.name)}</span>
-                    <span class="severity-badge severity-${sev.toLowerCase()}">${sev}</span>
+            <div class="finding-item">
+                <div class="finding-title-row">
+                    <div class="finding-title">${idx + 1}. ${escapeHtml(group.name)}</div>
+                    <div class="severity-badge severity-${sev.toLowerCase()}">${sev}</div>
                 </div>
-                <div class="finding-body">
-                    <div style="margin-bottom: 10px; color: #64748b; font-size: 11px;">
-                        <strong>Resource:</strong> ${escapeHtml(group.path || 'Host Service')} |
-                        <strong>Status:</strong> <span style="color: #16a34a;">${group.status.toUpperCase()}</span>
+
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <div class="label">Target Resource</div>
+                        <div class="value">${escapeHtml(group.path || 'Host-level Service')}</div>
                     </div>
-
-                    ${group.highPriority.map((c: any) => `
-                        <div style="margin-bottom: 8px;">
-                            <span style="color: #0ea5e9; font-weight: 600;">${c.cve_id}</span>
-                            <span style="background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-size: 10px; margin-left: 5px;">CVSS: ${c.cvss_v3_score || 'N/A'}</span>
-                            <div style="margin-top: 2px; color: #475569;">${escapeHtml(c.description)}</div>
-                        </div>
-                    `).join('')}
-
-                    ${group.legacyMinor.length > 0 ? `
-                        <div style="margin-top: 10px; font-size: 10px; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 5px;">
-                            <strong>Additional observations:</strong> ${group.legacyMinor.slice(0, 5).map((c: any) => c.cve_id).join(', ')}
-                            ${group.legacyMinor.length > 5 ? ` and ${group.legacyMinor.length - 5} more...` : ''}
-                        </div>
-                    ` : ''}
-
-                    ${group.evidence.length > 0 ? `
-                        <div class="evidence-box">${escapeHtml(group.evidence.join('\n\n'))}</div>
-                    ` : ''}
+                    <div class="meta-item">
+                        <div class="label">Analysis Status</div>
+                        <div class="value" style="color: #16a34a;">● ${group.status.toUpperCase()}</div>
+                    </div>
                 </div>
+
+                ${displayedPrimary.length > 0 ? `
+                    <div class="section-header">Primary Vulnerabilities (NVD Verified)</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th width="120">Identifier</th>
+                                <th width="70">CVSS V3</th>
+                                <th>Impact Analysis</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${displayedPrimary.map((c: any) => `
+                                <tr>
+                                    <td class="cve-id">${c.cve_id}</td>
+                                    <td><span class="cvss-score-badge">${c.cvss_v3_score || 'N/A'}</span></td>
+                                    <td style="line-height: 1.5;">${escapeHtml(c.description)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                ` : ''}
+
+                ${displayedLegacy.length > 0 ? `
+                    <div class="section-header">Supporting Evidence & Legacy CVEs (Consolidated Summary)</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th width="100">CVE ID</th>
+                                <th width="60">Score</th>
+                                <th>Summary of Potential Exposure</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${displayedLegacy.map((c: any) => `
+                                <tr class="legacy-row">
+                                    <td>${c.cve_id}</td>
+                                    <td>${c.cvss_v3_score || 'N/A'}</td>
+                                    <td>${escapeHtml(c.description.substring(0, 140))}...</td>
+                                </tr>
+                            `).join('')}
+                            ${hiddenLegacyCount > 0 ? `
+                                <tr class="legacy-row">
+                                    <td colspan="3" style="text-align: center; padding: 15px; color: #94a3b8; font-size: 9px;">
+                                        And ${hiddenLegacyCount} additional legacy vulnerabilities consolidated to keep the report concise.
+                                    </td>
+                                </tr>
+                            ` : ''}
+                        </tbody>
+                    </table>
+                ` : ''}
+
+                ${group.evidence.length > 0 ? `
+                    <div class="evidence-box">${escapeHtml(group.evidence.join('\n\n'))}</div>
+                ` : ''}
             </div>
           `;
         }).join('')}
