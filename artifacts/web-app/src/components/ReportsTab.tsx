@@ -138,6 +138,50 @@ const ReportsTab = () => {
     });
 
     if (format === "PDF") {
+      const getCheckpoints = (tool: string) => {
+        const common = [
+          "Scanned for sensitive data exposure",
+          "Scanned for path disclosure",
+          "Scanned for misconfigured security headers",
+          "Scanned for vulnerable JavaScript libraries (Lodash/jQuery)"
+        ];
+        switch(tool.toUpperCase()) {
+          case 'NIKTO':
+            return [
+              ...common,
+              "Scanned for unsafe HTTP header Content Security Policy",
+              "Scanned for Session Token in URL",
+              "Scanned for missing HTTP header - Rate Limit",
+              "Scanned for missing HttpOnly/Secure cookie flags",
+              "Scanned for outdated server-side components"
+            ];
+          case 'SQLMAP':
+            return [
+              "Scanned for SQL statement in request parameter",
+              "Scanned for Boolean-based blind SQL injection",
+              "Scanned for Error-based SQL injection",
+              "Scanned for Time-based blind SQL injection",
+              "Scanned for Database fingerprinting and OS access"
+            ];
+          case 'FFUF':
+            return [
+              "Scanned for API endpoints",
+              "Scanned for OpenAPI/Swagger files",
+              "Scanned for hidden backup files",
+              "Scanned for directory indexing"
+            ];
+          case 'NMAP':
+            return [
+              "Scanned for open service ports",
+              "Scanned for service version detection",
+              "Scanned for SSL/TLS certificate validity",
+              "Scanned for insecure authentication methods"
+            ];
+          default:
+            return common;
+        }
+      };
+
       // -----------------------------------------------------------
       // DATA CONSOLIDATION & NOISE REDUCTION LOGIC
       // -----------------------------------------------------------
@@ -201,12 +245,12 @@ const ReportsTab = () => {
 
       const html = `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <title>Security Scan Report - ${targetInfo.scan_name}</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;700&display=swap');
         
         :root {
             --primary: #0ea5e9;
@@ -223,10 +267,10 @@ const ReportsTab = () => {
         }
         
         body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
+            font-family: 'Plus Jakarta Sans', 'Noto Sans Arabic', sans-serif;
             background: #fff; 
             color: var(--text-main); 
-            line-height: 1.3; 
+            line-height: 1.5;
             padding: 0; 
             margin: 0; 
             font-size: 11px;
@@ -373,56 +417,69 @@ const ReportsTab = () => {
         <p style="margin-top: 40px;">${dateStr}</p>
     </div>
 
-    <div class="page">
+    <div class="page" dir="ltr">
         <div class="header-main">
             <div class="logo">PENTEST-PRO</div>
             <div style="font-size: 11px; color: var(--text-muted);">${targetInfo.target}</div>
         </div>
 
+        <div style="margin-bottom: 30px;">
+          ${getCheckpoints(targetInfo.tool).map(cp => `
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; color: #16a34a; font-weight: 600;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span>${cp}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+          <div>
+            <h3 style="font-size: 14px; font-weight: 800; margin-bottom: 10px; border-bottom: 2px solid var(--border); padding-bottom: 5px;">Scan parameters</h3>
+            <table style="margin: 0;">
+              <tr><td style="font-weight: 700; width: 100px; background: #f8fafc;">target:</td><td>${targetInfo.target}</td></tr>
+              <tr><td style="font-weight: 700; background: #f8fafc;">scan_type:</td><td>${targetInfo.tool}</td></tr>
+              <tr><td style="font-weight: 700; background: #f8fafc;">stealth:</td><td>Enabled</td></tr>
+            </table>
+          </div>
+          <div>
+            <h3 style="font-size: 14px; font-weight: 800; margin-bottom: 10px; border-bottom: 2px solid var(--border); padding-bottom: 5px;">Scan stats</h3>
+            <table style="margin: 0;">
+              <tr><td style="font-weight: 700; width: 100px; background: #f8fafc;">Total Findings:</td><td>${severityCounts.Total}</td></tr>
+              <tr><td style="font-weight: 700; background: #f8fafc;">Critical Issues:</td><td style="color: var(--critical); font-weight: 800;">${severityCounts.Critical}</td></tr>
+              <tr><td style="font-weight: 700; background: #f8fafc;">High Risk:</td><td style="color: var(--high); font-weight: 800;">${severityCounts.High}</td></tr>
+            </table>
+          </div>
+        </div>
+
         <h2 class="section-title">Executive Summary</h2>
-        <div class="summary-card">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                <div>
-                    <p style="margin: 0;">Assessment Target: <strong>${targetInfo.target}</strong></p>
-                    <p style="margin: 5px 0 0 0; color: var(--text-muted);">Methodology: Automated Hybrid Intelligence (${targetInfo.tool})</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="margin: 0; font-weight: 700;">Risk Score: ${
-                        severityCounts.Critical > 0 ? 'CRITICAL' : 
-                        severityCounts.High > 0 ? 'HIGH' : 
-                        severityCounts.Medium > 0 ? 'MEDIUM' : 'LOW'
-                    }</p>
-                </div>
+        <div class="summary-card" dir="rtl" style="text-align: right;">
+            <h3 style="margin-top: 0; color: var(--primary);">تحليل المخاطر والمخططات البيانية</h3>
+
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: var(--bg-dark); margin-bottom: 5px;">1. مخاطر القابلية للاستغلال (Exploitability Risk)</h4>
+                <p style="margin: 0; color: var(--text-muted); font-size: 10px;">
+                    هذا المخطط يحلل مدى سهولة استغلال الثغرات المكتشفة بناءً على توفر "أكواد الاستغلال":
+                    <br/>- <strong>Weaponized:</strong> ثغرات لها كود استغلال مؤكد في Exploit-DB.
+                    <br/>- <strong>Public PoC:</strong> كود استغلال متاح للعامة ولكن لم يتم التحقق منه كلياً.
+                    <br/>- <strong>Known CVE:</strong> ثغرات مسجلة ولكن لا يوجد كود استغلال مباشر حالياً.
+                </p>
             </div>
 
-            <div style="height: 8px; background: #e2e8f0; border-radius: 4px; display: flex; overflow: hidden; margin: 15px 0;">
-                <div style="width: ${(severityCounts.Critical/severityCounts.Total)*100}%; background: var(--critical)"></div>
-                <div style="width: ${(severityCounts.High/severityCounts.Total)*100}%; background: var(--high)"></div>
-                <div style="width: ${(severityCounts.Medium/severityCounts.Total)*100}%; background: var(--medium)"></div>
-                <div style="width: ${(severityCounts.Low/severityCounts.Total)*100}%; background: var(--low)"></div>
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: var(--bg-dark); margin-bottom: 5px;">2. ناقل الهجوم (Attack Vector)</h4>
+                <p style="margin: 0; color: var(--text-muted); font-size: 10px;">
+                    يعتمد على معايير CVSS v3 لتحديد "المكان" الذي يجب أن يتواجد فيه المهاجم:
+                    <br/>- <strong>Network:</strong> ثغرات يمكن استغلالها عن بُعد عبر الإنترنت (الأكثر خطورة).
+                    <br/>- <strong>Adjacent:</strong> تتطلب وجود المهاجم على نفس الشبكة المحلية.
+                    <br/>- <strong>Local/Physical:</strong> تتطلب وصولاً مباشراً للجهاز أو نظام الملفات.
+                </p>
             </div>
 
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <span class="count">${severityCounts.Total}</span>
-                    <span class="label">Total</span>
-                </div>
-                <div class="stat-card">
-                    <span class="count" style="color: var(--critical)">${severityCounts.Critical}</span>
-                    <span class="label">Critical</span>
-                </div>
-                <div class="stat-card">
-                    <span class="count" style="color: var(--high)">${severityCounts.High}</span>
-                    <span class="label">High</span>
-                </div>
-                <div class="stat-card">
-                    <span class="count" style="color: var(--medium)">${severityCounts.Medium}</span>
-                    <span class="label">Medium</span>
-                </div>
-                <div class="stat-card">
-                    <span class="count" style="color: var(--low)">${severityCounts.Low}</span>
-                    <span class="label">Low/Info</span>
-                </div>
+            <div>
+                <h4 style="color: var(--bg-dark); margin-bottom: 5px;">3. حالة النتائج (Finding Status)</h4>
+                <p style="margin: 0; color: var(--text-muted); font-size: 10px;">
+                    يعكس سير العمل الإداري: <strong>Open</strong> للثغرات الجديدة، <strong>In Progress</strong> للمعالجة، و <strong>Fixed</strong> للثغرات التي تم إغلاقها.
+                </p>
             </div>
         </div>
 
