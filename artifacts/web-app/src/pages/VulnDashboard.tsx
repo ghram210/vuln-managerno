@@ -142,17 +142,28 @@ const VulnDashboard = () => {
   }));
 
   const byTool = (rawByTool || []).filter(t => filterAsset === "all" || t.target === filterAsset);
-  const aggregatedByTool = filterAsset === "all"
-    ? Array.from(new Set((rawByTool || []).map(t => t.label))).map(label => {
-        const matching = byTool.filter(t => t.label === label);
-        const val = matching.reduce((s, t) => s + (t.value || 0), 0);
-        const color = (rawByTool || []).find(t => t.label === label)?.color || "hsl(215 20% 65%)";
-        return { label, value: val, color, id: label || "" };
-      })
-    : byTool.map(t => ({ ...t, id: t.id || "" }));
+  const fixedTools = [
+    { label: "NMAP", color: "hsl(210 70% 55%)" },
+    { label: "NIKTO", color: "hsl(280 65% 60%)" },
+    { label: "SQLMAP", color: "hsl(340 75% 55%)" },
+    { label: "FFUF", color: "hsl(160 60% 45%)" },
+  ];
+  const aggregatedByTool = fixedTools.map(tool => {
+    // Case-insensitive matching for tool labels
+    const matching = byTool.filter(t => t.label?.toUpperCase() === tool.label.toUpperCase());
+    const val = matching.reduce((s, t) => s + (t.value || 0), 0);
+    return { label: tool.label, value: val, color: tool.color, id: tool.label };
+  });
 
   const calculateRemediation = (rows: (RemOpen | RemClosed)[]) => {
     const filtered = rows.filter(r => filterAsset === "all" || r.target === filterAsset);
+    const slaMap: Record<string, string> = {
+      Critical: "7 Days",
+      High: "30 Days",
+      Medium: "90 Days",
+      Low: "180 Days"
+    };
+
     return ["Critical", "High", "Medium", "Low"].map(rating => {
       const matching = filtered.filter(r => r.rating === rating);
       const totalCount = matching.reduce((s, r) => s + (r.total_count || 0), 0);
@@ -162,7 +173,7 @@ const VulnDashboard = () => {
         rating, 
         in_compliance: inCompliance, 
         not_in_compliance: 100 - inCompliance, 
-        time_frame: "last_30_days", 
+        time_frame: slaMap[rating] || "30 Days",
         id: rating, 
         color: severityColors[rating] 
       };
@@ -213,10 +224,22 @@ const VulnDashboard = () => {
   });
   const totalStatus = aggregatedStatus.reduce((s, st) => s + st.value, 0);
 
+  const riskPalette = [
+    "hsl(0 84% 60%)",  // Red
+    "hsl(24 95% 53%)", // Orange
+    "hsl(38 92% 50%)", // Amber
+    "hsl(45 93% 47%)", // Yellow
+    "hsl(210 70% 55%)" // Blue
+  ];
+
   const aggregatedTopAssets = (rawTopAssets || [])
     .filter(a => filterAsset === "all" || a.label === filterAsset)
     .sort((a, b) => (b.value || 0) - (a.value || 0))
-    .slice(0, 5);
+    .slice(0, 5)
+    .map((asset, index) => ({
+      ...asset,
+      color: riskPalette[index] || riskPalette[riskPalette.length - 1]
+    }));
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -339,7 +362,11 @@ const VulnDashboard = () => {
           {/* Charts Row 2 */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <BarSection title={filterAsset === "all" ? "Top 5 At-Risk Assets" : "Asset Risk Level"} data={aggregatedTopAssets} />
-            <BarSection title="Vulnerabilities by Discovery Tool" data={aggregatedByTool} />
+            <BarSection
+              title="Vulnerabilities by Discovery Tool"
+              data={aggregatedByTool}
+              labelWidth="w-20"
+            />
           </div>
 
 
@@ -398,19 +425,28 @@ const GaugeChart = ({ value, displayValue }: { value: number; displayValue: numb
   );
 };
 
-const BarSection = ({ title, data }: { title: string; data: any[] }) => {
+const BarSection = ({ title, data, labelWidth = "w-28" }: { title: string; data: any[]; labelWidth?: string }) => {
   const max = Math.max(...data.map(d => d.value || 0), 1);
   return (
     <div className="bg-card border border-border rounded-xl p-5">
       <h3 className="text-sm font-semibold mb-4">{title}</h3>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {data.map((d, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <span className="text-xs w-28 truncate" style={{ color: d.color }}>{d.label}</span>
-            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full" style={{ width: `${((d.value || 0) / max) * 100}%`, backgroundColor: d.color }} />
+          <div key={i} className="flex items-center gap-4">
+            <span className={cn("text-xs font-semibold truncate", labelWidth)} style={{ color: d.color }}>{d.label}</span>
+            <div className="flex-1 h-2.5 bg-muted/40 rounded-full overflow-hidden border border-white/5">
+              <div
+                className="h-full rounded-full transition-all duration-500 ease-out shadow-[0_0_8px_-1px_rgba(0,0,0,0.3)]"
+                style={{
+                  width: `${((d.value || 0) / max) * 100}%`,
+                  backgroundColor: d.color,
+                  boxShadow: `0 0 12px -3px ${d.color}40`
+                }}
+              />
             </div>
-            <span className="text-xs font-medium w-8 text-right">{(d.value || 0).toLocaleString('en-US')}</span>
+            <span className="text-sm font-bold w-12 text-right tabular-nums" style={{ color: d.color }}>
+              {(d.value || 0).toLocaleString('en-US')}
+            </span>
           </div>
         ))}
       </div>
@@ -425,7 +461,7 @@ const RemediationTable = ({ title, data, colorMap }: { title: string; data: any[
       <thead>
         <tr className="text-muted-foreground text-[10px] uppercase tracking-wider">
           <th className="text-left py-2 font-semibold">EXPRT RATING</th>
-          <th className="text-left py-2 font-semibold">TIME FRAME</th>
+          <th className="text-left py-2 font-semibold">SLA GOAL</th>
           <th className="text-left py-2 font-semibold">IN COMPLIANCE</th>
           <th className="text-right py-2 font-semibold">NOT IN COMPLIANCE</th>
         </tr>
