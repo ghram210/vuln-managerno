@@ -217,10 +217,22 @@ const VulnDashboard = () => {
   });
   const totalStatus = aggregatedStatus.reduce((s, st) => s + st.value, 0);
 
+  const riskPalette = [
+    "hsl(0 84% 60%)",  // Red
+    "hsl(24 95% 53%)", // Orange
+    "hsl(38 92% 50%)", // Amber
+    "hsl(45 93% 47%)", // Yellow
+    "hsl(210 70% 55%)" // Blue
+  ];
+
   const aggregatedTopAssets = (rawTopAssets || [])
     .filter(a => filterAsset === "all" || a.label === filterAsset)
     .sort((a, b) => (b.value || 0) - (a.value || 0))
-    .slice(0, 5);
+    .slice(0, 5)
+    .map((asset, index) => ({
+      ...asset,
+      color: riskPalette[index] || riskPalette[riskPalette.length - 1]
+    }));
 
   return (
     <div className="flex h-screen bg-background text-foreground">

@@ -212,105 +212,6 @@ async def update_scan_in_supabase(scan_id: str, data: dict):
         print(f"[gateway] Failed to update scan {scan_id}: {e}")
 
 
-async def reconcile_fixed_findings(scan_id: str, target: str, tool: str):
-    """
-    Finds findings that existed in previous scans for this target/tool:
-    - If missing in current scan -> mark as 'fixed'.
-    - If still present in current scan -> mark previous record as 'resolved' (superseded).
-    """
-    try:
-        async with httpx.AsyncClient() as client:
-            # 1. Fetch current scan findings (handle pagination if > 1000)
-            new_fingerprints = set()
-            offset = 0
-            limit = 1000
-            while True:
-                resp_new = await client.get(
-                    f"{SUPABASE_URL}/rest/v1/scan_findings",
-                    params={
-                        "scan_id": f"eq.{scan_id}",
-                        "select": "title,path,service",
-                        "offset": offset,
-                        "limit": limit
-                    },
-                    headers=SUPABASE_HEADERS,
-                    timeout=15,
-                )
-                if resp_new.status_code != 200:
-                    print(f"[reconcile] Failed to fetch new findings: {resp_new.status_code}")
-                    return
-                data = resp_new.json()
-                if not data:
-                    break
-                for f in data:
-                    new_fingerprints.add((f.get('title'), f.get('path'), f.get('service')))
-                if len(data) < limit:
-                    break
-                offset += limit
-
-            # 2. Fetch previous open findings for same target/tool (case-insensitive tool)
-            to_fix = []     # Truly missing -> Fixed
-            to_supersede = [] # Still present -> Resolved (to avoid duplicate counts)
-            offset = 0
-            while True:
-                resp_old = await client.get(
-                    f"{SUPABASE_URL}/rest/v1/scan_findings",
-                    params={
-                        "target": f"eq.{target}",
-                        "tool": f"ilike.{tool}",
-                        "status": f"eq.open",
-                        "scan_id": f"neq.{scan_id}",
-                        "select": "id,title,path,service",
-                        "offset": offset,
-                        "limit": limit
-                    },
-                    headers=SUPABASE_HEADERS,
-                    timeout=15,
-                )
-                if resp_old.status_code != 200:
-                    print(f"[reconcile] Failed to fetch old findings: {resp_old.status_code}")
-                    return
-                data = resp_old.json()
-                if not data:
-                    break
-
-                for old in data:
-                    fp = (old.get('title'), old.get('path'), old.get('service'))
-                    if fp not in new_fingerprints:
-                        to_fix.append(old['id'])
-                    else:
-                        to_supersede.append(old['id'])
-
-                if len(data) < limit:
-                    break
-                offset += limit
-
-            # 3. Apply updates in chunks
-            async def _bulk_update(ids, status):
-                chunk_size = 50
-                for i in range(0, len(ids), chunk_size):
-                    chunk = ids[i : i + chunk_size]
-                    print(f"[reconcile] Marking {len(chunk)} finding(s) as {status.upper()} for {target} ({tool})", flush=True)
-                    ids_param = ",".join([f"{fid}" for fid in chunk])
-                    await client.patch(
-                        f"{SUPABASE_URL}/rest/v1/scan_findings",
-                        params={"id": f"in.({ids_param})"},
-                        headers=SUPABASE_HEADERS,
-                        json={"status": status},
-                        timeout=15
-                    )
-
-            if to_fix:
-                await _bulk_update(to_fix, "fixed")
-            if to_supersede:
-                # Mark as 'superseded' to avoid double-counting in 'Open' views,
-                # but NOT as 'resolved/fixed' so it doesn't inflate compliance.
-                await _bulk_update(to_supersede, "superseded")
-
-    except Exception as e:
-        print(f"[reconcile] Error during reconciliation: {type(e).__name__}: {e}", flush=True)
-
-
 async def _heartbeat(scan_id: str, tool: str, started_at: float, stop_event: asyncio.Event):
     """
     While the scan is running, update Supabase every 60 seconds with a
@@ -458,10 +359,6 @@ async def run_scan_background(
         except Exception as e:
             print(f"[gateway] intel({scan_id}) failed: "
                   f"{type(e).__name__}: {e}", flush=True)
-
-        # Automated Reconciliation: check if any old open findings for this target/tool
-        # have disappeared in this scan.
-        await reconcile_fixed_findings(scan_id, target, tool)
 
     await update_scan_in_supabase(scan_id, update_payload)
 
