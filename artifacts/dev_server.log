@@ -1,0 +1,43 @@
+
+> workspace@0.0.0 dev /app
+> concurrently "pnpm --filter @workspace/api-server run dev" "pnpm --filter @workspace/web-app run dev"
+
+[1] 
+[1] > @workspace/web-app@0.0.0 dev /app/artifacts/web-app
+[1] > vite --config vite.config.ts --host 0.0.0.0
+[1] 
+[0] 
+[0] > @workspace/api-server@0.0.0 dev /app/artifacts/api-server
+[0] > pnpm run build && pnpm run start
+[0] 
+[1] ◇ injected env (4) from ../../.env // tip: ⌁ auth for agents [www.vestauth.com]
+[1] ◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+[1] 
+[1]   VITE v7.3.2  ready in 426 ms
+[1] 
+[1]   ➜  Local:   http://localhost:22965/
+[1]   ➜  Network: http://192.168.0.2:22965/
+[0] 
+[0] > @workspace/api-server@0.0.0 build /app/artifacts/api-server
+[0] > node ./build.mjs
+[0] 
+[0] 
+[0]   dist/index.mjs                       2.2mb ⚠️
+[0]   dist/pino-worker.mjs               153.4kb
+[0]   dist/pino-file.mjs                 142.0kb
+[0]   dist/pino-pretty.mjs               114.6kb
+[0]   dist/thread-stream-worker.mjs        7.3kb
+[0]   dist/index.mjs.map                   3.7mb
+[0]   dist/pino-worker.mjs.map           256.9kb
+[0]   dist/pino-file.mjs.map             229.0kb
+[0]   dist/pino-pretty.mjs.map           204.0kb
+[0]   dist/thread-stream-worker.mjs.map   12.0kb
+[0] 
+[0] ⚡ Done in 482ms
+[0] 
+[0] > @workspace/api-server@0.0.0 start /app/artifacts/api-server
+[0] > node --enable-source-maps ./dist/index.mjs
+[0] 
+[0] ◇ injected env (4) from ../../.env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+[0] [23:38:56.244] [32mINFO[39m (188417): [36mServer listening[39m
+[0]     [35mport[39m: 8081

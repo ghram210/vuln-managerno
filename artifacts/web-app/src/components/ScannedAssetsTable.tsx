@@ -33,7 +33,7 @@ const riskStyles: Record<
   Info: {
     dot: "bg-severity-info",
     text: "text-severity-info",
-    bg: "bg-severity-info/15",
+    bg: "bg-severity-info/20",
     border: "border-severity-info/40",
   },
   None: {
@@ -157,10 +157,10 @@ const ScannedAssetsTable = () => {
                   </td>
                   <td className={bodyCellClass}>
                     <span
-                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-[14px] font-bold border ${styles.bg} ${styles.text} ${styles.border}`}
+                      className={`inline-flex items-center justify-center gap-2 px-2 py-1 rounded-md text-[12px] font-bold border w-[92px] ${styles.bg} ${styles.text} ${styles.border}`}
                     >
-                      <span className={`w-2.5 h-2.5 rounded-full ${styles.dot}`} />
-                      {risk}
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${styles.dot}`} />
+                      <span>{risk}</span>
                     </span>
                   </td>
                   <td className={`${bodyCellClass} text-foreground/75 text-[14.5px] tabular-nums truncate`}>

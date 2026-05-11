@@ -349,25 +349,12 @@ async def run_scan_background(
                 high     = sev.get("high_count", 0)
                 medium   = sev.get("medium_count", 0)
                 low      = sev.get("low_count", 0)
-                
-                # Merge counts: ensure findings from both raw tool output (severity_map)
-                # and CVE matches (sev) are represented. We take the max for each bucket
-                # to account for tools that report specific counts (like Nmap ports).
-                m_critical = max(critical, severity_map.get("critical_count", 0))
-                m_high     = max(high, severity_map.get("high_count", 0))
-                m_medium   = max(medium, severity_map.get("medium_count", 0))
-                m_low      = max(low, severity_map.get("low_count", 0))
-                
-                # Total findings should include ALL findings (including INFO level)
-                # to stay in sync with the scan_findings table row count.
-                m_total = max(sev.get("total_findings", 0), findings)
-
                 update_payload.update({
-                    "critical_count": m_critical,
-                    "high_count":     m_high,
-                    "medium_count":   m_medium,
-                    "low_count":      m_low,
-                    "total_findings": m_total,
+                    "critical_count": critical,
+                    "high_count":     high,
+                    "medium_count":   medium,
+                    "low_count":      low,
+                    "total_findings": critical + high + medium + low,
                 })
         except Exception as e:
             print(f"[gateway] intel({scan_id}) failed: "
@@ -694,13 +681,12 @@ async def reimport_scan_intel(scan_id: str, authorization: str = Header(None)):
         high     = sev.get("high_count", 0)
         medium   = sev.get("medium_count", 0)
         low      = sev.get("low_count", 0)
-        total    = sev.get("total_findings", 0)
         await update_scan_in_supabase(scan_id, {
             "critical_count": critical,
             "high_count":     high,
             "medium_count":   medium,
             "low_count":      low,
-            "total_findings": total,
+            "total_findings": critical + high + medium + low,
         })
 
     return summary

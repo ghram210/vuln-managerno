@@ -138,38 +138,13 @@ const ReportsTab = () => {
     });
 
     if (format === "PDF") {
-      const { data: scanRaw } = await supabase
-        .from("scan_results" as any)
-        .select("raw_output, created_at, status, total_findings, critical_count, high_count, medium_count, low_count")
+      const { data: scanRaw } = await (supabase as any)
+        .from("scan_results")
+        .select("raw_output")
         .eq("id", selectedScanId)
         .single();
       
       const rawOutput = (scanRaw as any)?.raw_output || "";
-      const scanInfoData = scanRaw as any;
-
-      // Calculate Overall Risk Score based on VulnDashboard logic
-      const { data: riskScoreData } = await supabase
-        .from("vuln_risk_score")
-        .select("*")
-        .eq("target", targetInfo.target);
-
-      const riskLabels = ["Base CVSS", "Exploitability", "Asset Criticality", "Exposure"];
-      const aggregatedRiskScores = riskLabels.map(label => {
-        const matching = (riskScoreData || []).filter((r: any) => r.label === label);
-        const avg = matching.length > 0 ? (matching.reduce((s, r) => s + (r.value || 0), 0) / matching.length) : 0;
-        return avg;
-      });
-      const totalRiskVal = aggregatedRiskScores.reduce((s, v) => s + v, 0);
-      
-      const getRiskLabel = (val: number) => {
-        if (val >= 20) return 'Critical';
-        if (val >= 15) return 'High';
-        if (val >= 10) return 'Medium';
-        if (val >= 5) return 'Low';
-        return 'Info';
-      };
-
-      const overallRisk = getRiskLabel(totalRiskVal);
 
       const getSmartAnalysis = (name: string, cveList: any[]) => {
         const analysis = {
@@ -261,7 +236,7 @@ const ReportsTab = () => {
       };
 
       const extractStats = (tool: string, output: string) => {
-        const stats = { uniquePoints: 0, urlsSpidered: 0, totalRequests: 0, responseTime: "N/A", duration: 0 };
+        const stats = { uniquePoints: 0, urlsSpidered: 0, totalRequests: 0, responseTime: "N/A" };
         if (!output) return stats;
         if (tool.toUpperCase() === 'NIKTO') {
           const items = output.match(/\+ /g);
@@ -269,22 +244,16 @@ const ReportsTab = () => {
           stats.urlsSpidered = (output.match(/https?:\/\/[^\s]+/g) || []).length;
           stats.totalRequests = stats.urlsSpidered * 2;
           const timeMatch = output.match(/(\d+) seconds/);
-          if (timeMatch) {
-            stats.responseTime = timeMatch[1] + "s";
-            stats.duration = parseInt(timeMatch[1]);
-          }
+          if (timeMatch) stats.responseTime = timeMatch[1] + "s";
         } else if (tool.toUpperCase() === 'NMAP') {
           const ports = output.match(/\d+\/tcp\s+open/g);
           stats.uniquePoints = ports ? ports.length : 0;
           stats.totalRequests = 1000;
           const latencyMatch = output.match(/latency \((\d+\.\d+)s latency\)/);
           if (latencyMatch) stats.responseTime = (parseFloat(latencyMatch[1]) * 1000).toFixed(0) + "ms";
-          const scanTimeMatch = output.match(/scanned in (\d+\.\d+) seconds/);
-          if (scanTimeMatch) stats.duration = Math.ceil(parseFloat(scanTimeMatch[1]));
         } else if (tool.toUpperCase() === 'SQLMAP') {
           stats.uniquePoints = (output.match(/parameter '[^']+' is vulnerable/gi) || []).length;
           stats.totalRequests = (output.match(/\[PAYLOAD\]/g) || []).length || 50;
-          stats.duration = 45; // Fixed estimate for SQLmap deep scan
         }
         return stats;
       };
@@ -293,7 +262,6 @@ const ReportsTab = () => {
       
       const sectionsHtml = toolsFound.map(tool => {
         const toolData = reportData.filter(f => (f.tool || targetInfo.tool) === tool);
-        if (toolData.length === 0) return '';
         const stats = extractStats(tool, rawOutput);
         const consolidatedFindings: Record<string, any> = {};
         
@@ -355,7 +323,7 @@ const ReportsTab = () => {
               <div class="insight-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>Scan Insights & Strategy</div>
               <div class="insight-text">${getToolInsight(tool, finalFindings.length)}</div>
             </div>
-            <div class="checkpoints">${getCheckpoints(tool).map(cp => `<div class="checkpoint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>${cp}</div>`).join('')}</div>
+            <div class="checkpoints">${getCheckpoints(tool).map(cp => `<div class="checkpoint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>${cp}</div>`).join('')}</div>
             <div class="stats-grid">
               <div class="stat-box"><div class="stat-label">Injections Detected</div><div class="stat-value">${stats.uniquePoints}</div></div>
               <div class="stat-box"><div class="stat-label">Resources Scanned</div><div class="stat-value">${stats.urlsSpidered || 1}</div></div>
@@ -373,93 +341,16 @@ const ReportsTab = () => {
                 const analysis = getSmartAnalysis(group.name, displayedPrimary);
                 return `
                   <div class="finding-card">
-                    <div class="finding-header">
-                      <div class="finding-title-container">
-                        <svg class="finding-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5 21V5q0-.825.588-1.413T7 3h10q.825 0 1.413.588T19 5v11q0 .825-.588 1.413T17 18H7l-2 3Zm2-6.15L8.85 13H17V5H7v9.85ZM7 5v8-8Z"/></svg>
-                        <div class="finding-title">${escapeHtml(group.name)}<br/><span style="color: #64748b; font-size: 11px; font-weight: 400;">port ${escapeHtml(group.path || 'N/A')}</span></div>
-                      </div>
-                      <div class="finding-confirmed-badge">CONFIRMED</div>
-                    </div>
-                    
-                    <table class="finding-meta-table">
-                      <thead>
-                        <tr>
-                          <th width="25%">URL</th>
-                          <th width="20%">Context</th>
-                          <th>Evidence</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td><a href="${targetInfo.target}" class="finding-url">${targetInfo.target}</a></td>
-                          <td style="font-size: 10px; color: #475569;">
-                            <strong>Severity:</strong> ${sev}<br/>
-                            <strong>Source:</strong> ${tool.toUpperCase()}<br/>
-                            <strong>Status:</strong> ${group.status || 'Active'}
-                          </td>
-                          <td>
-                            <div class="terminal-evidence" style="max-height: 150px; overflow: hidden;">${Array.from(group.evidence).map((e: any) => escapeHtml(e)).join('\n')}</div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-
-                    ${displayedPrimary.length > 0 ? `
-                      <div class="sub-section-title">VERIFIED INTELLIGENCE</div>
-                      <table class="cve-table">
-                        <thead>
-                          <tr>
-                            <th width="110">CVE ID</th>
-                            <th width="60">CVSS</th>
-                            <th width="100">Vector</th>
-                            <th>Threat Description</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          ${displayedPrimary.map((c: any) => `
-                            <tr>
-                              <td class="cve-link">${c.cve_id}</td>
-                              <td><span class="score-pill" style="background: ${c.cvss_v3_score >= 9 ? '#fee2e2' : c.cvss_v3_score >= 7 ? '#ffedd5' : '#fef9c3'}; color: ${c.cvss_v3_score >= 9 ? '#991b1b' : c.cvss_v3_score >= 7 ? '#c2410c' : '#854d0e'}; font-size: 9px;">${c.cvss_v3_score || 'N/A'}</span></td>
-                              <td><span class="av-badge ${c.av.class}">${c.av.label}</span></td>
-                              <td class="cve-desc">${escapeHtml(c.description || '')}</td>
-                            </tr>
-                          `).join('')}
-                        </tbody>
-                      </table>
-                    ` : ''}
-
-                    ${displayedLegacy.length > 0 ? `
-                      <div class="sub-section-title">HISTORICAL CONTEXT</div>
-                      <div class="legacy-tags" style="margin-bottom: 20px;">
-                        ${displayedLegacy.map((c: any) => `<span class="legacy-tag">${c.cve_id}</span>`).join('')}
-                        ${group.legacyMinor.length > 8 ? `<span class="legacy-tag-more">+${group.legacyMinor.length - 8} more</span>` : ''}
-                      </div>
-                    ` : ''}
-
-                    <div class="details-container">
-                      <div class="detail-item">
-                        <div class="detail-label">Risk description:</div>
-                        <div class="detail-text">${escapeHtml(analysis.risk)}</div>
-                      </div>
-                      <div class="detail-item">
-                        <div class="detail-label">Recommendation:</div>
-                        <div class="detail-text">${escapeHtml(analysis.recommendation)}</div>
-                      </div>
-                      <div class="detail-item">
-                        <div class="detail-label">References:</div>
-                        ${analysis.references.map(ref => `
-                          <div class="detail-text">
-                            <a href="${ref}" class="detail-link" target="_blank">${ref}</a>
-                          </div>
-                        `).join('')}
-                      </div>
-                      <div class="detail-item">
-                        <div class="detail-label">Classification:</div>
-                        <div style="font-size: 11px; color: #334155; line-height: 1.8;">
-                          <span style="color: #2563eb; font-weight: 700;">CWE:</span> ${escapeHtml(analysis.cwe)}<br/>
-                          ${analysis.owasp.map(o => `<span style="color: #2563eb; font-weight: 700;">OWASP:</span> ${escapeHtml(o)}<br/>`).join('')}
-                        </div>
-                      </div>
+                    <div class="finding-header"><div class="finding-title-container"><div class="finding-title">#${idx + 1} ${escapeHtml(group.name)}</div></div><div class="severity-badge-fixed sev-${sev.toLowerCase()}">${sev}</div></div>
+                    <div class="meta-row"><div><span class="m-label">AFFECTED RESOURCE</span><div class="m-value">${escapeHtml(group.path || '/tcp')}</div></div><div><span class="m-label">REMEDIATION STATUS</span><div class="m-value status-active">● OPEN</div></div></div>
+                    ${displayedPrimary.length > 0 ? `<div class="sub-section-title">VERIFIED INTELLIGENCE (TOP MATCHES)</div><table class="cve-table"><thead><tr><th width="110">CVE ID</th><th width="60">CVSS</th><th width="100">Vector</th><th>THREAT DESCRIPTION</th></tr></thead><tbody>${displayedPrimary.map((c: any) => `<tr><td class="cve-link">${c.cve_id}</td><td><span class="score-pill" style="background: ${c.cvss_v3_score >= 9 ? '#fee2e2' : c.cvss_v3_score >= 7 ? '#ffedd5' : '#fef9c3'}; color: ${c.cvss_v3_score >= 9 ? '#991b1b' : c.cvss_v3_score >= 7 ? '#c2410c' : '#854d0e'};">${c.cvss_v3_score || 'N/A'}</span></td><td><span class="av-badge ${c.av.class}">${c.av.label}</span></td><td class="cve-desc">${escapeHtml(c.description || '')}</td></tr>`).join('')}</tbody></table>` : ''}
+                    ${displayedLegacy.length > 0 ? `<div class="sub-section-title">CONSOLIDATED HISTORICAL CONTEXT</div><div class="legacy-tags">${displayedLegacy.map((c: any) => `<span class="legacy-tag">${c.cve_id}</span>`).join('')}${group.legacyMinor.length > 8 ? `<span class="legacy-tag-more">+${group.legacyMinor.length - 8} more</span>` : ''}</div>` : ''}
+                    <div class="terminal-evidence">${Array.from(group.evidence).map((e: any) => escapeHtml(e)).join('\n')}</div>
+                    <div class="details-container" style="margin-top: 30px;">
+                      <div class="detail-item"><div class="detail-label">Risk description:</div><div class="detail-text">${escapeHtml(analysis.risk)}</div></div>
+                      <div class="detail-item"><div class="detail-label">Recommendation:</div><div class="detail-text">${escapeHtml(analysis.recommendation)}</div></div>
+                      <div class="detail-item"><div class="detail-label">References:</div>${analysis.references.map(ref => `<div class="detail-text"><a href="${ref}" class="detail-link" target="_blank">${ref}</a></div>`).join('')}</div>
+                      <div class="detail-item"><div class="detail-label">Classification:</div><div class="classification-item"><span class="cve-label">CWE : </span> <a href="#" class="detail-link">${analysis.cwe}</a></div>${analysis.owasp.map(o => `<div class="classification-item">${escapeHtml(o)}</div>`).join('')}</div>
                     </div>
                   </div>
                 `;
@@ -468,71 +359,9 @@ const ReportsTab = () => {
             </div>
           </div>
         `;
-      }).join('');
+      }).join('<div style="page-break-after: always;"></div>');
 
-      const infoCount = Math.max(0, (scanInfoData.total_findings || 0) - ((scanInfoData.critical_count || 0) + (scanInfoData.high_count || 0) + (scanInfoData.medium_count || 0) + (scanInfoData.low_count || 0)));
-      const riskRatings = [
-        { label: 'Critical', value: scanInfoData.critical_count || 0, color: '#ef4444' },
-        { label: 'High', value: scanInfoData.high_count || 0, color: '#f97316' },
-        { label: 'Medium', value: scanInfoData.medium_count || 0, color: '#f59e0b' },
-        { label: 'Low', value: scanInfoData.low_count || 0, color: '#3b82f6' },
-        { label: 'Info', value: infoCount, color: '#10b981' }
-      ];
-
-      const maxRatingValue = Math.max(...riskRatings.map(r => r.value), 1);
-      const riskColorMap: Record<string, string> = { 'Critical': '#ef4444', 'High': '#f97316', 'Medium': '#f59e0b', 'Low': '#3b82f6', 'Info': '#10b981' };
-
-      const startTime = new Date(scanInfoData.created_at);
-      const totalDuration = toolsFound.reduce((acc, tool) => acc + extractStats(tool, rawOutput).duration, 0) || 45;
-      const finishTime = new Date(startTime.getTime() + totalDuration * 1000);
-      const totalTests = toolsFound.reduce((acc, tool) => acc + extractStats(tool, rawOutput).totalRequests, 0) || 38;
-
-      const formatScanTime = (d: Date) => {
-        const datePart = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-        const timePart = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-        return `${datePart} / ${timePart} UTC+03`;
-      };
-
-      const summaryHtml = `
-        <div class="summary-section">
-          <div class="summary-title">Summary</div>
-          <div class="summary-grid">
-            <div class="summary-col">
-              <div class="summary-label">Overall risk level:</div>
-              <div class="overall-risk-badge" style="background: ${riskColorMap[overallRisk]}">${overallRisk}</div>
-            </div>
-            <div class="summary-col" style="flex: 1.5;">
-              <div class="summary-label">Risk ratings:</div>
-              <table class="risk-ratings-table">
-                ${riskRatings.map(r => `
-                  <tr>
-                    <td width="60">${r.label}:</td>
-                    <td width="30" style="text-align: right; padding-right: 10px;">${r.value}</td>
-                    <td>
-                      <div class="risk-bar-bg">
-                        <div class="risk-bar-fill" style="width: ${(r.value / maxRatingValue) * 100}%; background: ${r.color};"></div>
-                      </div>
-                    </td>
-                  </tr>
-                `).join('')}
-              </table>
-            </div>
-            <div class="summary-col">
-              <div class="summary-label">Scan information:</div>
-              <table class="scan-info-table">
-                <tr><td>Start time:</td><td>${formatScanTime(startTime)}</td></tr>
-                <tr><td>Finish time:</td><td>${formatScanTime(finishTime)}</td></tr>
-                <tr><td>Scan duration:</td><td>${totalDuration} sec</td></tr>
-                <tr><td>Tests performed:</td><td>${totalTests}</td></tr>
-                <tr><td>Scan status:</td><td><span class="status-finished-badge">Finished</span></td></tr>
-              </table>
-            </div>
-          </div>
-        </div>
-        <div class="findings-section-header" style="page-break-before: always;">Findings</div>
-      `;
-
-      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Executive Scan Report - ${targetInfo.target}</title><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;700&display=swap');body { font-family: 'Plus Jakarta Sans', 'Noto Sans Arabic', sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; margin: 0; background: #ffffff; font-size: 11px; }.report-header { margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end; }.report-title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0; }.report-subtitle { font-size: 12px; color: #64748b; margin-top: 2px; }.summary-section { border: 1px solid #e2e8f0; margin-bottom: 30px; }.summary-title { background: #f8fafc; padding: 8px 15px; font-weight: 800; font-size: 13px; border-bottom: 1px solid #e2e8f0; }.summary-grid { display: flex; padding: 15px; gap: 30px; }.summary-col { display: flex; flex-direction: column; gap: 10px; }.summary-label { font-weight: 700; color: #2563eb; font-size: 12px; margin-bottom: 5px; }.overall-risk-badge { color: white; padding: 6px 25px; border-radius: 4px; font-weight: 800; font-size: 13px; text-align: center; width: fit-content; }.risk-ratings-table { width: 100%; border-collapse: collapse; font-size: 10px; }.risk-ratings-table td { padding: 2px 0; }.risk-bar-bg { background: #f1f5f9; height: 12px; width: 150px; border-radius: 2px; overflow: hidden; }.risk-bar-fill { height: 100%; }.scan-info-table { width: 100%; border-collapse: collapse; font-size: 10px; }.scan-info-table td { padding: 2px 0; }.scan-info-table td:first-child { font-weight: 700; color: #475569; width: 100px; }.status-finished-badge { background: #86efac; color: #166534; padding: 1px 8px; border-radius: 4px; font-weight: 700; border: 1px solid #4ade80; }.findings-section-header { border: 1px solid #e2e8f0; background: #f8fafc; padding: 8px 15px; font-weight: 800; font-size: 13px; margin-bottom: 25px; }.tool-section { margin-bottom: 50px; page-break-inside: avoid; }.tool-header { background: #f8fafc; padding: 12px 15px; border-left: 4px solid #3b82f6; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }.tool-name { font-weight: 800; font-size: 12px; color: #1e40af; }.tool-badge { background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 99px; font-size: 8px; font-weight: 700; }.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 25px; }.stat-box { background: #ffffff; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; text-align: center; }.stat-label { font-size: 8px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 3px; }.stat-value { font-size: 14px; font-weight: 800; color: #0f172a; }.finding-card { background: #ffffff; margin-bottom: 40px; page-break-inside: avoid; border-bottom: 1px dashed #e2e8f0; padding-bottom: 30px; }.finding-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }.finding-title-container { display: flex; align-items: flex-start; gap: 10px; flex: 1; }.finding-icon { color: #f97316; margin-top: 2px; }.finding-title { font-size: 16px; font-weight: 700; color: #2563eb; line-height: 1.3; }.finding-confirmed-badge { color: #10b981; border: 1px solid #10b981; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; }.finding-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }.finding-meta-table th { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; padding: 8px 12px; font-size: 10px; color: #475569; }.finding-meta-table td { border: 1px solid #e2e8f0; padding: 12px; vertical-align: top; }.finding-url { color: #2563eb; text-decoration: none; word-break: break-all; }.meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; padding: 12px; background: #f8fafc; border-radius: 6px; }.m-label { display: block; font-size: 8px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }.m-value { font-size: 11px; font-weight: 600; color: #1e293b; }.cve-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }.cve-table th { text-align: left; padding: 10px; background: #f1f5f9; color: #475569; font-size: 9px; font-weight: 700; text-transform: uppercase; }.cve-table td { padding: 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }.score-pill { padding: 2px 6px; border-radius: 4px; font-weight: 800; font-size: 9px; }.terminal-evidence { background: #f8fafc; color: #1e293b; padding: 12px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 10px; white-space: pre-wrap; line-height: 1.4; }.details-container { background: #f8fafc; padding: 15px; border-radius: 4px; border-top: 1px solid #e2e8f0; }.detail-item { margin-bottom: 15px; }.detail-label { font-weight: 700; font-size: 12px; color: #1e293b; margin-bottom: 3px; }.detail-text { font-size: 11px; color: #334155; line-height: 1.5; }.detail-link { color: #2563eb; text-decoration: none; word-break: break-all; }.av-badge { padding: 2px 5px; border-radius: 3px; font-size: 8px; font-weight: 700; text-transform: uppercase; }@media print { body { padding: 20px; } }</style></head><body><div class="report-header"><div><h1 class="report-title">Vulnerability Assessment Report</h1><div class="report-subtitle">Targeted Scan Analysis for: <strong>${targetInfo.target}</strong></div></div><div style="text-align: right;"><div class="report-subtitle">Generated: ${new Date().toLocaleDateString("en-US", { month: 'long', day: 'numeric', year: 'numeric' })}</div><div class="report-subtitle">Status: Intelligence Verified</div></div></div>${summaryHtml}${sectionsHtml}<div style="text-align: center; font-size: 9px; color: #94a3b8; margin-top: 40px; padding-top: 15px; border-top: 1px solid #f1f5f9;">This report is confidential and intended for authorized security personnel only.<br/>&copy; ${new Date().getFullYear()} CyberSecurity Intelligence System</div><script>window.onload = () => { setTimeout(() => { window.print(); window.onafterprint = () => window.close(); }, 800); }</script></body></html>`;
+      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Executive Scan Report - ${targetInfo.target}</title><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;700&display=swap');body { font-family: 'Plus Jakarta Sans', 'Noto Sans Arabic', sans-serif; color: #1e293b; line-height: 1.5; padding: 50px; margin: 0; background: #ffffff; font-size: 12px; }.report-header { margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }.report-title { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }.report-subtitle { font-size: 13px; color: #64748b; margin-top: 5px; }.tool-section { margin-bottom: 60px; }.tool-header { background: #f8fafc; padding: 15px 20px; border-left: 4px solid #3b82f6; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }.tool-name { font-weight: 800; font-size: 14px; color: #1e40af; letter-spacing: 0.5px; }.tool-badge { background: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 99px; font-size: 9px; font-weight: 700; }.checkpoints { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }.checkpoint { display: flex; align-items: center; color: #059669; font-weight: 600; font-size: 11px; }.checkpoint svg { margin-right: 8px; width: 14px; height: 14px; color: #10b981; }.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 35px; }.stat-box { background: #ffffff; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; text-align: center; }.stat-label { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }.stat-value { font-size: 16px; font-weight: 800; color: #0f172a; }.tool-insight { background: #eff6ff; border-radius: 8px; padding: 15px 20px; margin-bottom: 30px; border: 1px solid #bfdbfe; }.insight-title { font-weight: 700; font-size: 13px; color: #1e40af; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }.insight-text { font-size: 12px; color: #1e3a8a; line-height: 1.6; }.finding-card { background: #ffffff; border-radius: 4px; padding: 0; margin-bottom: 50px; page-break-inside: avoid; }.finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }.finding-title-container { display: flex; align-items: center; gap: 10px; }.finding-icon { color: #3b82f6; width: 24px; height: 24px; }.finding-title { font-size: 18px; font-weight: 700; color: #0f172a; }.finding-subtitle { font-size: 14px; color: #64748b; margin-left: 34px; margin-top: -10px; }.severity-badge-fixed { padding: 4px 12px; border-radius: 6px; font-size: 10px; font-weight: 800; color: white; text-transform: uppercase; }.status-badge { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }.url-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; margin-top: 15px; }.url-table th { text-align: left; padding: 10px; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 700; border: 1px solid #e2e8f0; }.url-table td { padding: 10px; border: 1px solid #e2e8f0; font-size: 12px; color: #2563eb; }.details-container { background: #f8fafc; padding: 20px; border-radius: 4px; border-top: 1px solid #e2e8f0; }.details-toggle { display: flex; align-items: center; gap: 5px; color: #2563eb; font-weight: 600; font-size: 12px; margin-bottom: 15px; cursor: pointer; }.detail-item { margin-bottom: 20px; }.detail-label { font-weight: 700; font-size: 13px; color: #1e293b; margin-bottom: 5px; }.detail-text { font-size: 12px; color: #334155; line-height: 1.6; }.detail-link { color: #2563eb; text-decoration: none; word-break: break-all; }.classification-list { list-style: none; padding: 0; margin: 0; }.classification-item { font-size: 12px; color: #334155; margin-bottom: 4px; }.cwe-label { color: #2563eb; font-weight: 600; }.severity-tag { padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 800; color: white; text-transform: uppercase; letter-spacing: 0.5px; }.sev-critical { background: #ef4444; }.sev-high { background: #f97316; }.sev-medium { background: #f59e0b; }.sev-low { background: #10b981; }.sev-info { background: #6366f1; }.meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; padding: 15px; background: #f8fafc; border-radius: 8px; }.m-label { display: block; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }.m-value { font-size: 12px; font-weight: 600; color: #1e293b; }.status-active { color: #059669; }.sub-section-title { font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; margin: 25px 0 12px 0; display: flex; align-items: center; }.sub-section-title::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; margin-left: 10px; }.cve-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }.cve-table th { text-align: left; padding: 12px 10px; background: #f1f5f9; color: #475569; font-size: 10px; font-weight: 700; text-transform: uppercase; }.cve-table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }.cve-link { color: #2563eb; font-weight: 700; font-family: monospace; }.score-pill { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: 800; font-size: 10px; }.cve-desc { font-size: 11px; color: #475569; line-height: 1.6; }.legacy-tags { display: flex; flex-wrap: wrap; gap: 8px; }.legacy-tag { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; border: 1px solid #e2e8f0; }.legacy-tag-more { color: #94a3b8; font-size: 10px; padding: 4px 10px; font-weight: 600; }.av-badge { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; display: inline-block; }.av-network { background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; }.av-adjacent { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }.av-local { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }.av-physical { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }.terminal-evidence { background: #0f172a; color: #38bdf8; padding: 18px; border-radius: 10px; font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 10px; margin-top: 20px; white-space: pre-wrap; border: 1px solid #1e293b; line-height: 1.5; }@media print { body { padding: 20px; }.tool-section { page-break-before: always; }.tool-section:first-of-type { page-break-before: auto; } }</style></head><body><div class="report-header"><div><h1 class="report-title">Vulnerability Assessment Report</h1><div class="report-subtitle">Targeted Scan Analysis for: <strong>${targetInfo.target}</strong></div></div><div style="text-align: right;"><div class="report-subtitle">Generated: ${new Date().toLocaleDateString("en-US", { month: 'long', day: 'numeric', year: 'numeric' })}</div><div class="report-subtitle">Status: Intelligence Verified</div></div></div>${sectionsHtml}<div style="text-align: center; font-size: 10px; color: #94a3b8; margin-top: 60px; padding-top: 20px; border-top: 1px solid #f1f5f9;">This report is confidential and intended for authorized security personnel only.<br/>&copy; ${new Date().getFullYear()} CyberSecurity Intelligence System</div><script>window.onload = () => { setTimeout(() => { window.print(); window.onafterprint = () => window.close(); }, 800); }</script></body></html>`;
 
       const reportWindow = window.open('', '_blank');
       if (reportWindow) {
