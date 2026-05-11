@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppSidebar from "@/components/AppSidebar";
@@ -61,7 +61,8 @@ const ScanResults = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedScan, setSelectedScan] = useState<ScanResult | null>(null);
   const [showRawOutput, setShowRawOutput] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { userRole } = useAuth();
 
@@ -88,7 +89,8 @@ const ScanResults = () => {
       const found = scans.find((s) => s.id === scanId);
       if (found) {
         setSelectedScan(found);
-        setShowRawOutput(false);
+        // Automatically show raw output if navigated from vulnerabilities
+        setShowRawOutput(true);
       }
     }
   }, [searchParams, scans]);
@@ -149,6 +151,14 @@ const ScanResults = () => {
 
   const getStatus = (status: string) => statusConfig[status] ?? statusConfig["pending"];
 
+  const filteredScans = useMemo(() => {
+    const scanId = searchParams.get("scanId");
+    if (scanId) {
+      return scans.filter(s => s.id === scanId);
+    }
+    return scans;
+  }, [scans, searchParams]);
+
   return (
     <div className="flex h-screen overflow-hidden">
       <AppSidebar
@@ -160,7 +170,18 @@ const ScanResults = () => {
         <TopBar />
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-foreground">Scan Results</h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold text-foreground">Scan Results</h1>
+              {searchParams.get("scanId") && (
+                <button
+                  onClick={() => setSearchParams({})}
+                  className="text-xs px-3 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-md text-primary font-medium transition-colors flex items-center gap-1"
+                >
+                  <CheckCircle2 className="w-3 h-3" />
+                  Show all scans
+                </button>
+              )}
+            </div>
             {hasRunningScans && (
               <div className="flex items-center gap-2 text-sm text-blue-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -172,12 +193,12 @@ const ScanResults = () => {
           <div className="flex gap-6">
             {/* Scan List */}
             <div className="flex-1 space-y-3">
-              {scans.length === 0 ? (
+              {filteredScans.length === 0 ? (
                 <div className="bg-card border border-border rounded-lg p-8 text-center text-muted-foreground">
-                  No scans found. Start a new scan from the sidebar.
+                  {searchParams.get("scanId") ? "Selected scan not found." : "No scans found. Start a new scan from the sidebar."}
                 </div>
               ) : (
-                scans.map((scan) => {
+                filteredScans.map((scan) => {
                   const st = getStatus(scan.status);
                   return (
                     <div
