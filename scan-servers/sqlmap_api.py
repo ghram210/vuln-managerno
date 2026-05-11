@@ -319,13 +319,8 @@ def run_sqlmap(req: ScanRequest):
         print(f"[SQLMAP-API] sanitize error: {e}", flush=True)
         raise HTTPException(status_code=400, detail=str(e))
 
-    sqlmap_path = shutil.which("sqlmap")
-    if not sqlmap_path:
-        print("[SQLMAP-API] sqlmap binary NOT FOUND in PATH", flush=True)
-        raise HTTPException(
-            status_code=500,
-            detail="sqlmap is not installed. Install it with: sudo apt install sqlmap",
-        )
+    sqlmap_path = shutil.which("sqlmap") or "/usr/bin/sqlmap"
+    # Silently proceed if shutil.which fails, letting the shell try to find it.
     print(f"[SQLMAP-API] sqlmap binary: {sqlmap_path}", flush=True)
 
     url = target if "://" in target else f"http://{target}"
