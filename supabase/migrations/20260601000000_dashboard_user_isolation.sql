@@ -165,7 +165,8 @@ WITH cve_findings AS (
         BOOL_OR(f.status = 'triaged') AS any_triaged,
         BOOL_OR(f.status = 'fixed') AS any_fixed,
         MIN(f.created_at) AS first_seen,
-        string_agg(DISTINCT sr.name, ', ') AS scan_names
+        string_agg(DISTINCT sr.name, ', ') AS scan_names,
+        string_agg(DISTINCT sr.id::text, ', ') AS scan_ids
     FROM public.finding_cves fc
     JOIN public.scan_findings f ON f.id = fc.finding_id
     JOIN public.scan_results sr ON sr.id = f.scan_id
@@ -191,6 +192,7 @@ SELECT
     CASE WHEN ce.any_verified THEN 'Actively Used' WHEN ce.exploit_count > 0 THEN 'Available' ELSE 'None' END AS exploit_status,
     COALESCE(cf.vulnerability_count, 0) AS vulnerability_count,
     cf.scan_names AS scan_names,
+    cf.scan_ids AS scan_ids,
     CASE WHEN c.references_urls IS NOT NULL AND jsonb_array_length(c.references_urls) > 0 THEN 1 ELSE 0 END AS remediations,
     COALESCE(cf.first_seen, c.published_date, NOW()) AS created_at
 FROM public.cve_catalog c

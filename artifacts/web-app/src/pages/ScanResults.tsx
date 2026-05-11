@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppSidebar from "@/components/AppSidebar";
@@ -60,6 +61,7 @@ const ScanResults = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedScan, setSelectedScan] = useState<ScanResult | null>(null);
   const [showRawOutput, setShowRawOutput] = useState(false);
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { userRole } = useAuth();
 
@@ -79,6 +81,17 @@ const ScanResults = () => {
     },
     refetchInterval: 5000,
   });
+
+  useEffect(() => {
+    const scanId = searchParams.get("scanId");
+    if (scanId && scans.length > 0) {
+      const found = scans.find((s) => s.id === scanId);
+      if (found) {
+        setSelectedScan(found);
+        setShowRawOutput(false);
+      }
+    }
+  }, [searchParams, scans]);
 
   const hasRunningScans = scans.some((s) => s.status === "running" || s.status === "pending");
 

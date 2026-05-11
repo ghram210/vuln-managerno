@@ -328,7 +328,10 @@ const VulnerabilitiesTab = () => {
                 <tr
                   key={v.id}
                   className="border-t border-border hover:bg-secondary/50 transition-colors cursor-pointer"
-                  onClick={() => navigate("/scan-results")}
+                  onClick={() => {
+                    const firstScanId = v.scan_ids?.split(", ")[0];
+                    navigate(firstScanId ? `/scan-results?scanId=${firstScanId}` : "/scan-results");
+                  }}
                 >
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
@@ -377,7 +380,8 @@ const VulnerabilitiesTab = () => {
                       className="text-muted-foreground hover:text-foreground"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate("/scan-results");
+                        const firstScanId = v.scan_ids?.split(", ")[0];
+                        navigate(firstScanId ? `/scan-results?scanId=${firstScanId}` : "/scan-results");
                       }}
                     >
                       <MoreHorizontal className="w-4 h-4" />
