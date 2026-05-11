@@ -160,11 +160,18 @@ const ReportsTab = () => {
         if (lowName.includes('apache') || lowName.includes('httpd')) {
           analysis.risk = "The Apache HTTP Server is exposing version information or hosting potentially vulnerable modules. An attacker can use this information to launch targeted exploits.";
           analysis.recommendation = "Disable the 'ServerTokens' and 'ServerSignature' directives in the configuration. Ensure all modules are up to date.";
-          analysis.references.push("https://httpd.apache.org/docs/2.4/mod/core.html#servertokens");
+          analysis.references = [
+            "https://httpd.apache.org/docs/2.4/mod/core.html#servertokens",
+            "https://httpd.apache.org/docs/2.4/misc/security_tips.html",
+            "https://www.cisa.gov/news-events/alerts/2021/10/05/apache-releases-security-update-http-server"
+          ];
         } else if (lowName.includes('robots.txt')) {
           analysis.risk = "There is no particular security risk in having a robots.txt file. However, it's important to note that adding endpoints in it should not be considered a security measure, as this file can be directly accessed and read by anyone.";
           analysis.recommendation = "We recommend you to manually review the entries from robots.txt and remove the ones which lead to sensitive locations in the website (ex. administration panels, configuration files, etc).";
-          analysis.references = ["https://www.theregister.co.uk/2015/05/19/robotstxt/"];
+          analysis.references = [
+            "https://www.theregister.co.uk/2015/05/19/robotstxt/",
+            "https://developers.google.com/search/docs/crawling-indexing/robots/intro"
+          ];
           analysis.cwe = "CWE-693: Protection Mechanism Failure";
           analysis.owasp = [
              "OWASP Top 10 - 2017 : A6 - Security Misconfiguration",
@@ -173,13 +180,40 @@ const ReportsTab = () => {
         } else if (lowName.includes('sql injection') || lowName.includes('sqli')) {
           analysis.risk = "A SQL injection vulnerability allows an attacker to interfere with the queries that an application makes to its database. It generally allows an attacker to view data they are not normally able to retrieve.";
           analysis.recommendation = "Use parameterized queries (also known as prepared statements) for all database access. Implement input validation and the principle of least privilege for database accounts.";
+          analysis.references = [
+            "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+            "https://portswigger.net/web-security/sql-injection",
+            "https://cwe.mitre.org/data/definitions/89.html"
+          ];
           analysis.cwe = "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')";
           analysis.owasp = ["OWASP Top 10 - 2021 : A03 - Injection"];
         } else if (lowName.includes('x-frame-options') || lowName.includes('clickjacking')) {
           analysis.risk = "The absence of the X-Frame-Options header makes the application vulnerable to Clickjacking attacks, where an attacker can trick a user into clicking on something different from what the user perceives.";
           analysis.recommendation = "Configure the server to send the 'X-Frame-Options: SAMEORIGIN' or 'DENY' header to prevent the page from being framed by malicious sites.";
+          analysis.references = [
+            "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options",
+            "https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html"
+          ];
           analysis.cwe = "CWE-693: Protection Mechanism Failure";
           analysis.owasp = ["OWASP Top 10 - 2021 : A05 - Security Misconfiguration"];
+        } else if (lowName.includes('.env') || lowName.includes('environment variables')) {
+          analysis.risk = "Exposure of environment variables (.env file) can leak sensitive information such as database credentials, API keys, and other secrets used by the application.";
+          analysis.recommendation = "Restrict access to the .env file in the web server configuration or move it outside the web root directory.";
+          analysis.references = [
+            "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/05-Test_for_Account_Enumeration_and_Guessable_User_Account",
+            "https://cwe.mitre.org/data/definitions/200.html"
+          ];
+          analysis.cwe = "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor";
+          analysis.owasp = ["OWASP Top 10 - 2021 : A01 - Broken Access Control"];
+        } else if (lowName.includes('.git')) {
+          analysis.risk = "Exposure of the .git directory allows an attacker to download the entire source code and history of the application, which may contain sensitive logic and credentials.";
+          analysis.recommendation = "Disable directory listing and specifically block access to the .git directory in your web server configuration (e.g., using <DirectoryMatch \"/\\.git\"> in Apache or location block in Nginx).";
+          analysis.references = [
+            "https://en.internetwache.org/dont-publicly-expose-your-git-directory-12-11-2015/",
+            "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/03-Test_HTTP_Methods"
+          ];
+          analysis.cwe = "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor";
+          analysis.owasp = ["OWASP Top 10 - 2021 : A01 - Broken Access Control"];
         }
 
         // Use CVE data if available to refine analysis
@@ -327,6 +361,7 @@ const ReportsTab = () => {
             if (vector.includes('AV:A')) return { label: 'Adjacent', class: 'av-adjacent' };
             if (vector.includes('AV:L')) return { label: 'Local', class: 'av-local' };
             if (vector.includes('AV:P')) return { label: 'Physical', class: 'av-physical' };
+            // Per user request: default to Network for non-CVE/unknown findings
             return { label: 'Network', class: 'av-network' };
           };
 
@@ -398,15 +433,16 @@ const ReportsTab = () => {
             </div>
 
             <div class="findings-list">
-              ${finalFindings.length === 0 ? `
-                <div style="text-align: center; padding: 30px; color: #94a3b8; border: 1px dashed #e2e8f0; border-radius: 8px; font-size: 11px;">
-                  No specific vulnerabilities found by this tool.
-                </div>
-              ` : finalFindings.map((group, idx) => {
+              ${(() => {
                 const escapeHtml = (unsafe: string) => {
                   if (!unsafe || typeof unsafe !== 'string') return '';
                   return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
                 };
+                return finalFindings.length === 0 ? `
+                <div style="text-align: center; padding: 30px; color: #94a3b8; border: 1px dashed #e2e8f0; border-radius: 8px; font-size: 11px;">
+                  No specific vulnerabilities found by this tool.
+                </div>
+              ` : finalFindings.map((group, idx) => {
                 const sevLabels = ['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
                 const sev = sevLabels[group.severity_score] || 'INFO';
                 const displayedPrimary = group.highPriority.slice(0, 5);
@@ -417,28 +453,57 @@ const ReportsTab = () => {
                   <div class="finding-card">
                     <div class="finding-header">
                       <div class="finding-title-container">
-                        <svg class="finding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
-                        <div class="finding-title">${escapeHtml(group.name)}</div>
+                        <div class="finding-title">#${idx + 1} ${escapeHtml(group.name)}</div>
                       </div>
-                      <div class="status-badge">CONFIRMED</div>
+                      <div class="severity-badge-fixed sev-${sev.toLowerCase()}">${sev}</div>
                     </div>
-                    <div class="finding-subtitle">port ${targetInfo.target.split(':').pop() || '80'}/tcp</div>
 
-                    <table class="url-table">
-                      <thead>
-                        <tr><th>URL</th></tr>
-                      </thead>
-                      <tbody>
-                        <tr><td>${escapeHtml(targetInfo.target)}${escapeHtml(group.path || '')}</td></tr>
-                      </tbody>
-                    </table>
-
-                    <div class="details-container">
-                      <div class="details-toggle">
-                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        Details
+                    <div class="meta-row">
+                      <div>
+                        <span class="m-label">AFFECTED RESOURCE</span>
+                        <div class="m-value">${escapeHtml(group.path || '/tcp')}</div>
                       </div>
+                      <div>
+                        <span class="m-label">REMEDIATION STATUS</span>
+                        <div class="m-value status-active">● OPEN</div>
+                      </div>
+                    </div>
 
+                    ${displayedPrimary.length > 0 ? `
+                      <div class="sub-section-title">VERIFIED INTELLIGENCE (TOP MATCHES)</div>
+                      <table class="cve-table">
+                        <thead>
+                          <tr>
+                            <th width="140">CVE ID</th>
+                            <th width="70">CVSS</th>
+                            <th>THREAT DESCRIPTION</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${displayedPrimary.map((c: any) => `
+                            <tr>
+                              <td class="cve-link">${c.cve_id}</td>
+                              <td><span class="score-pill" style="background: ${c.cvss_v3_score >= 9 ? '#fee2e2' : c.cvss_v3_score >= 7 ? '#ffedd5' : '#fef9c3'}; color: ${c.cvss_v3_score >= 9 ? '#991b1b' : c.cvss_v3_score >= 7 ? '#c2410c' : '#854d0e'};">${c.cvss_v3_score || 'N/A'}</span></td>
+                              <td class="cve-desc">${escapeHtml(c.description || '')}</td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                    ` : ''}
+
+                    ${displayedLegacy.length > 0 ? `
+                      <div class="sub-section-title">CONSOLIDATED HISTORICAL CONTEXT</div>
+                      <div class="legacy-tags">
+                        ${displayedLegacy.map((c: any) => `<span class="legacy-tag">${c.cve_id}</span>`).join('')}
+                        ${group.legacyMinor.length > 8 ? `<span class="legacy-tag-more">+${group.legacyMinor.length - 8} more</span>` : ''}
+                      </div>
+                    ` : ''}
+
+                    <div class="terminal-evidence">
+                      ${Array.from(group.evidence).map((e: any) => escapeHtml(e)).join('\n')}
+                    </div>
+
+                    <div class="details-container" style="margin-top: 30px;">
                       <div class="detail-item">
                         <div class="detail-label">Risk description:</div>
                         <div class="detail-text">${escapeHtml(analysis.risk)}</div>
@@ -452,7 +517,7 @@ const ReportsTab = () => {
                       <div class="detail-item">
                         <div class="detail-label">References:</div>
                         ${analysis.references.map(ref => `
-                          <div class="detail-text"><a href="${ref}" class="detail-link">${ref}</a></div>
+                          <div class="detail-text"><a href="${ref}" class="detail-link" target="_blank">${ref}</a></div>
                         `).join('')}
                       </div>
 
@@ -462,32 +527,6 @@ const ReportsTab = () => {
                         ${analysis.owasp.map(o => `<div class="classification-item">${escapeHtml(o)}</div>`).join('')}
                       </div>
                     </div>
-
-                    ${displayedPrimary.length > 0 ? `
-                      <div style="margin-top: 30px;">
-                        <div class="sub-section-title">Security Intelligence Matches</div>
-                        <table class="cve-table">
-                          <thead>
-                            <tr>
-                              <th width="110">CVE ID</th>
-                              <th width="60">CVSS</th>
-                              <th width="100">Vector</th>
-                              <th>Description Snippet</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            ${displayedPrimary.map((c: any) => `
-                              <tr>
-                                <td class="cve-link">${c.cve_id}</td>
-                                <td><span class="score-pill">${c.cvss_v3_score || 'N/A'}</span></td>
-                                <td><span class="av-badge ${c.av.class}">${c.av.label}</span></td>
-                                <td class="cve-desc">${escapeHtml((c.description || '').substring(0, 150))}...</td>
-                              </tr>
-                            `).join('')}
-                          </tbody>
-                        </table>
-                      </div>
-                    ` : ''}
                   </div>
                 `;
               }).join('')}
@@ -562,9 +601,10 @@ const ReportsTab = () => {
         .finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .finding-title-container { display: flex; align-items: center; gap: 10px; }
         .finding-icon { color: #3b82f6; width: 24px; height: 24px; }
-        .finding-title { font-size: 20px; font-weight: 600; color: #2563eb; }
+        .finding-title { font-size: 18px; font-weight: 700; color: #0f172a; }
         .finding-subtitle { font-size: 14px; color: #64748b; margin-left: 34px; margin-top: -10px; }
 
+        .severity-badge-fixed { padding: 4px 12px; border-radius: 6px; font-size: 10px; font-weight: 800; color: white; text-transform: uppercase; }
         .status-badge { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
 
         .url-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; margin-top: 15px; }
