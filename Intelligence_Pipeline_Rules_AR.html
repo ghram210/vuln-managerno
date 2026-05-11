@@ -1,64 +1,52 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html dir="rtl" lang="ar">
 <head>
-    <meta charset="UTF-8">
-    <title>منهجية قواعد الأوف لاين وذكاء المطابقة</title>
-    <style>
-        body { font-family: 'Amiri', serif; line-height: 1.6; color: #333; max-width: 900px; margin: 40px auto; padding: 20px; }
-        h1, h2, h3, h4 { color: #2c3e50; }
-        h2 { border-bottom: 2px solid #2980b9; padding-bottom: 10px; }
-        .box { background: #f4f7f6; border-right: 5px solid #27ae60; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
-        .intel-box { border-right-color: #2980b9; background: #f0f4f8; }
-        .highlight { color: #c0392b; font-weight: bold; }
-    </style>
+<meta charset="utf-8">
+<title>منهجية ذكاء المطابقة</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.8; color: #333; max-width: 900px; margin: 40px auto; padding: 20px; background-color: #f9f9f9; }
+    .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1 { color: #1a5f7a; text-align: center; border-bottom: 3px solid #1a5f7a; padding-bottom: 15px; }
+    h3 { color: #c0392b; margin-top: 30px; }
+    ul { list-style: none; padding: 0; }
+    li { margin-bottom: 15px; padding: 15px; background: #f1f8ff; border-right: 5px solid #1a5f7a; border-radius: 4px; }
+    b { color: #000; font-weight: bold; }
+    .meta { font-style: italic; color: #666; margin-bottom: 20px; }
+</style>
 </head>
 <body>
-    <h1>3.6 قواعد وقواعد بيانات نظام إدارة الثغرات</h1>
+    <div class="container">
+        <h1>3.6.1 منهجية "ذكاء المطابقة" ومعالجة المخرجات (Intelligence Pipeline)</h1>
 
-    <h2>3.6.0 منهجية "قواعد الأوف لاين" (Offline Rules & Databases)</h2>
-    <p>قبل معالجة البيانات في خط الذكاء، يعتمد نظامنا على بنية تحتية محلية بالكامل للبحث والمطابقة:</p>
-    <div class="box">
-        <p><b>المحتوى:</b> بناء فهارس محلية (Local Indexes) لقواعد بيانات NVD (منذ 2002) و Exploit-DB باستخدام SQLite.</p>
-        <p><b>السبب:</b> تجنب مشاكل الـ API الخارجية مثل بطء الاستجابة (Rate Limiting) وضمان خصوصية البيانات المكتشفة.</p>
-        <p><b>الفائدة:</b>
-            <ul>
-                <li><b>سرعة فائقة:</b> المطابقة في أجزاء من الثانية.</li>
-                <li><b>خصوصية تامة:</b> لا يتم إرسال بيانات الأهداف لأي جهة خارجية.</li>
-                <li><b>استقلالية:</b> يعمل النظام بكفاءة في البيئات المنعزلة عن الإنترنت.</li>
-            </ul>
-        </p>
-    </div>
+        <p class="meta">تمر البيانات في مشروعنا (النظام الهندسي المتكامل لإدارة الثغرات) بمحرك "الذكاء الهجين" الذي يقوم بالربط الآلي والتحليل الذكي، وذلك بناءً على مجموعة من القواعد البرمجية (Logic Rules) التي تضمن دقة النتائج.</p>
 
-    <h2>3.6.1 منهجية "ذكاء المطابقة" ومعالجة المخرجات (Intelligence Pipeline)</h2>
-    <p>يمثل خط المعالجة الذكي العقل المدبر الذي يحول المخرجات الخام إلى بيانات أمنية مهيكلة عبر ثلاث مراحل:</p>
-
-    <div class="box intel-box">
-        <h3>1. قواعد استخراج البصمات التقنية (Extraction Rules)</h3>
-        <p><b>المحتوى:</b> خريطة منتجات تربط الكلمات المفتاحية بمعايير CPE العالمية.</p>
-        <p><b>السبب:</b> توحيد مخرجات الأدوات المختلفة (Nmap, Nikto, SQLMap) تحت مسمى تقني واحد.</p>
-        <p><b>الفائدة:</b> ضمان دقة المطابقة مع قواعد بيانات الثغرات العالمية.</p>
-    </div>
-
-    <div class="box intel-box">
-        <h3>2. قواعد المطابقة المرنة للإصدارات (Loose Version Matching)</h3>
-        <p><b>المحتوى:</b> خوارزمية لمقارنة سلاسل الإصدارات المعقدة مع نطاقات التأثر (Version Ranges).</p>
-        <p><b>السبب:</b> ثغرات NVD غالباً ما تُعرف بنطاق إصدارات وليس إصداراً واحداً ثابت؛ المطابقة الحرفية تفشل هنا.</p>
-        <p><b>الفائدة:</b> تقليل احتمالية تفويت الثغرات (False Negatives).</p>
-    </div>
-
-    <div class="box intel-box">
-        <h3>3. قواعد التصنيف والفلترة الذكية (Smart Classification Rules)</h3>
-        <p><b>المحتوى:</b> تقييم الخطورة بناءً على السياق (Context-aware Scoring).</p>
+        <h3>1. قواعد استخراج وتوحيد البصمات (Fingerprint Extraction Rules)</h3>
         <ul>
-            <li><span class="highlight">FFUF:</span> اكتشاف ملفات .env يرفع الخطورة لـ <b>Critical</b>.</li>
-            <li><span class="highlight">Nikto:</span> تصنيف نقص "رؤوس الحماية" كـ <b>Info</b> لتقليل الضجيج المعلوماتي.</li>
+            <li><b>المحتوى:</b> تعتمد هذه القواعد على قاموس خرائط (Mapping) ذكي يربط المسميات التي تكتشفها الأدوات (مثل "Apache" أو "IIS") بالهوية الرسمية الموحدة (CPE). يتم استخدام "التعبيرات النمطية" (Regex) المتطورة لاستخلاص أرقام الإصدارات بدقة من النصوص الخام.</li>
+            <li><b>سبب الاستخدام:</b> نظراً لأن الأدوات الأمنية المختلفة تخرج أسماء البرمجيات بتنسيقات متباينة، كان من الضروري بناء طبقة توحيد تمنع التضارب وتضمن أن النظام يتحدث "لغة واحدة" عند البحث في قواعد البيانات العالمية.</li>
+            <li><b>الفائدة:</b> تضمن هذه القاعدة دقة المطابقة (Standardization)، مما يمنع فقدان أي ثغرة حرجة بسبب اختلاف المسميات.</li>
         </ul>
-        <p><b>السبب:</b> تركيز انتباه المحلل الأمني على المخاطر الحقيقية أولاً.</p>
-        <p><b>الفائدة:</b> ترتيب أولويات الإصلاح (Prioritization) بشكل آلي وفعال.</p>
-    </div>
 
-    <hr>
-    <p><b>القيمة المضافة للموقع:</b><br>
-    هذه القواعد حولت النظام من مجرد أداة عرض إلى محرك تحليل ذكي متكامل، مما يمنح المختبر تقريراً دقيقاً ومركزاً على الثغرات القابلة للاستغلال الفعلي.</p>
+        <h3>2. قواعد التصنيف الاستدلالي (Heuristic Classification Rules)</h3>
+        <ul>
+            <li><b>المحتوى:</b> مجموعة من المنطق البرمجي (Conditional Logic) الذي يفحص مخرجات الأدوات بحثاً عن "أنماط سلوكية" خطيرة، مثل الملفات الحساسة (.env, config) وتصنيفها كخطر "Critical".</li>
+            <li><b>سبب الاستخدام:</b> ليست كل التهديدات مسجلة كأرقام CVE؛ فهناك أخطاء في التكوين (Misconfigurations) تتطلب حكماً ذكياً لتقييم أثرها.</li>
+            <li><b>الفائدة:</b> اكتشاف المخاطر "خارج الصندوق" وتغطية أخطاء المطورين البشرية.</li>
+        </ul>
+
+        <h3>3. قواعد مقارنة الإصدارات الذكية (Smart Version Comparison)</h3>
+        <ul>
+            <li><b>المحتوى:</b> خوارزمية متخصصة تقارن رقم الإصدار المكتشف مع "نطاق الثغرة" المتأثر، مع مراعاة الإصدارات الفرعية والتجريبية.</li>
+            <li><b>سبب الاستخدام:</b> الإصدارات البرمجية معقدة وليست مجرد أرقام متسلسلة؛ لذا نحتاج لمنطق مرن لتجنب الأخطاء.</li>
+            <li><b>الفائدة:</b> التقليل الجذري لظاهرة "التنبيهات الكاذبة" (False Positives).</li>
+        </ul>
+
+        <h3>4. قواعد الربط مع قواعد بيانات الاستغلال (Exploit-DB Correlation)</h3>
+        <ul>
+            <li><b>المحتوى:</b> قاعدة ربط منطقية تطابق الثغرة المكتشفة مع سجلات "كود الاستغلال" المتاح للعامة في Exploit-DB.</li>
+            <li><b>سبب الاستخدام:</b> تحديد الأولويات بناءً على الخطر الفعلي؛ فالثغرة القابلة للاستغلال الفوري هي الأهم.</li>
+            <li><b>الفائدة:</b> تحويل النظام إلى منصة "إدارة مخاطر" ذكية تدعم اتخاذ القرار السريع.</li>
+        </ul>
+    </div>
 </body>
 </html>
