@@ -383,12 +383,10 @@ def run_sqlmap(req: ScanRequest):
         "-u", url,
         "--batch",
         "--random-agent",
-        "--tamper=space2comment",
         "--level=5",
         "--risk=3",
         # Better detection: response diff + title diff + DBMS error
         # parsing instead of relying on "HTTP 200 == ok".
-        "--text-only",
         "--titles",
         "--parse-errors",
         # Persistent session so repeat scans actually progress instead
