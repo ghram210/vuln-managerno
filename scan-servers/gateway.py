@@ -1,9 +1,13 @@
 import os
+import sys
 import uuid
 import asyncio
 import re
 import traceback
 from datetime import datetime, timezone
+
+# Ensure current directory is in path for robust imports on all systems (like Kali)
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import httpx
 from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request
@@ -364,10 +368,11 @@ async def reconcile_fixed_findings(scan_id: str, target: str, tool: str):
     """
     Finds findings that existed in previous scans for this target/tool:
     - If missing in current scan -> mark as 'fixed' (this populates Remediation charts).
+    - If still present -> mark previous as 'superseded' to avoid duplicates.
     """
     try:
         async with httpx.AsyncClient() as client:
-            # 1. Fetch current scan findings (handle pagination if > 1000)
+            # 1. Fetch current scan findings
             new_fingerprints = set()
             offset = 0
             limit = 1000
@@ -384,20 +389,17 @@ async def reconcile_fixed_findings(scan_id: str, target: str, tool: str):
                     timeout=15,
                 )
                 if resp_new.status_code != 200:
-                    print(f"[reconcile] Failed to fetch new findings: {resp_new.status_code}")
                     return
                 data = resp_new.json()
-                if not data:
-                    break
+                if not data: break
                 for f in data:
                     new_fingerprints.add((f.get('title'), f.get('path'), f.get('service')))
-                if len(data) < limit:
-                    break
+                if len(data) < limit: break
                 offset += limit
 
-            # 2. Fetch previous open findings for same target/tool (case-insensitive tool)
-            to_fix = []       # Truly missing -> Fixed
-            to_supersede = [] # Still present -> Superseded (to avoid duplicate counts in 'Open' views)
+            # 2. Fetch previous open findings
+            to_fix = []
+            to_supersede = []
             offset = 0
             while True:
                 resp_old = await client.get(
@@ -414,30 +416,23 @@ async def reconcile_fixed_findings(scan_id: str, target: str, tool: str):
                     headers=SUPABASE_HEADERS,
                     timeout=15,
                 )
-                if resp_old.status_code != 200:
-                    print(f"[reconcile] Failed to fetch old findings: {resp_old.status_code}")
-                    return
+                if resp_old.status_code != 200: break
                 data = resp_old.json()
-                if not data:
-                    break
-
+                if not data: break
                 for old in data:
                     fp = (old.get('title'), old.get('path'), old.get('service'))
                     if fp not in new_fingerprints:
                         to_fix.append(old['id'])
                     else:
                         to_supersede.append(old['id'])
-
-                if len(data) < limit:
-                    break
+                if len(data) < limit: break
                 offset += limit
 
-            # 3. Apply updates in chunks
+            # 3. Apply updates
             async def _bulk_update(ids, status):
                 chunk_size = 50
                 for i in range(0, len(ids), chunk_size):
                     chunk = ids[i : i + chunk_size]
-                    print(f"[reconcile] Marking {len(chunk)} finding(s) as {status.upper()} for {target} ({tool})", flush=True)
                     ids_param = ",".join([f"{fid}" for fid in chunk])
                     await client.patch(
                         f"{SUPABASE_URL}/rest/v1/scan_findings",
@@ -447,13 +442,11 @@ async def reconcile_fixed_findings(scan_id: str, target: str, tool: str):
                         timeout=15
                     )
 
-            if to_fix:
-                await _bulk_update(to_fix, "fixed")
-            if to_supersede:
-                await _bulk_update(to_supersede, "superseded")
+            if to_fix: await _bulk_update(to_fix, "fixed")
+            if to_supersede: await _bulk_update(to_supersede, "superseded")
 
     except Exception as e:
-        print(f"[reconcile] Error during reconciliation: {type(e).__name__}: {e}", flush=True)
+        print(f"[reconcile] Error: {e}", flush=True)
 
 
 async def reconcile_stale_scans():
