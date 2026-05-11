@@ -1,0 +1,30 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "محلل أمني (User)" as user
+actor "مدير النظام (Admin)" as admin
+
+rectangle "نظام إدارة الثغرات" {
+    usecase "تسجيل الدخول / المصادقة" as login
+    usecase "إدارة الأصول (Assets)" as manage_assets
+    usecase "بدء فحص جديد (New Scan)" as start_scan
+    usecase "عرض لوحة المعلومات (Dashboard)" as view_dashboard
+    usecase "إدارة الثغرات (Vulnerabilities)" as manage_vulns
+    usecase "توليد تقارير أمنية (Reports)" as generate_reports
+    usecase "إدارة المستخدمين" as manage_users
+    usecase "تخصيص إعدادات النظام" as system_settings
+}
+
+user --> login
+user --> manage_assets
+user --> start_scan
+user --> view_dashboard
+user --> manage_vulns
+user --> generate_reports
+
+admin --|> user
+admin --> manage_users
+admin --> system_settings
+
+@enduml

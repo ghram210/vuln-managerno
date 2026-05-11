@@ -1,0 +1,75 @@
+@startuml
+' hide the spot
+hide circle
+
+' avoid problems with angled crows feet
+skinparam linetype ortho
+
+entity "profiles" {
+  *id : uuid <<PK>>
+  --
+  *user_id : uuid <<FK>>
+  display_name : text
+  avatar_url : text
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+entity "scanned_assets" {
+  *id : uuid <<PK>>
+  --
+  hostname : text
+  ip_address : text
+  os : text
+  open_ports : text
+  risk : text
+  last_scan : timestamp
+  created_at : timestamp
+}
+
+entity "scan_results" {
+  *id : uuid <<PK>>
+  --
+  *user_id : uuid <<FK>>
+  name : text
+  target : text
+  tool : text
+  status : text
+  started_at : timestamp
+  completed_at : timestamp
+  total_findings : integer
+  critical_count : integer
+  high_count : integer
+  medium_count : integer
+  low_count : integer
+  raw_output : text
+}
+
+entity "scan_findings" {
+  *id : uuid <<PK>>
+  --
+  *scan_id : uuid <<FK>>
+  title : text
+  severity : text
+  status : text
+  target : text
+  tool : text
+  created_at : timestamp
+}
+
+entity "vulnerabilities" {
+  *id : uuid <<PK>>
+  --
+  *cve_id : text
+  description : text
+  cvss_severity : text
+  exploit_status : text
+  status : text
+  remediations : integer
+}
+
+profiles ||--o{ scan_results : "يملك"
+scan_results ||--o{ scan_findings : "يحتوي على"
+scan_findings }o--o| vulnerabilities : "يرتبط بـ"
+
+@enduml
