@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<title>التصحيحات النهائية لمخطط ERD</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.8; color: #333; max-width: 900px; margin: 40px auto; padding: 20px; background-color: #fdfdfd; }
+    .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #eee; }
+    h1 { color: #c0392b; text-align: center; border-bottom: 2px solid #c0392b; padding-bottom: 10px; }
+    h2 { color: #2c3e50; margin-top: 30px; border-right: 5px solid #c0392b; padding-right: 15px; }
+    .alert { background: #fff3cd; border-right: 5px solid #ffc107; padding: 15px; border-radius: 4px; margin: 20px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+    th { background-color: #f8f9fa; }
+    .type { color: #d35400; font-weight: bold; }
+    b { color: #2980b9; }
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>اللمسات الأخيرة لمخطط الـ ERD الاحترافي</h1>
+
+        <div class="alert">
+            <b>ملاحظة ذكية منك:</b> الجدول المعزول هو <code>scanned_assets</code> والحقول الفارغة تحتاج لأنواع بيانات لإتمام المخطط.
+        </div>
+
+        <h2>1. ربط الجدول المعزول (العلاقة المفقودة)</h2>
+        <p>الأجهزة (Assets) هي التي تخضع للفحص. اربطها كالتالي:</p>
+        <ul>
+            <li>أداة: <b>One to Many</b>.</li>
+            <li>الرسم: من <b>scanned_assets</b> إلى <b>scan_results</b>.</li>
+        </ul>
+
+        <h2>2. ربط النتائج بالثغرات</h2>
+        <p>هذه هي العلاقة الأهم لإدارة الثغرات:</p>
+        <ul>
+            <li>أداة: <b>One to Many</b>.</li>
+            <li>الرسم: من <b>vulnerabilities</b> إلى <b>scan_findings</b>.</li>
+        </ul>
+
+        <h2>3. أنواع البيانات المتبقية (انقلها للبرنامج)</h2>
+        <table>
+            <tr><th>الجدول</th><th>الحقل</th><th>النوع (Data Type)</th></tr>
+            <tr><td>profiles</td><td>display_name / avatar_url</td><td class="type">text</td></tr>
+            <tr><td>scanned_assets</td><td>hostname / ip_address / os</td><td class="type">text</td></tr>
+            <tr><td>scan_results</td><td>user_id (FK)</td><td class="type">uuid</td></tr>
+            <tr><td>scan_results</td><td>tool / target / status</td><td class="type">text</td></tr>
+            <tr><td>scan_findings</td><td>title / severity / status</td><td class="type">text</td></tr>
+            <tr><td>vulnerabilities</td><td>cve_id / cvss_severity</td><td class="type">text</td></tr>
+        </table>
+    </div>
+</body>
+</html>

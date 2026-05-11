@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<style>
+    body { font-family: 'Amiri', 'Times New Roman', serif; line-height: 1.6; }
+    h1 { color: #2980b9; text-align: center; }
+    h2 { color: #2c3e50; border-right: 5px solid #2980b9; padding-right: 10px; background: #f4f4f4; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #000; padding: 8px; text-align: right; }
+    th { background-color: #2980b9; color: white; }
+</style>
+</head>
+<body>
+    <h1>قاموس البيانات (Data Dictionary) - نسخة وورد</h1>
+
+    <h2>1. profiles (الملفات الشخصية)</h2>
+    <table>
+        <tr><th>اسم الحقل</th><th>النوع</th></tr>
+        <tr><td>id</td><td>uuid</td></tr>
+        <tr><td>display_name</td><td>text</td></tr>
+    </table>
+
+    <h2>2. scanned_assets (الأجهزة المكتشفة)</h2>
+    <table>
+        <tr><th>اسم الحقل</th><th>النوع</th></tr>
+        <tr><td>ip_address</td><td>text</td></tr>
+        <tr><td>hostname</td><td>text</td></tr>
+    </table>
+
+    <h2>3. scan_results (عمليات الفحص)</h2>
+    <table>
+        <tr><th>اسم الحقل</th><th>النوع</th></tr>
+        <tr><td>target</td><td>text</td></tr>
+        <tr><td>status</td><td>text</td></tr>
+        <tr><td>created_at</td><td>timestamp</td></tr>
+    </table>
+
+    <p>ملاحظة: تأكد من كتابة النوع بعد النقطتين الرأسيتين في StarUML.</p>
+</body>
+</html>

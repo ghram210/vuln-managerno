@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<style>
+    body { font-family: 'Amiri', 'Times New Roman', serif; line-height: 1.6; }
+    h1 { color: #c0392b; text-align: center; }
+    h2 { color: #2c3e50; border-right: 5px solid #c0392b; padding-right: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #000; padding: 8px; text-align: right; }
+    .type { color: #d35400; font-weight: bold; }
+</style>
+</head>
+<body>
+    <h1>التصحيحات النهائية لمخطط ERD (نسخة وورد)</h1>
+    <p>هذا المستند يحتوي على التعليمات النهائية لربط الجداول وإضافة أنواع البيانات في StarUML.</p>
+
+    <h2>أولاً: ربط الجداول المعزولة</h2>
+    <ul>
+        <li><b>الربط الأول:</b> من <b>scanned_assets</b> إلى <b>scan_results</b> (نوع العلاقة: One to Many).</li>
+        <li><b>الربط الثاني:</b> من <b>vulnerabilities</b> إلى <b>scan_findings</b> (نوع العلاقة: One to Many).</li>
+    </ul>
+
+    <h2>ثانياً: أنواع البيانات الأساسية</h2>
+    <table>
+        <tr><th>الجدول</th><th>الحقل</th><th>النوع (Type)</th></tr>
+        <tr><td>profiles</td><td>id / user_id</td><td>uuid</td></tr>
+        <tr><td>scanned_assets</td><td>ip_address / hostname</td><td>text</td></tr>
+        <tr><td>scan_results</td><td>created_at</td><td>timestamp</td></tr>
+        <tr><td>scan_findings</td><td>severity / status</td><td>text</td></tr>
+        <tr><td>vulnerabilities</td><td>cvss_score</td><td>float</td></tr>
+    </table>
+
+    <p><b>طريقة الإدخال في البرنامج:</b> انقر مرتين على الحقل واكتب: <code>ip_address: text</code></p>
+</body>
+</html>
