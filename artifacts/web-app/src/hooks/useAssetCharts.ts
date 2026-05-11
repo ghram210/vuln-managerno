@@ -398,14 +398,10 @@ export function useChartExploitability(target: string | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_exploitability", target],
     queryFn: async () => {
-      const [vulns, scanRows] = await Promise.all([
-        getVulnsForUser(target),
-        getScanRows(target),
-      ]);
+      const vulns = await getVulnsForUser(target);
+      if (!vulns.length) return zeroSegs(EXPLOIT_SEGS);
 
-      const totalFromScans = scanRows.reduce((s, r) => s + (r.total_findings ?? 0), 0);
       const counts = { Weaponized: 0, "Public PoC": 0, "Known CVE": 0, Theoretical: 0 };
-
       for (const row of vulns) {
         const exploit = (row.exploit_status ?? "").toLowerCase().trim();
         const sev     = (row.cvss_severity  ?? "").toLowerCase().trim();
@@ -414,12 +410,6 @@ export function useChartExploitability(target: string | null = null) {
         if (sev === "critical" || sev === "high" || sev === "medium") { counts["Known CVE"]++; continue; }
         counts.Theoretical++;
       }
-
-      // Non-CVE findings (Nmap, etc.) are always "Theoretical"
-      const cveCount = counts.Weaponized + counts["Public PoC"] + counts["Known CVE"] + counts.Theoretical;
-      counts.Theoretical += Math.max(0, totalFromScans - cveCount);
-
-      if (totalFromScans === 0) return zeroSegs(EXPLOIT_SEGS);
 
       return EXPLOIT_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
         name: seg.name,
@@ -437,34 +427,23 @@ export function useChartAttackVector(target: string | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_attack_vector", target],
     queryFn: async () => {
-      const [vulns, scanRows] = await Promise.all([
-        getVulnsForUser(target),
-        getScanRows(target),
-      ]);
+      const vulns = await getVulnsForUser(target);
+      if (!vulns.length) return zeroSegs(VECTOR_SEGS);
 
-      const totalFromScans = scanRows.reduce((s, r) => s + (r.total_findings ?? 0), 0);
-      const counts: Record<string, number> = { "Network": 0, "Adjacent": 0, "Local": 0, "Physical": 0, "Unknown": 0 };
+      const cveIds = [...new Set(vulns.map(r => r.cve_id))];
 
-      if (vulns.length > 0) {
-        const cveIds = [...new Set(vulns.map(r => r.cve_id))];
-        const { data: cveRows } = await (supabase as any)
-          .from("cve_catalog")
-          .select("cvss_v3_vector")
-          .in("cve_id", cveIds);
+      const { data: cveRows, error: cveErr } = await (supabase as any)
+        .from("cve_catalog")
+        .select("cvss_v3_vector")
+        .in("cve_id", cveIds);
 
-        if (cveRows) {
-          for (const row of cveRows as { cvss_v3_vector: string | null }[]) {
-            const bucket = classifyVector(row.cvss_v3_vector);
-            counts[bucket] = (counts[bucket] ?? 0) + 1;
-          }
-        }
+      if (cveErr || !cveRows?.length) return zeroSegs(VECTOR_SEGS);
+
+      const counts: Record<string, number> = {};
+      for (const row of cveRows as { cvss_v3_vector: string | null }[]) {
+        const bucket = classifyVector(row.cvss_v3_vector);
+        counts[bucket] = (counts[bucket] ?? 0) + 1;
       }
-
-      // Per user request: treat any non-CVE (e.g. Nmap open port) as "Network"
-      const cveCount = Object.values(counts).reduce((a, b) => a + b, 0);
-      counts["Network"] += Math.max(0, totalFromScans - cveCount);
-
-      if (totalFromScans === 0) return zeroSegs(VECTOR_SEGS);
 
       return VECTOR_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
         name: seg.name,
@@ -482,24 +461,14 @@ export function useChartStatus(target: string | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_status", target],
     queryFn: async () => {
-      const [vulns, scanRows] = await Promise.all([
-        getVulnsForUser(target),
-        getScanRows(target),
-      ]);
+      const vulns = await getVulnsForUser(target);
+      if (!vulns.length) return zeroSegs(STATUS_SEGS);
 
-      const totalFromScans = scanRows.reduce((s, r) => s + (r.total_findings ?? 0), 0);
       const counts: Record<string, number> = {};
-
       for (const row of vulns) {
         const k = (row.status ?? "open").toLowerCase().trim();
         counts[k] = (counts[k] ?? 0) + 1;
       }
-
-      // Non-CVE findings are always "Open" by default
-      const cveCount = Object.values(counts).reduce((a, b) => a + b, 0);
-      counts["open"] = (counts["open"] ?? 0) + Math.max(0, totalFromScans - cveCount);
-
-      if (totalFromScans === 0) return zeroSegs(STATUS_SEGS);
 
       return STATUS_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
         name: seg.name,

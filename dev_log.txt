@@ -1,0 +1,12 @@
+
+> @workspace/web-app@0.0.0 dev /app/artifacts/web-app
+> vite --config vite.config.ts --host 0.0.0.0
+
+◇ injected env (4) from ../../.env // tip: ◈ encrypted .env [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+Port 22965 is in use, trying another one...
+
+  VITE v7.3.2  ready in 608 ms
+
+  ➜  Local:   http://localhost:22966/
+  ➜  Network: http://192.168.0.2:22966/
