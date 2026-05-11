@@ -319,8 +319,20 @@ def run_sqlmap(req: ScanRequest):
         print(f"[SQLMAP-API] sanitize error: {e}", flush=True)
         raise HTTPException(status_code=400, detail=str(e))
 
-    sqlmap_path = shutil.which("sqlmap") or "/usr/bin/sqlmap"
-    # Silently proceed if shutil.which fails, letting the shell try to find it.
+    sqlmap_path = shutil.which("sqlmap")
+    if not sqlmap_path:
+        # Fallback for common locations if which() fails
+        for p in ["/usr/bin/sqlmap", "/usr/local/bin/sqlmap"]:
+            if os.path.exists(p):
+                sqlmap_path = p
+                break
+
+    if not sqlmap_path:
+        print("[SQLMAP-API] sqlmap binary NOT FOUND in PATH", flush=True)
+        raise HTTPException(
+            status_code=500,
+            detail="sqlmap is not installed. Install it with: sudo apt install sqlmap",
+        )
     print(f"[SQLMAP-API] sqlmap binary: {sqlmap_path}", flush=True)
 
     url = target if "://" in target else f"http://{target}"
@@ -378,8 +390,6 @@ def run_sqlmap(req: ScanRequest):
         "-u", url,
         "--batch",
         "--random-agent",
-        "--level=5",
-        "--risk=3",
         # Better detection: response diff + title diff + DBMS error
         # parsing instead of relying on "HTTP 200 == ok".
         "--titles",
@@ -410,12 +420,15 @@ def run_sqlmap(req: ScanRequest):
     # If it's a "clean" URL, crawl and check forms to find parameters.
     # This ensures specific lab links (e.g. PortSwigger) are targeted correctly.
     cmd.append("--dbs")
-    print(f"[SQLMAP-API-V4] has_query={has_query} url={url}", flush=True)
+    print(f"[SQLMAP-API] has_query={has_query} url={url}", flush=True)
     if has_query:
-        print(f"[SQLMAP-API-V4] URL has query string; skipping auto-crawl/forms to focus on provided parameters.", flush=True)
+        print(f"[SQLMAP-API] URL has query string; skipping auto-crawl/forms to focus on provided parameters.", flush=True)
     else:
         cmd.extend(["--forms", "--crawl=2"])
-        # Always exclude logout/reset/delete links to avoid losing the session.
+
+    # Always exclude logout/reset/delete links to avoid losing the session.
+    # ONLY append if crawling is active to avoid CRITICAL error.
+    if "--crawl" in cmd:
         cmd.append("--crawl-exclude=logout|signout|delete|reset|change-password")
 
     # Authenticated session support — same effect as accepting the
@@ -457,7 +470,7 @@ def run_sqlmap(req: ScanRequest):
     timeout = TIMEOUT_STEALTH if req.stealth else TIMEOUT_NORMAL
 
     print(
-        f"[SQLMAP-API-V4] launching sqlmap (timeout={timeout}s): {' '.join(cmd)}",
+        f"[SQLMAP-API] launching sqlmap (timeout={timeout}s): {' '.join(cmd)}",
         flush=True,
     )
     try:
@@ -466,7 +479,7 @@ def run_sqlmap(req: ScanRequest):
         )
         if not output.strip():
             output = "sqlmap produced no output."
-        print(f"[SQLMAP-API-V4] sqlmap finished rc={rc}", flush=True)
+        print(f"[SQLMAP-API] sqlmap finished rc={rc}", flush=True)
     except Exception as e:
         output = f"Error running sqlmap: {type(e).__name__}: {str(e)}"
         print(f"[SQLMAP-API] EXCEPTION launching sqlmap: {e}", flush=True)
