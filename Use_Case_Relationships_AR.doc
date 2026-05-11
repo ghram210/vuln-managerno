@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 40px; background-color: #f9f9f9; }
+    h1, h2, h3 { color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
+    .rel-box { background: #fff; padding: 15px; margin: 15px 0; border-right: 5px solid #2ecc71; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    code { background: #eee; padding: 2px 5px; border-radius: 3px; font-weight: bold; color: #e74c3c; }
+</style>
+</head>
+<body>
+    <h1>توضيح علاقات الـ Use Case في نظام إدارة الثغرات</h1>
+
+    <div class="rel-box">
+        <h3>1. علاقة الوراثة (Generalization)</h3>
+        <p><strong>الاتجاه:</strong> من <code>Admin</code> باتجاه <code>Security User</code>.</p>
+        <p><strong>المعنى:</strong> الـ Admin يمتلك كافة صلاحيات المستخدم العادي بالإضافة لصلاحياته الخاصة.</p>
+    </div>
+
+    <div class="rel-box">
+        <h3>2. علاقة الاحتواء (<code>&lt;&lt;include&gt;&gt;</code>)</h3>
+        <p><strong>الاتجاه:</strong> من <code>Launch New Scan</code> إلى <code>Analyze Results</code>.</p>
+        <p><strong>المعنى:</strong> عملية التحليل جزء لا يتجزأ وإجباري من عملية الفحص.</p>
+    </div>
+
+    <div class="rel-box">
+        <h3>3. علاقة التوسعة (<code>&lt;&lt;extend&gt;&gt;</code>)</h3>
+        <p><strong>الاتجاه:</strong> من <code>Generate PDF Reports</code> إلى <code>Analyze Results</code>.</p>
+        <p><strong>المعنى:</strong> التقرير هو ميزة إضافية اختيارية تعتمد على وجود نتائج محللة.</p>
+    </div>
+
+    <div class="rel-box">
+        <h3>4. علاقة الربط (Association)</h3>
+        <p><strong>التمثيل:</strong> خط مستقيم يربط الفاعل (مثل Admin) بالوظيفة (مثل Manage Users).</p>
+    </div>
+</body>
+</html>
