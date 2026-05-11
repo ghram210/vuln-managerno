@@ -37,6 +37,7 @@ PROTECTED_FLAGS = {
     "-v", "--keep-alive", "--random-agent", "--tamper",
     "--text-only", "--titles", "--parse-errors",
     "--smart",
+    "--crawl", "--crawl-exclude",
     # We always inject `--cookie` ourselves from the dedicated `cookie`
     # field, so silently drop a `--cookie=` someone tucked into options
     # to avoid sqlmap getting two of them.
@@ -416,9 +417,9 @@ def run_sqlmap(req: ScanRequest):
     # If it's a "clean" URL, crawl and check forms to find parameters.
     # This ensures specific lab links (e.g. PortSwigger) are targeted correctly.
     cmd.append("--dbs")
-    print(f"[DEBUG-JULES] has_query={has_query} url={url}", flush=True)
+    print(f"[SQLMAP-API-V4] has_query={has_query} url={url}", flush=True)
     if has_query:
-        print(f"[SQLMAP-API] URL has query string; skipping auto-crawl/forms to focus on provided parameters.", flush=True)
+        print(f"[SQLMAP-API-V4] URL has query string; skipping auto-crawl/forms to focus on provided parameters.", flush=True)
     else:
         cmd.extend(["--forms", "--crawl=2"])
         # Always exclude logout/reset/delete links to avoid losing the session.
@@ -463,7 +464,7 @@ def run_sqlmap(req: ScanRequest):
     timeout = TIMEOUT_STEALTH if req.stealth else TIMEOUT_NORMAL
 
     print(
-        f"[SQLMAP-API] launching sqlmap (timeout={timeout}s): {' '.join(cmd)}",
+        f"[SQLMAP-API-V4] launching sqlmap (timeout={timeout}s): {' '.join(cmd)}",
         flush=True,
     )
     try:
@@ -472,7 +473,7 @@ def run_sqlmap(req: ScanRequest):
         )
         if not output.strip():
             output = "sqlmap produced no output."
-        print(f"[SQLMAP-API] sqlmap finished rc={rc}", flush=True)
+        print(f"[SQLMAP-API-V4] sqlmap finished rc={rc}", flush=True)
     except Exception as e:
         output = f"Error running sqlmap: {type(e).__name__}: {str(e)}"
         print(f"[SQLMAP-API] EXCEPTION launching sqlmap: {e}", flush=True)
