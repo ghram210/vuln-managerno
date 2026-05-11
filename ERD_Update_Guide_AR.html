@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<title>دليل تحديث مخطط ERD</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.8; color: #333; max-width: 900px; margin: 40px auto; padding: 20px; background-color: #f9f9f9; }
+    .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1 { color: #2c3e50; text-align: center; border-bottom: 3px solid #2c3e50; padding-bottom: 15px; }
+    h3 { color: #16a085; margin-top: 30px; border-right: 5px solid #16a085; padding-right: 15px; }
+    ul { list-style: none; padding: 0; }
+    li { margin-bottom: 15px; padding: 10px 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px; }
+    b { color: #e67e22; font-weight: bold; }
+    .code-box { background: #2d3436; color: #dfe6e9; padding: 15px; border-radius: 5px; font-family: monospace; direction: ltr; text-align: left; }
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>دليل تحديث مخطط الـ ERD في برنامج StarUML</h1>
+
+        <h3>1. إضافة حقل (Column/Attribute) جديد</h3>
+        <ul>
+            <li>اضغط بزر الفأرة الأيمن على الجدول، اختر <b>Add</b> ثم <b>Column</b>.</li>
+            <li>اكتب اسم الحقل ونوعه، مثل: <code>raw_output: text</code>.</li>
+        </ul>
+
+        <h3>2. محتويات جدول nvd_cves (المرجع العالمي)</h3>
+        <ul>
+            <li><b>id: uuid (PK)</b> - المعرف الفريد للسجل.</li>
+            <li><b>cve_id: text (Unique)</b> - الرقم التعريفي العالمي للثغرة.</li>
+            <li><b>description: text</b> - الشرح التقني للثغرة.</li>
+            <li><b>cvss_score: real</b> - درجة الخطورة (من 0 إلى 10).</li>
+            <li><b>severity: text</b> - مستوى التصنيف (Critical, High, etc).</li>
+        </ul>
+
+        <h3>3. محتويات جدول exploits (أكواد الاستغلال)</h3>
+        <ul>
+            <li><b>id: uuid (PK)</b> - المعرف الفريد.</li>
+            <li><b>exploit_id: text</b> - المعرف في قاعدة Exploit-DB.</li>
+            <li><b>cve_id: text (FK)</b> - الربط مع جدول الثغرات.</li>
+            <li><b>file_path: text</b> - مسار ملف البرمجية الاستغلالية.</li>
+        </ul>
+
+        <h3>4. تحديث الجداول الحالية</h3>
+        <ul>
+            <li>في <b>scan_results</b>: أضف <code>raw_output: text</code> و <code>options: text</code>.</li>
+            <li>في <b>vulnerabilities</b>: أضف <code>exprt_rating: text</code> و <code>vulnerability_count: integer</code>.</li>
+        </ul>
+    </div>
+</body>
+</html>

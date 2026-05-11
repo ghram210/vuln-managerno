@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<title>قاموس البيانات - Data Dictionary</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.8; color: #333; max-width: 1000px; margin: 40px auto; padding: 20px; background-color: #fdfdfd; }
+    .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #eee; }
+    h1 { color: #2980b9; text-align: center; border-bottom: 2px solid #2980b9; padding-bottom: 10px; }
+    h2 { color: #2c3e50; margin-top: 30px; background: #ecf0f1; padding: 10px; border-radius: 5px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+    th { background-color: #2980b9; color: white; }
+    .type { font-family: 'Courier New', monospace; color: #e67e22; font-weight: bold; }
+    .pk { color: #c0392b; font-weight: bold; }
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>قاموس بيانات نظام إدارة الثغرات</h1>
+        <p>استخدم هذا الجدول لتعبئة الحقول في StarUML بالصيغة: <code>name: type</code></p>
+
+        <h2>1. جدول الحسابات (profiles)</h2>
+        <table>
+            <tr><th>الحقل</th><th>النوع (Data Type)</th><th>الوصف</th></tr>
+            <tr><td class="pk">id</td><td class="type">uuid</td><td>المفتاح الأساسي</td></tr>
+            <tr><td>display_name</td><td class="type">text</td><td>الاسم المستعار</td></tr>
+        </table>
+
+        <h2>2. جدول الأصول (scanned_assets)</h2>
+        <table>
+            <tr><th>الحقل</th><th>النوع (Data Type)</th><th>الوصف</th></tr>
+            <tr><td>ip_address</td><td class="type">text</td><td>عنوان IP</td></tr>
+            <tr><td>hostname</td><td class="type">text</td><td>اسم الجهاز</td></tr>
+        </table>
+
+        <h2>3. جدول نتائج الفحص (scan_results)</h2>
+        <table>
+            <tr><th>الحقل</th><th>النوع (Data Type)</th><th>الوصف</th></tr>
+            <tr><td>target</td><td class="type">text</td><td>الهدف الممسوح</td></tr>
+            <tr><td>status</td><td class="type">text</td><td>حالة الفحص</td></tr>
+            <tr><td>created_at</td><td class="type">timestamp</td><td>وقت التنفيذ</td></tr>
+        </table>
+
+        <h2>4. جدول الثغرات المرجعية (vulnerabilities)</h2>
+        <table>
+            <tr><th>الحقل</th><th>النوع (Data Type)</th><th>الوصف</th></tr>
+            <tr><td>cve_id</td><td class="type">text</td><td>معرف CVE (مثلاً CVE-2023-...)</td></tr>
+            <tr><td>cvss_score</td><td class="type">float</td><td>درجة الخطورة الرقمية</td></tr>
+        </table>
+    </div>
+</body>
+</html>

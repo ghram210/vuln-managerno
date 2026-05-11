@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<title>دليل StarUML ERD الشامل</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.8; color: #333; max-width: 900px; margin: 40px auto; padding: 20px; background-color: #f4f7f6; }
+    .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    h1 { color: #2c3e50; text-align: center; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+    h2 { color: #2980b9; margin-top: 30px; border-right: 5px solid #2980b9; padding-right: 10px; }
+    .step { background: #e8f6f3; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #d1f2eb; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+    th { background-color: #f8f9fa; color: #2c3e50; }
+    .type { color: #e67e22; font-weight: bold; }
+    b { color: #e74c3c; }
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>الدليل المصور الشامل لإكمال مخطط الـ ERD</h1>
+
+        <div class="step">
+            <h2>المرحلة الأولى: أنواع البيانات (Data Types)</h2>
+            <p>لتعديل أي حقل، اضغط عليه ضغطاً مزدوجاً واكتب الاسم ثم النوع كالتالي:</p>
+            <ul>
+                <li>Profiles: <code>id: uuid</code>, <code>user_id: uuid</code></li>
+                <li>Scan_Results: <code>started_at: timestamp</code>, <code>raw_output: text</code></li>
+                <li>Vulnerabilities: <b>(هام)</b> صحح الكلمة من <code>intger</code> إلى <code>integer</code>.</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h2>المرحلة الثانية: رسم العلاقات (Relationships)</h2>
+            <p>استخدم أيقونة <b>One to Many Relationship</b> من اليسار:</p>
+            <ol>
+                <li>اسحب من <b>Profiles</b> إلى <b>Scan_Results</b>.</li>
+                <li>اسحب من <b>Scan_Results</b> إلى <b>Scan_Findings</b>.</li>
+                <li>اسحب من <b>Vulnerabilities</b> إلى <b>Exploits</b>.</li>
+            </ol>
+            <p>استخدم أيقونة <b>One to One Relationship</b>:</p>
+            <ul>
+                <li>اسحب من <b>Nvd_Cves</b> إلى <b>Vulnerabilities</b>.</li>
+            </ul>
+        </div>
+
+        <h2>قاموس الحقول الكامل لنسخه في البرنامج</h2>
+        <table>
+            <tr><th>الجدول</th><th>أهم الحقول والأنواع</th></tr>
+            <tr><td>Scan_Results</td><td><code>started_at: timestamp</code>, <code>raw_output: text</code></td></tr>
+            <tr><td>Scan_Findings</td><td><code>scan_id: uuid (FK)</code>, <code>title: text</code></td></tr>
+            <tr><td>Nvd_Cves</td><td><code>cvss_score: float</code>, <code>severity: text</code></td></tr>
+            <tr><td>Exploits</td><td><code>cve_id: text (FK)</code>, <code>file_path: text</code></td></tr>
+        </table>
+    </div>
+</body>
+</html>

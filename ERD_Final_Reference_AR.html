@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<title>المرجع النهائي لمخطط ERD</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.8; color: #333; max-width: 1000px; margin: 40px auto; padding: 20px; background-color: #f0f2f5; }
+    .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    h1 { color: #2c3e50; text-align: center; border-bottom: 4px solid #3498db; padding-bottom: 20px; margin-bottom: 40px; }
+    h2 { color: #2980b9; border-right: 6px solid #2980b9; padding-right: 15px; margin-top: 40px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+    th { background-color: #f8f9fa; color: #2c3e50; }
+    .type-label { font-family: monospace; color: #e67e22; font-weight: bold; }
+    .rel-box { background: #e8f4fd; padding: 20px; border-radius: 8px; margin-bottom: 15px; border-right: 5px solid #3498db; }
+    b { color: #2c3e50; }
+</style>
+</head>
+<body>
+    <div class="card">
+        <h1>المرجع التقني النهائي لمخطط الـ ERD</h1>
+
+        <h2>1. جداول البيانات وأنواع الحقول</h2>
+
+        <h3>جدول profiles (المستخدمين)</h3>
+        <table>
+            <tr><th>الحقل</th><th>النوع (Data Type)</th></tr>
+            <tr><td>id</td><td class="type-label">uuid (PK)</td></tr>
+            <tr><td>user_id</td><td class="type-label">uuid (FK)</td></tr>
+            <tr><td>display_name</td><td class="type-label">text</td></tr>
+            <tr><td>avatar_url</td><td class="type-label">text</td></tr>
+        </table>
+
+        <h3>جدول scan_results (عمليات الفحص)</h3>
+        <table>
+            <tr><th>الحقل</th><th>النوع (Data Type)</th></tr>
+            <tr><td>id</td><td class="type-label">uuid (PK)</td></tr>
+            <tr><td>user_id</td><td class="type-label">uuid (FK)</td></tr>
+            <tr><td>name / target / tool / status</td><td class="type-label">text</td></tr>
+            <tr><td>started_at</td><td class="type-label">timestamp</td></tr>
+            <tr><td>raw_output / options</td><td class="type-label">text</td></tr>
+        </table>
+
+        <h3>جدول nvd_cves (البيانات العالمية)</h3>
+        <table>
+            <tr><th>الحقل</th><th>النوع (Data Type)</th></tr>
+            <tr><td>cve_id</td><td class="type-label">text</td></tr>
+            <tr><td>description</td><td class="type-label">text</td></tr>
+            <tr><td>cvss_score</td><td class="type-label">float</td></tr>
+            <tr><td>severity</td><td class="type-label">text</td></tr>
+            <tr><td>published_date</td><td class="type-label">timestamp</td></tr>
+        </table>
+
+        <h3>جدول vulnerabilities (إدارة الثغرات)</h3>
+        <table>
+            <tr><th>الحقل</th><th>النوع (Data Type)</th></tr>
+            <tr><td>cve_id</td><td class="type-label">text</td></tr>
+            <tr><td>cvss_severity / status / exprt_rating</td><td class="type-label">text</td></tr>
+            <tr><td>vulnerability_count</td><td class="type-label">integer</td></tr>
+        </table>
+
+        <h2>2. دليل العلاقات (Relationships)</h2>
+
+        <div class="rel-box">
+            <b>1. من profiles إلى scan_results:</b> علاقة (One to Many). المستخدم يملك عدة فحوصات.
+        </div>
+        <div class="rel-box">
+            <b>2. من scan_results إلى scan_findings:</b> علاقة (One to Many). كل فحص له عدة نتائج.
+        </div>
+        <div class="rel-box">
+            <b>3. من scan_findings إلى vulnerabilities:</b> علاقة (Many to One). النتائج ترتبط بنوع ثغرة موحد.
+        </div>
+        <div class="rel-box">
+            <b>4. من vulnerabilities إلى nvd_cves:</b> علاقة (One to One). ربط بالمعلومات العالمية.
+        </div>
+        <div class="rel-box">
+            <b>5. من vulnerabilities إلى exploits:</b> علاقة (One to Many). الثغرة قد يكون لها عدة استغلالات.
+        </div>
+    </div>
+</body>
+</html>
