@@ -1,9 +1,13 @@
 import os
+import sys
 import uuid
 import asyncio
 import re
 import traceback
 from datetime import datetime, timezone
+
+# Ensure the scan-servers directory is in the path for relative imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import httpx
 from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Request
