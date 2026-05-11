@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from config import (
+from scan_config import (
     SUPABASE_URL, SUPABASE_SERVICE_KEY,
     NMAP_URL, NIKTO_URL, SQLMAP_URL, FFUF_URL,
 )

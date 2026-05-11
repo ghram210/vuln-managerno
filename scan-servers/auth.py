@@ -1,6 +1,6 @@
 import httpx
 from fastapi import Header, HTTPException
-from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
+from scan_config import SUPABASE_URL, SUPABASE_SERVICE_KEY
 
 
 async def get_admin_user(authorization: str = Header(None)) -> dict:
