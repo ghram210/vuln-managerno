@@ -315,52 +315,145 @@ async def run_scan_background(
         **severity_map,
     }
 
-    # Intelligence pipeline: extract fingerprints -> match local NVD/Exploit-DB
-    # -> push real CVEs+exploits to Supabase. Only run on successful scans.
-    if final_status == "completed" and raw_output:
-        try:
-            intel_summary = await process_scan_intelligence(
-                scan_id=scan_id,
-                tool=tool,
-                target=target,
-                raw_output=raw_output,
-                supabase_url=SUPABASE_URL,
-                supabase_service_key=SUPABASE_SERVICE_KEY,
-            )
-            print(f"[gateway] intel({scan_id}): "
-                  f"fps={intel_summary['fingerprints']} "
-                  f"matched={intel_summary['matched_fingerprints']} "
-                  f"cves={intel_summary['cves']} "
-                  f"exploits={intel_summary['exploits']} "
-                  f"skipped={intel_summary.get('skipped')} "
-                  f"errors={intel_summary.get('errors')}",
-                  flush=True)
-            sev = intel_summary.get("severity_counts") or {}
-            # Run intel rollup even if local DBs are missing (Smart Intelligence fallback)
-            intel_ran = not intel_summary.get("skipped")
-            # When the intel pipeline ran successfully (whether or not it
-            # produced matches), the canonical finding count is the number
-            # of CVE-classified findings — i.e. the sum of severity buckets.
-            # This guarantees the colored severity dots in the UI always
-            # add up to `total_findings`. The raw tool item count remains
-            # available in raw_output for context.
-            if intel_ran:
-                critical = sev.get("critical_count", 0)
-                high     = sev.get("high_count", 0)
-                medium   = sev.get("medium_count", 0)
-                low      = sev.get("low_count", 0)
-                update_payload.update({
-                    "critical_count": critical,
-                    "high_count":     high,
-                    "medium_count":   medium,
-                    "low_count":      low,
-                    "total_findings": critical + high + medium + low,
-                })
-        except Exception as e:
-            print(f"[gateway] intel({scan_id}) failed: "
-                  f"{type(e).__name__}: {e}", flush=True)
+    # Intelligence pipeline and reconciliation. Only run on successful scans.
+    if final_status == "completed":
+        if raw_output:
+            try:
+                intel_summary = await process_scan_intelligence(
+                    scan_id=scan_id,
+                    tool=tool,
+                    target=target,
+                    raw_output=raw_output,
+                    supabase_url=SUPABASE_URL,
+                    supabase_service_key=SUPABASE_SERVICE_KEY,
+                )
+                print(f"[gateway] intel({scan_id}): "
+                      f"fps={intel_summary['fingerprints']} "
+                      f"matched={intel_summary['matched_fingerprints']} "
+                      f"cves={intel_summary['cves']} "
+                      f"exploits={intel_summary['exploits']} "
+                      f"skipped={intel_summary.get('skipped')} "
+                      f"errors={intel_summary.get('errors')}",
+                      flush=True)
+                sev = intel_summary.get("severity_counts") or {}
+                intel_ran = not intel_summary.get("skipped")
+                if intel_ran:
+                    critical = sev.get("critical_count", 0)
+                    high     = sev.get("high_count", 0)
+                    medium   = sev.get("medium_count", 0)
+                    low      = sev.get("low_count", 0)
+                    update_payload.update({
+                        "critical_count": critical,
+                        "high_count":     high,
+                        "medium_count":   medium,
+                        "low_count":      low,
+                        "total_findings": critical + high + medium + low,
+                    })
+            except Exception as e:
+                print(f"[gateway] intel({scan_id}) failed: "
+                      f"{type(e).__name__}: {e}", flush=True)
+
+        # Automated Reconciliation: check if any old open findings for this target/tool
+        # have disappeared in this scan. Runs even if raw_output is empty (clean scan).
+        await reconcile_fixed_findings(scan_id, target, tool)
 
     await update_scan_in_supabase(scan_id, update_payload)
+
+
+async def reconcile_fixed_findings(scan_id: str, target: str, tool: str):
+    """
+    Finds findings that existed in previous scans for this target/tool:
+    - If missing in current scan -> mark as 'fixed' (this populates Remediation charts).
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            # 1. Fetch current scan findings (handle pagination if > 1000)
+            new_fingerprints = set()
+            offset = 0
+            limit = 1000
+            while True:
+                resp_new = await client.get(
+                    f"{SUPABASE_URL}/rest/v1/scan_findings",
+                    params={
+                        "scan_id": f"eq.{scan_id}",
+                        "select": "title,path,service",
+                        "offset": offset,
+                        "limit": limit
+                    },
+                    headers=SUPABASE_HEADERS,
+                    timeout=15,
+                )
+                if resp_new.status_code != 200:
+                    print(f"[reconcile] Failed to fetch new findings: {resp_new.status_code}")
+                    return
+                data = resp_new.json()
+                if not data:
+                    break
+                for f in data:
+                    new_fingerprints.add((f.get('title'), f.get('path'), f.get('service')))
+                if len(data) < limit:
+                    break
+                offset += limit
+
+            # 2. Fetch previous open findings for same target/tool (case-insensitive tool)
+            to_fix = []       # Truly missing -> Fixed
+            to_supersede = [] # Still present -> Superseded (to avoid duplicate counts in 'Open' views)
+            offset = 0
+            while True:
+                resp_old = await client.get(
+                    f"{SUPABASE_URL}/rest/v1/scan_findings",
+                    params={
+                        "target": f"eq.{target}",
+                        "tool": f"ilike.{tool}",
+                        "status": f"eq.open",
+                        "scan_id": f"neq.{scan_id}",
+                        "select": "id,title,path,service",
+                        "offset": offset,
+                        "limit": limit
+                    },
+                    headers=SUPABASE_HEADERS,
+                    timeout=15,
+                )
+                if resp_old.status_code != 200:
+                    print(f"[reconcile] Failed to fetch old findings: {resp_old.status_code}")
+                    return
+                data = resp_old.json()
+                if not data:
+                    break
+
+                for old in data:
+                    fp = (old.get('title'), old.get('path'), old.get('service'))
+                    if fp not in new_fingerprints:
+                        to_fix.append(old['id'])
+                    else:
+                        to_supersede.append(old['id'])
+
+                if len(data) < limit:
+                    break
+                offset += limit
+
+            # 3. Apply updates in chunks
+            async def _bulk_update(ids, status):
+                chunk_size = 50
+                for i in range(0, len(ids), chunk_size):
+                    chunk = ids[i : i + chunk_size]
+                    print(f"[reconcile] Marking {len(chunk)} finding(s) as {status.upper()} for {target} ({tool})", flush=True)
+                    ids_param = ",".join([f"{fid}" for fid in chunk])
+                    await client.patch(
+                        f"{SUPABASE_URL}/rest/v1/scan_findings",
+                        params={"id": f"in.({ids_param})"},
+                        headers=SUPABASE_HEADERS,
+                        json={"status": status},
+                        timeout=15
+                    )
+
+            if to_fix:
+                await _bulk_update(to_fix, "fixed")
+            if to_supersede:
+                await _bulk_update(to_supersede, "superseded")
+
+    except Exception as e:
+        print(f"[reconcile] Error during reconciliation: {type(e).__name__}: {e}", flush=True)
 
 
 async def reconcile_stale_scans():
