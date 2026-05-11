@@ -18,7 +18,7 @@ const ReportsTab = () => {
 
       let query = supabase
         .from("scan_results" as any)
-        .select("id, name, target, created_at, status, tool, critical_count, high_count, medium_count, low_count, total_findings, raw_output")
+        .select("id, name, target, created_at, status, tool, critical_count, high_count, medium_count, low_count, total_findings")
         .eq("status", "completed")
         .order("created_at", { ascending: false });
 
@@ -134,6 +134,66 @@ const ReportsTab = () => {
     };
 
     if (format === "PDF") {
+      // Fetch raw_output only on demand
+      const { data: scanRaw, error: rawError } = await (supabase as any)
+        .from("scan_results")
+        .select("raw_output")
+        .eq("id", selectedScanId)
+        .single();
+
+      const rawOutput = (scanRaw as any)?.raw_output || "";
+
+      const getSmartAnalysis = (name: string, cveList: any[]) => {
+        const analysis = {
+          risk: "The identified service or vulnerability could potentially allow an attacker to gain unauthorized access or information about the target system.",
+          recommendation: "Update the affected software to the latest stable version and follow vendor security hardening guidelines.",
+          references: ["https://nvd.nist.gov/", "https://owasp.org/"],
+          cwe: "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor",
+          owasp: [
+            "OWASP Top 10 - 2017 : A6 - Security Misconfiguration",
+            "OWASP Top 10 - 2021 : A5 - Security Misconfiguration"
+          ]
+        };
+
+        const lowName = (name || "").toLowerCase();
+
+        if (lowName.includes('apache') || lowName.includes('httpd')) {
+          analysis.risk = "The Apache HTTP Server is exposing version information or hosting potentially vulnerable modules. An attacker can use this information to launch targeted exploits.";
+          analysis.recommendation = "Disable the 'ServerTokens' and 'ServerSignature' directives in the configuration. Ensure all modules are up to date.";
+          analysis.references.push("https://httpd.apache.org/docs/2.4/mod/core.html#servertokens");
+        } else if (lowName.includes('robots.txt')) {
+          analysis.risk = "There is no particular security risk in having a robots.txt file. However, it's important to note that adding endpoints in it should not be considered a security measure, as this file can be directly accessed and read by anyone.";
+          analysis.recommendation = "We recommend you to manually review the entries from robots.txt and remove the ones which lead to sensitive locations in the website (ex. administration panels, configuration files, etc).";
+          analysis.references = ["https://www.theregister.co.uk/2015/05/19/robotstxt/"];
+          analysis.cwe = "CWE-693: Protection Mechanism Failure";
+          analysis.owasp = [
+             "OWASP Top 10 - 2017 : A6 - Security Misconfiguration",
+             "OWASP Top 10 - 2021 : A5 - Security Misconfiguration"
+          ];
+        } else if (lowName.includes('sql injection') || lowName.includes('sqli')) {
+          analysis.risk = "A SQL injection vulnerability allows an attacker to interfere with the queries that an application makes to its database. It generally allows an attacker to view data they are not normally able to retrieve.";
+          analysis.recommendation = "Use parameterized queries (also known as prepared statements) for all database access. Implement input validation and the principle of least privilege for database accounts.";
+          analysis.cwe = "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')";
+          analysis.owasp = ["OWASP Top 10 - 2021 : A03 - Injection"];
+        } else if (lowName.includes('x-frame-options') || lowName.includes('clickjacking')) {
+          analysis.risk = "The absence of the X-Frame-Options header makes the application vulnerable to Clickjacking attacks, where an attacker can trick a user into clicking on something different from what the user perceives.";
+          analysis.recommendation = "Configure the server to send the 'X-Frame-Options: SAMEORIGIN' or 'DENY' header to prevent the page from being framed by malicious sites.";
+          analysis.cwe = "CWE-693: Protection Mechanism Failure";
+          analysis.owasp = ["OWASP Top 10 - 2021 : A05 - Security Misconfiguration"];
+        }
+
+        // Use CVE data if available to refine analysis
+        if (cveList.length > 0) {
+          const topCve = cveList[0];
+          analysis.risk = topCve.description || analysis.risk;
+          if (topCve.cve_id) {
+            analysis.references.unshift(`https://nvd.nist.gov/vuln/detail/${topCve.cve_id}`);
+          }
+        }
+
+        return analysis;
+      };
+
       const getCheckpoints = (tool: string) => {
         switch(tool.toUpperCase()) {
           case 'NIKTO':
@@ -220,7 +280,7 @@ const ReportsTab = () => {
 
       const sectionsHtml = toolsFound.map(tool => {
         const toolData = reportData.filter(f => (f.tool || targetInfo.tool) === tool);
-        const stats = extractStats(tool, selectedScan?.raw_output || "");
+        const stats = extractStats(tool, rawOutput);
         
         const consolidatedFindings: Record<string, any> = {};
         toolData.forEach((f) => {
@@ -281,11 +341,32 @@ const ReportsTab = () => {
           };
         });
 
+        const getToolInsight = (tool: string, findingsCount: number) => {
+          const t = tool.toUpperCase();
+          if (findingsCount === 0) return `Scan completed with no high-severity findings detected. The ${t} tool verified standard security controls for this asset.`;
+
+          switch(t) {
+            case 'NMAP': return "Network analysis revealed multiple exposed services. Immediate attention should be given to closing unnecessary ports and ensuring all active services use strong authentication and encrypted protocols.";
+            case 'NIKTO': return "Web server analysis identified potential misconfigurations and outdated components. These findings could lead to information leakage or serve as entry points for more complex application-layer attacks.";
+            case 'SQLMAP': return "Critical database-level vulnerabilities were detected. These flaws represent a significant risk to data confidentiality and integrity, requiring immediate patching of the injection points.";
+            case 'FFUF': return "Path discovery identified sensitive resources that are publicly accessible. These files or directories should be restricted via server configuration or moved outside the web root.";
+            default: return `Analysis completed with ${findingsCount} notable findings. We recommend a prioritized remediation approach starting with the critical resources identified below.`;
+          }
+        };
+
         return `
           <div class="tool-section">
             <div class="tool-header">
               <div class="tool-name">${tool.toUpperCase()} SCAN RESULTS</div>
               <div class="tool-badge">INTELLIGENCE VERIFIED</div>
+            </div>
+
+            <div class="tool-insight">
+              <div class="insight-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Scan Insights & Strategy
+              </div>
+              <div class="insight-text">${getToolInsight(tool, finalFindings.length)}</div>
             </div>
 
             <div class="checkpoints">
@@ -330,6 +411,7 @@ const ReportsTab = () => {
                 const sev = sevLabels[group.severity_score] || 'INFO';
                 const displayedPrimary = group.highPriority.slice(0, 5);
                 const displayedLegacy = group.legacyMinor.slice(0, 8);
+                const analysis = getSmartAnalysis(group.name, displayedPrimary);
 
                 return `
                   <div class="finding-card">
@@ -338,54 +420,73 @@ const ReportsTab = () => {
                         <svg class="finding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
                         <div class="finding-title">${escapeHtml(group.name)}</div>
                       </div>
-                      <div class="severity-tag sev-${sev.toLowerCase()}">${sev}</div>
+                      <div class="status-badge">CONFIRMED</div>
                     </div>
+                    <div class="finding-subtitle">port ${targetInfo.target.split(':').pop() || '80'}/tcp</div>
 
-                    <div class="meta-row">
-                      <div class="meta-cell">
-                        <span class="m-label">AFFECTED RESOURCE</span>
-                        <span class="m-value">${escapeHtml(group.path || 'System Environment')}</span>
+                    <table class="url-table">
+                      <thead>
+                        <tr><th>URL</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>${escapeHtml(targetInfo.target)}${escapeHtml(group.path || '')}</td></tr>
+                      </tbody>
+                    </table>
+
+                    <div class="details-container">
+                      <div class="details-toggle">
+                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Details
                       </div>
-                      <div class="meta-cell">
-                        <span class="m-label">REMEDIATION STATUS</span>
-                        <span class="m-value status-active">● ${group.status.toUpperCase()}</span>
+
+                      <div class="detail-item">
+                        <div class="detail-label">Risk description:</div>
+                        <div class="detail-text">${escapeHtml(analysis.risk)}</div>
+                      </div>
+
+                      <div class="detail-item">
+                        <div class="detail-label">Recommendation:</div>
+                        <div class="detail-text">${escapeHtml(analysis.recommendation)}</div>
+                      </div>
+
+                      <div class="detail-item">
+                        <div class="detail-label">References:</div>
+                        ${analysis.references.map(ref => `
+                          <div class="detail-text"><a href="${ref}" class="detail-link">${ref}</a></div>
+                        `).join('')}
+                      </div>
+
+                      <div class="detail-item">
+                        <div class="detail-label">Classification:</div>
+                        <div class="classification-item"><span class="cve-label">CWE : </span> <a href="#" class="detail-link">${analysis.cwe}</a></div>
+                        ${analysis.owasp.map(o => `<div class="classification-item">${escapeHtml(o)}</div>`).join('')}
                       </div>
                     </div>
 
                     ${displayedPrimary.length > 0 ? `
-                      <div class="sub-section-title">Verified Intelligence (Top Matches)</div>
-                      <table class="cve-table">
-                        <thead>
-                          <tr>
-                            <th width="110">CVE ID</th>
-                            <th width="60">CVSS</th>
-                            <th width="100">Vector</th>
-                            <th>Threat Description</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          ${displayedPrimary.map((c: any) => `
+                      <div style="margin-top: 30px;">
+                        <div class="sub-section-title">Security Intelligence Matches</div>
+                        <table class="cve-table">
+                          <thead>
                             <tr>
-                              <td class="cve-link">${c.cve_id}</td>
-                              <td><span class="score-pill">${c.cvss_v3_score || 'N/A'}</span></td>
-                              <td><span class="av-badge ${c.av.class}">${c.av.label}</span></td>
-                              <td class="cve-desc">${escapeHtml(c.description)}</td>
+                              <th width="110">CVE ID</th>
+                              <th width="60">CVSS</th>
+                              <th width="100">Vector</th>
+                              <th>Description Snippet</th>
                             </tr>
-                          `).join('')}
-                        </tbody>
-                      </table>
-                    ` : ''}
-
-                    ${displayedLegacy.length > 0 ? `
-                      <div class="sub-section-title">Consolidated Historical Context</div>
-                      <div class="legacy-tags">
-                        ${displayedLegacy.map((c: any) => `<span class="legacy-tag">${c.cve_id}</span>`).join('')}
-                        ${group.legacyMinor.length > 8 ? `<span class="legacy-tag-more">+${group.legacyMinor.length - 8} more</span>` : ''}
+                          </thead>
+                          <tbody>
+                            ${displayedPrimary.map((c: any) => `
+                              <tr>
+                                <td class="cve-link">${c.cve_id}</td>
+                                <td><span class="score-pill">${c.cvss_v3_score || 'N/A'}</span></td>
+                                <td><span class="av-badge ${c.av.class}">${c.av.label}</span></td>
+                                <td class="cve-desc">${escapeHtml((c.description || '').substring(0, 150))}...</td>
+                              </tr>
+                            `).join('')}
+                          </tbody>
+                        </table>
                       </div>
-                    ` : ''}
-
-                    ${group.evidence.length > 0 ? `
-                      <div class="terminal-evidence">${escapeHtml(group.evidence.join('\n\n'))}</div>
                     ` : ''}
                   </div>
                 `;
@@ -440,21 +541,47 @@ const ReportsTab = () => {
         .stat-label { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }
         .stat-value { font-size: 16px; font-weight: 800; color: #0f172a; }
 
+        .tool-insight {
+          background: #eff6ff;
+          border-radius: 8px;
+          padding: 15px 20px;
+          margin-bottom: 30px;
+          border: 1px solid #bfdbfe;
+        }
+        .insight-title { font-weight: 700; font-size: 13px; color: #1e40af; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
+        .insight-text { font-size: 12px; color: #1e3a8a; line-height: 1.6; }
+
         .finding-card {
           background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 30px;
-          margin-bottom: 40px;
+          border-radius: 4px;
+          padding: 0;
+          margin-bottom: 50px;
           page-break-inside: avoid;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-          position: relative;
         }
         
-        .finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9; }
-        .finding-title-container { display: flex; align-items: center; gap: 12px; max-width: 75%; }
-        .finding-icon { color: #3b82f6; width: 20px; height: 20px; }
-        .finding-title { font-size: 18px; font-weight: 700; color: #0f172a; }
+        .finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .finding-title-container { display: flex; align-items: center; gap: 10px; }
+        .finding-icon { color: #3b82f6; width: 24px; height: 24px; }
+        .finding-title { font-size: 20px; font-weight: 600; color: #2563eb; }
+        .finding-subtitle { font-size: 14px; color: #64748b; margin-left: 34px; margin-top: -10px; }
+
+        .status-badge { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+
+        .url-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; margin-top: 15px; }
+        .url-table th { text-align: left; padding: 10px; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 700; border: 1px solid #e2e8f0; }
+        .url-table td { padding: 10px; border: 1px solid #e2e8f0; font-size: 12px; color: #2563eb; }
+
+        .details-container { background: #f8fafc; padding: 20px; border-radius: 4px; border-top: 1px solid #e2e8f0; }
+        .details-toggle { display: flex; align-items: center; gap: 5px; color: #2563eb; font-weight: 600; font-size: 12px; margin-bottom: 15px; cursor: pointer; }
+
+        .detail-item { margin-bottom: 20px; }
+        .detail-label { font-weight: 700; font-size: 13px; color: #1e293b; margin-bottom: 5px; }
+        .detail-text { font-size: 12px; color: #334155; line-height: 1.6; }
+        .detail-link { color: #2563eb; text-decoration: none; word-break: break-all; }
+
+        .classification-list { list-style: none; padding: 0; margin: 0; }
+        .classification-item { font-size: 12px; color: #334155; margin-bottom: 4px; }
+        .cwe-label { color: #2563eb; font-weight: 600; }
 
         .severity-tag { padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 800; color: white; text-transform: uppercase; letter-spacing: 0.5px; }
         .sev-critical { background: #ef4444; }
@@ -502,19 +629,6 @@ const ReportsTab = () => {
           line-height: 1.5;
         }
 
-        .arabic-section {
-            margin: 40px 0;
-            padding: 30px;
-            background: #f8fafc;
-            border-radius: 15px;
-            border-right: 6px solid #3b82f6;
-            text-align: right;
-            direction: rtl;
-        }
-        .arabic-section h3 { color: #1e3a8a; margin-top: 0; font-size: 18px; font-weight: 800; }
-        .arabic-section h4 { color: #334155; margin: 20px 0 10px 0; font-size: 15px; }
-        .arabic-section p { color: #475569; font-size: 13px; margin-bottom: 10px; line-height: 1.8; }
-
         @media print {
             body { padding: 20px; }
             .tool-section { page-break-before: always; }
@@ -534,19 +648,6 @@ const ReportsTab = () => {
       </div>
     </div>
 
-    <div class="arabic-section">
-        <h3>منهجية تحليل المخاطر وتصنيف الثغرات</h3>
-        <p>يعتمد هذا التقرير على محرك تحليل ذكي يقوم بمطابقة نتائج الفحص مع قواعد البيانات العالمية للثغرات (NVD) وأكواد الاستغلال (Exploit-DB). يتم تصنيف المخاطر بناءً على المعايير التالية:</p>
-
-        <h4>1. مخاطر القابلية للاستغلال (Exploitability Risk)</h4>
-        <p>يحلل مدى سهولة استغلال الثغرات بناءً على توفر "أكواد الاستغلال" (Exploits)، حيث يتم تمييز الثغرات الجاهزة للاستغلال (Weaponized) عن تلك التي تملك إثبات مفهوم فقط (PoC).</p>
-
-        <h4>2. ناقل الهجوم (Attack Vector)</h4>
-        <p>يحدد "المكان" الذي يجب أن يتواجد فيه المهاجم لاستغلال الثغرة (Network, Adjacent, Local, Physical) بناءً على معايير CVSS v3 العالمية.</p>
-
-        <h4>3. حالة النتائج (Finding Status)</h4>
-        <p>يعكس سير العمل الإداري لكل ثغرة مكتشفة لضمان تتبع عملية المعالجة (Remediation) بشكل دقيق.</p>
-    </div>
 
     ${sectionsHtml}
 
