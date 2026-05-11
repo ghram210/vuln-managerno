@@ -1,134 +1,64 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="ar">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <title>منهجية قواعد الأوف لاين وذكاء المطابقة</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Amiri&display=swap');
-        body {
-            font-family: 'Amiri', serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1, h2, h3 {
-            color: #2c3e50;
-        }
-        .section {
-            margin-bottom: 30px;
-            padding: 15px;
-            border-right: 5px solid #3498db;
-            background-color: #f9f9f9;
-        }
-        .benefit {
-            background-color: #e8f4fd;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        ul {
-            padding-right: 20px;
-        }
-        .offline-box {
-            background-color: #fef9e7;
-            border: 1px solid #f39c12;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
+        body { font-family: 'Amiri', serif; line-height: 1.6; color: #333; max-width: 900px; margin: 40px auto; padding: 20px; }
+        h1, h2, h3, h4 { color: #2c3e50; }
+        h2 { border-bottom: 2px solid #2980b9; padding-bottom: 10px; }
+        .box { background: #f4f7f6; border-right: 5px solid #27ae60; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        .intel-box { border-right-color: #2980b9; background: #f0f4f8; }
+        .highlight { color: #c0392b; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>شرح منهجية "ذكاء المطابقة" ومعالجة المخرجات (Intelligence Pipeline)</h1>
+    <h1>3.6 قواعد وقواعد بيانات نظام إدارة الثغرات</h1>
 
-    <div class="section">
-        <h2>3.6.0 قواعد بيانات الاستخبارات المحلية (Offline Databases)</h2>
-        <p>قبل مرحلة المطابقة، يعتمد النظام على مستودع ضخم من البيانات المخزنة محلياً لضمان السرعة والخصوصية. يتم بناء هذه القواعد عبر سكربتات خاصة تقوم بجلب وفهرسة البيانات التالية:</p>
-
-        <div class="offline-box">
-            <h3>1. قاعدة بيانات NVD (National Vulnerability Database):</h3>
+    <h2>3.6.0 منهجية "قواعد الأوف لاين" (Offline Rules & Databases)</h2>
+    <p>قبل معالجة البيانات في خط الذكاء، يعتمد نظامنا على بنية تحتية محلية بالكامل للبحث والمطابقة:</p>
+    <div class="box">
+        <p><b>المحتوى:</b> بناء فهارس محلية (Local Indexes) لقواعد بيانات NVD (منذ 2002) و Exploit-DB باستخدام SQLite.</p>
+        <p><b>السبب:</b> تجنب مشاكل الـ API الخارجية مثل بطء الاستجابة (Rate Limiting) وضمان خصوصية البيانات المكتشفة.</p>
+        <p><b>الفائدة:</b>
             <ul>
-                <li><strong>المحتوى:</strong> تضم جميع الثغرات المسجلة عالمياً منذ عام 2002 وحتى اليوم.</li>
-                <li><strong>البيانات المخزنة:</strong> تشمل معرف الثغرة (CVE)، الوصف، درجة الخطورة (CVSS)، والروابط الرسمية.</li>
-                <li><strong>الفائدة:</strong> توفير مرجع رسمي وموحد لتقييم خطورة أي برمجية.</li>
+                <li><b>سرعة فائقة:</b> المطابقة في أجزاء من الثانية.</li>
+                <li><b>خصوصية تامة:</b> لا يتم إرسال بيانات الأهداف لأي جهة خارجية.</li>
+                <li><b>استقلالية:</b> يعمل النظام بكفاءة في البيئات المنعزلة عن الإنترنت.</li>
             </ul>
-        </div>
+        </p>
+    </div>
 
-        <div class="offline-box">
-            <h3>2. قاعدة بيانات Exploit-DB:</h3>
-            <ul>
-                <li><strong>المحتوى:</strong> فهرس شامل لأكواد الاستغلال (Exploits) المتاحة للجمهور.</li>
-                <li><strong>البيانات المخزنة:</strong> تشمل معرف الاستغلال (EDB-ID)، المنصة المستهدفة، ونوع الاستغلال.</li>
-                <li><strong>الفائدة:</strong> تحويل التنبيه من "ثغرة محتملة" إلى "تهديد حقيقي".</li>
-            </ul>
-        </div>
+    <h2>3.6.1 منهجية "ذكاء المطابقة" ومعالجة المخرجات (Intelligence Pipeline)</h2>
+    <p>يمثل خط المعالجة الذكي العقل المدبر الذي يحول المخرجات الخام إلى بيانات أمنية مهيكلة عبر ثلاث مراحل:</p>
 
-        <h3>لماذا نستخدم قواعد بيانات "أوفلاين"؟</h3>
+    <div class="box intel-box">
+        <h3>1. قواعد استخراج البصمات التقنية (Extraction Rules)</h3>
+        <p><b>المحتوى:</b> خريطة منتجات تربط الكلمات المفتاحية بمعايير CPE العالمية.</p>
+        <p><b>السبب:</b> توحيد مخرجات الأدوات المختلفة (Nmap, Nikto, SQLMap) تحت مسمى تقني واحد.</p>
+        <p><b>الفائدة:</b> ضمان دقة المطابقة مع قواعد بيانات الثغرات العالمية.</p>
+    </div>
+
+    <div class="box intel-box">
+        <h3>2. قواعد المطابقة المرنة للإصدارات (Loose Version Matching)</h3>
+        <p><b>المحتوى:</b> خوارزمية لمقارنة سلاسل الإصدارات المعقدة مع نطاقات التأثر (Version Ranges).</p>
+        <p><b>السبب:</b> ثغرات NVD غالباً ما تُعرف بنطاق إصدارات وليس إصداراً واحداً ثابت؛ المطابقة الحرفية تفشل هنا.</p>
+        <p><b>الفائدة:</b> تقليل احتمالية تفويت الثغرات (False Negatives).</p>
+    </div>
+
+    <div class="box intel-box">
+        <h3>3. قواعد التصنيف والفلترة الذكية (Smart Classification Rules)</h3>
+        <p><b>المحتوى:</b> تقييم الخطورة بناءً على السياق (Context-aware Scoring).</p>
         <ul>
-            <li><strong>السرعة الفائقة:</strong> تنفيذ العمليات في أجزاء من الثانية.</li>
-            <li><strong>الخصوصية والأمان:</strong> عدم إرسال بيانات الأهداف للخارج أثناء التحليل.</li>
-            <li><strong>الاعتمادية:</strong> استمرارية العمل حتى في بيئات العمل المعزولة.</li>
+            <li><span class="highlight">FFUF:</span> اكتشاف ملفات .env يرفع الخطورة لـ <b>Critical</b>.</li>
+            <li><span class="highlight">Nikto:</span> تصنيف نقص "رؤوس الحماية" كـ <b>Info</b> لتقليل الضجيج المعلوماتي.</li>
         </ul>
+        <p><b>السبب:</b> تركيز انتباه المحلل الأمني على المخاطر الحقيقية أولاً.</p>
+        <p><b>الفائدة:</b> ترتيب أولويات الإصلاح (Prioritization) بشكل آلي وفعال.</p>
     </div>
 
     <hr>
-
-    <div class="section">
-        <h2>3.6.1 منهجية "ذكاء المطابقة" ومعالجة المخرجات (Intelligence Pipeline)</h2>
-        <p>تمر البيانات بمحرك "الذكاء الهجين" الذي يقوم بالربط الآلي بين ما تم اكتشافه وبين القواعد المحلية:</p>
-
-        <h3>1. قواعد استخراج البصمات (Fingerprinting Rules)</h3>
-        <ul>
-            <li><strong>خريطة المنتجات (Product Map):</strong> قاموس يحتوي على أكثر من 50 منتجاً تقنياً مشهوراً مربوطاً بمعرفاته الرسمية.</li>
-            <li><strong>خوارزميات استخراج الإصدارات:</strong> تعابير منتظمة (Regex) لالتقاط أرقام الإصدارات المعقدة.</li>
-        </ul>
-        <h3>سبب الاستخدام وفائدتها:</h3>
-        <ul>
-            <li><strong>التحول من النص إلى الهيكل:</strong> فهم المنتج والإصدار بشكل برمجي دقيق.</li>
-            <li><strong>الدقة:</strong> تمنع حدوث "مطابقات خاطئة" عبر تجاهل الإشارات الغامضة.</li>
-        </ul>
-    </div>
-
-    <div class="section">
-        <h2>2. قواعد المطابقة الذكية وإدارة النطاقات (Matching Logic)</h2>
-        <ul>
-            <li><strong>منطق مقارنة الإصدارات اللينة:</strong> قواعد تفهم نطاقات الخطورة وتدعم جميع الإصدارات.</li>
-            <li><strong>الربط التقاطعي:</strong> آلية للربط اللحظي بين CVE و Exploit-DB.</li>
-        </ul>
-        <h3>سبب الاستخدام وفائدتها:</h3>
-        <ul>
-            <li><strong>الأتمتة الكاملة:</strong> البحث في ملايين السجلات بلمح البصر.</li>
-            <li><strong>تحديد أولويات الإصلاح:</strong> رفع حالة الاستنفار عند وجود كود استغلال جاهز.</li>
-        </ul>
-    </div>
-
-    <div class="section">
-        <h2>3. قواعد التصنيف الذكي (Smart Classification Rules)</h2>
-        <ul>
-            <li><strong>قواعد الكلمات المفتاحية:</strong> تصنيف فوري للملفات الحساسة (مثل .env) كـ CRITICAL.</li>
-            <li><strong>قواعد المنافذ والخدمات:</strong> تصنيف المنافذ الحساسة كخطورة HIGH.</li>
-            <li><strong>تصفية الضجيج:</strong> تجاهل التنبيهات الروتينية لتقليل التشتيت.</li>
-        </ul>
-        <h3>سبب الاستخدام وفائدتها:</h3>
-        <ul>
-            <li><strong>ترجمة التقنية إلى إدارة:</strong> تحويل المخرجات إلى مستويات خطورة لونية مفهومة.</li>
-            <li><strong>التركيز على المهم:</strong> تقليل "التعب من التنبيهات" (Alert Fatigue).</li>
-        </ul>
-    </div>
-
-    <div class="benefit">
-        <h2>الفائدة الكلية للمشروع:</h2>
-        <p>بفضل هذه القواعد، تحول الموقع من مجرد "واجهة للأدوات" إلى <strong>"نظام خبير"</strong> قادر على تحليل البيانات واستنتاج المخاطر، مما يقلل الوقت المستغرق في تحليل الثغرات بنسبة تزيد عن 60%.</p>
-    </div>
-
-    <hr>
-
-    <div class="section">
-        <h2>المخططات الهندسية (Engineering Diagrams)</h2>
-        <p>تم توفير مخططات هندسية للمشروع في مجلد <code>diagrams/</code> بالصيغ التالية:</p>
-        <ul>
-            <li><strong>ملف StarUML الأصلي (<code>vulnerability_manager.mdj</code>):</strong> يمكنك فتحه مباشرة باستخدام برنامج <strong>StarUML</strong> لرؤية الجداول (ERD) وحالات الاستخدام (Use Cases).</li>
-            <li><strong>ملفات PlantUML (<code>.puml</code>):</strong> ملفات نصية برمجية للمخططات، يمكن فتحها وتحريرها كأكواد.</li>
-        </ul>
-    </div>
+    <p><b>القيمة المضافة للموقع:</b><br>
+    هذه القواعد حولت النظام من مجرد أداة عرض إلى محرك تحليل ذكي متكامل، مما يمنح المختبر تقريراً دقيقاً ومركزاً على الثغرات القابلة للاستغلال الفعلي.</p>
 </body>
 </html>
