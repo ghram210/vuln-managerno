@@ -416,6 +416,7 @@ def run_sqlmap(req: ScanRequest):
     # If it's a "clean" URL, crawl and check forms to find parameters.
     # This ensures specific lab links (e.g. PortSwigger) are targeted correctly.
     cmd.append("--dbs")
+    print(f"[DEBUG-JULES] has_query={has_query} url={url}", flush=True)
     if has_query:
         print(f"[SQLMAP-API] URL has query string; skipping auto-crawl/forms to focus on provided parameters.", flush=True)
     else:
