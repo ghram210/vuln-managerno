@@ -2,28 +2,33 @@
 left to right direction
 skinparam packageStyle rectangle
 
-actor "محلل أمني (User)" as user
+actor "محلل أمني (Security User)" as user
 actor "مدير النظام (Admin)" as admin
 
-rectangle "نظام إدارة الثغرات" {
+rectangle "نظام إدارة الثغرات المتكامل" {
     usecase "تسجيل الدخول / المصادقة" as login
-    usecase "إدارة الأصول (Assets)" as manage_assets
-    usecase "بدء فحص جديد (New Scan)" as start_scan
     usecase "عرض لوحة المعلومات (Dashboard)" as view_dashboard
-    usecase "إدارة الثغرات (Vulnerabilities)" as manage_vulns
+    usecase "عرض وتحليل الثغرات" as view_vulns
+    usecase "مراقبة حالة الفحص (Monitoring)" as monitor_scans
+
+    usecase "إدارة الأصول والأهداف" as manage_assets
+    usecase "بدء فحص جديد (New Scan)" as start_scan
     usecase "توليد تقارير أمنية (Reports)" as generate_reports
-    usecase "إدارة المستخدمين" as manage_users
-    usecase "تخصيص إعدادات النظام" as system_settings
+    usecase "إدارة المستخدمين والصلاحيات" as manage_users
+    usecase "إعدادات النظام والتنبيهات" as system_settings
 }
 
+' Security User Permissions (Read-Only)
 user --> login
-user --> manage_assets
-user --> start_scan
 user --> view_dashboard
-user --> manage_vulns
-user --> generate_reports
+user --> view_vulns
+user --> monitor_scans
 
+' Admin inherits from User and adds Management permissions
 admin --|> user
+admin --> manage_assets
+admin --> start_scan
+admin --> generate_reports
 admin --> manage_users
 admin --> system_settings
 
