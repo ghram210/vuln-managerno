@@ -4,6 +4,12 @@ hide circle
 
 ' avoid problems with angled crows feet
 skinparam linetype ortho
+skinparam shadowing false
+skinparam class {
+    BackgroundColor white
+    ArrowColor #2c3e50
+    BorderColor #2c3e50
+}
 
 entity "profiles" {
   *id : uuid <<PK>>
@@ -43,6 +49,8 @@ entity "scan_results" {
   medium_count : integer
   low_count : integer
   raw_output : text
+  description : text
+  options : text
 }
 
 entity "scan_findings" {
@@ -60,16 +68,49 @@ entity "scan_findings" {
 entity "vulnerabilities" {
   *id : uuid <<PK>>
   --
-  *cve_id : text
+  *cve_id : text <<FK>>
   description : text
   cvss_severity : text
   exploit_status : text
+  exprt_rating : text
   status : text
   remediations : integer
+  vulnerability_count : integer
+  created_at : timestamp
 }
 
+entity "nvd_cves" {
+  *id : uuid <<PK>>
+  --
+  *cve_id : text <<Unique>>
+  description : text
+  cvss_score : real
+  severity : text
+  published_date : timestamp
+}
+
+entity "exploits" {
+  *id : uuid <<PK>>
+  --
+  *exploit_id : text <<Unique>>
+  *cve_id : text <<FK>>
+  description : text
+  file_path : text
+}
+
+entity "user_roles" {
+  *id : uuid <<PK>>
+  --
+  *user_id : uuid <<FK>>
+  *role : app_role
+}
+
+' Relationships
 profiles ||--o{ scan_results : "يملك"
 scan_results ||--o{ scan_findings : "يحتوي على"
-scan_findings }o--o| vulnerabilities : "يرتبط بـ"
+scan_findings }o--o| vulnerabilities : "يرتبط بـ (عبر CVE)"
+vulnerabilities }o--o| nvd_cves : "يجلب بيانات من"
+vulnerabilities ||--o{ exploits : "يوجد له"
+profiles ||--o| user_roles : "يمتلك دور"
 
 @enduml
