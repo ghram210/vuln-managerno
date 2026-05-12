@@ -427,7 +427,8 @@ def run_sqlmap(req: ScanRequest):
         cmd.extend(["--forms", "--crawl=2"])
         # Always exclude logout/reset/delete links to avoid losing the session.
         # ONLY append if crawling is active to avoid CRITICAL error.
-        cmd.append("--crawl-exclude=logout|signout|delete|reset|change-password")
+        if "--crawl" in " ".join(cmd):
+            cmd.append("--crawl-exclude=logout|signout|delete|reset|change-password")
 
     # Authenticated session support — same effect as accepting the
     # "use server cookie" prompt in the interactive workflow. When a
