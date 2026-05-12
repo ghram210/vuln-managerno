@@ -25,7 +25,8 @@ TIMEOUT_NORMAL  = 1200
 # scans of the same host lets sqlmap restore its session.sqlite cache so
 # heuristics, crawl results and previously-found injection points survive
 # between runs (this is what "session support" gives us).
-SESSIONS_ROOT = os.path.expanduser("~/.sqlmap-sessions")
+# Using a local directory within the project to ensure write permissions.
+SESSIONS_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sqlmap_sessions")
 
 # Flags we always control ourselves. Anything the caller passes via
 # `options` that collides with one of these is dropped so it cannot
@@ -405,16 +406,15 @@ def run_sqlmap(req: ScanRequest):
     ])
 
     if req.stealth:
+        # Polite/Stealth mode for sensitive targets or PortSwigger labs
         cmd = common + [
-            "--threads=2",
-            "--time-sec=5",
+            "--threads=1",
             "--delay=1",
         ]
     else:
-        cmd = common + [
-            "--threads=5",
-            "--time-sec=5",
-        ]
+        # Default mode: let sqlmap handle its own defaults for better parity
+        # with manual runs unless specific options are requested.
+        cmd = common + []
 
     # If the URL has parameters, focus on it directly (like manual tool).
     # If it's a "clean" URL, crawl and check forms to find parameters.
