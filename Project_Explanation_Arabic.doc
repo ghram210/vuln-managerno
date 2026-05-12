@@ -1,0 +1,118 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Amiri&display=swap');
+        body {
+            font-family: 'Amiri', serif;
+            direction: rtl;
+            line-height: 1.6;
+            margin: 40px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .highlight {
+            background-color: #f8f9fa;
+            border-right: 5px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .question {
+            font-weight: bold;
+            color: #d9534f;
+        }
+        .answer {
+            margin-bottom: 20px;
+            padding-right: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: right;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h1>دليل مناقشة مشروع التخرج</h1>
+        <h2>هندسة الخداع: كشف المستور الرقمي في أنظمة إدارة الثغرات</h2>
+    </div>
+
+    <section>
+        <h2>1. ملخص المشروع (الأسانسير بيتش)</h2>
+        <p>
+            المشروع هو <b>نظام متكامل لإدارة وتحليل الثغرات الأمنية بشكل مؤتمت</b>. لا يكتفي النظام بتشغيل أدوات الفحص فحسب، بل يمتلك "عقلاً" يسمى <b>Intelligence Pipeline (خط تحليل الذكاء)</b> يقوم بتحليل النتائج الخام، وتحويلها إلى معلومات دقيقة (CVEs) وربطها بأكواد استغلال جاهزة (Exploits)، كل ذلك في بيئة <b>Offline</b> بالكامل للحفاظ على خصوصية البيانات.
+        </p>
+    </section>
+
+    <section>
+        <h2>2. الهيكل التقني (Architecture) - "كيف يعمل المشروع؟"</h2>
+        <p>يجب أن توضح أنك قمت ببناء نظام موزّع (Distributed System) يتكون من:</p>
+        <ul>
+            <li><b>الواجهة الأمامية (Frontend):</b> مطورة باستخدام React و Vite مع Tailwind CSS لتوفير لوحة تحكم تفاعلية.</li>
+            <li><b>قاعدة البيانات (Backend):</b> نستخدم Supabase لإدارة المستخدمين وتخزين نتائج الفحص لحظة بلحظة.</li>
+            <li><b>بوابة الفحص (Gateway):</b> محرك مطور بـ Python (FastAPI) ينسق العمل بين الأدوات المختلفة.</li>
+            <li><b>خوادم الأدوات (Tool Servers):</b> كل أداة (Nmap, Nikto, SQLMap, FFUF, ZAP) تعمل كخدمة مستقلة (Microservice).</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>3. الجزء الأهم: خط تحليل الذكاء (Intelligence Pipeline 3.6.1)</h2>
+        <div class="highlight">
+            هذا هو قلب المشروع الذي يثبت أنك مهندس برمجيات محترف. اشرحه بالترتيب التالي:
+        </div>
+        <ol>
+            <li><b>Fingerprinting (البصمة الرقمية):</b> نستخرج من مخرجات الأدوات نوع الخادم وإصداره (مثل: Apache 2.4.49).</li>
+            <li><b>Local Matching (المطابقة المحلية):</b> نقارن هذه البصمة بقاعدة بيانات NVD المخزنة محلياً (SQLite) دون الحاجة لإنترنت.</li>
+            <li><b>Smart Version Logic:</b> النظام ذكي كفاية ليفهم أن الإصدار 2.4.48 يقع ضمن نطاق الثغرات التي تنتهي عند 2.4.50.</li>
+            <li><b>Exploit Correlation:</b> نربط الثغرة مباشرة بـ Exploit-DB لنعرف إذا كان هناك كود استغلال متاح للعامة.</li>
+            <li><b>Smart Classification:</b> تصنيف الخطورة (Critical, High, Medium, Low) يتم بناءً على معايير CVSS العالمية بالإضافة إلى خوارزميات Heuristics قمنا بتطويرها.</li>
+        </ol>
+    </section>
+
+    <section>
+        <h2>4. الأسئلة المتوقعة وإجاباتها النموذجية</h2>
+
+        <p class="question">س1: لماذا اخترت هذه الأدوات الخمس (Nmap, Nikto, SQLMap, FFUF, ZAP) تحديداً؟</p>
+        <p class="answer"><b>الإجابة:</b> لأنها تغطي كامل دورة حياة الهجوم (Attack Surface): <b>Nmap</b> لاكتشاف المنافذ، <b>Nikto</b> لفحص إعدادات الخادم، <b>FFUF</b> لاكتشاف الملفات المخفية، <b>SQLMap</b> لاختبار حقن قواعد البيانات، و <b>ZAP</b> للفحص الشامل لثغرات الويب. تكاملهم يعطي صورة كاملة لا تعطيها أداة واحدة.</p>
+
+        <p class="question">س2: كيف تتعامل مع "النتائج المزيفة" (False Positives)؟</p>
+        <p class="answer"><b>الإجابة:</b> نستخدم منطق <b>Loose Version Matching</b>. بدلاً من الاعتماد على اسم الثغرة فقط، نقوم بمطابقة الإصدار الدقيق للبرمجية مع قاعدة بيانات NVD. إذا لم يتطابق الإصدار بدقة، يتم تخفيض درجة الخطورة أو استبعاد النتيجة، مما يرفع دقة النظام.</p>
+
+        <p class="question">س3: لماذا قمت ببناء قواعد البيانات (NVD & Exploit-DB) محلياً بدلاً من استخدام APIs خارجية؟</p>
+        <p class="answer"><b>الإجابة:</b> لثلاثة أسباب رئيسية: <b>الخصوصية</b> (لا نريد إرسال بيانات العميل لأطراف خارجية)، <b>السرعة</b> (الاستعلام المحلي أسرع بآلاف المرات من الـ API)، و<b>الاستمرارية</b> (النظام يعمل بكفاءة حتى في البيئات المعزولة عن الإنترنت).</p>
+
+        <p class="question">س4: ما هو التحدي الأكبر الذي واجهته أثناء التنفيذ؟</p>
+        <p class="answer"><b>الإجابة:</b> توحيد مخرجات الأدوات المختلفة (Unified Vulnerability Model). كل أداة تخرج البيانات بتنسيق مختلف (Text, JSON, XML). قمت بتطوير <b>Parsers</b> خاصة تقوم بتحويل كل هذه المخرجات العشوائية إلى شكل موحد في قاعدة البيانات يسهل تحليله وعرضه.</p>
+
+        <p class="question">س5: كيف يعمل نظام "المصالحة" (Reconciliation) في مشروعك؟</p>
+        <p class="answer"><b>الإجابة:</b> النظام يتذكر الثغرات السابقة. إذا قمت بعمل فحص جديد ولم تظهر ثغرة كانت موجودة سابقاً، يقوم النظام تلقائياً بتحديدها كـ "Fixed" (تم إصلاحها). وإذا تكررت، يربطها بالفحص القديم لمنع التكرار في لوحة التحكم.</p>
+    </section>
+
+    <section>
+        <h2>5. نصائح ذهبية للمناقشة</h2>
+        <ul>
+            <li><b>استخدم المصطلحات التقنية:</b> قل "CPE Mapping"، "CVSS Scoring"، "Asynchronous Processing". هذا يظهر عمق فهمك.</li>
+            <li><b>ركز على الأتمتة:</b> أكد أن النظام يقلل تدخل العنصر البشري من خلال الـ Intelligence Pipeline.</li>
+            <li><b>أظهر لوحة التحكم (Dashboard):</b> ركز على الرسوم البيانية وكيف أنها تعطي "نظرة المدير" (Executive View) للمخاطر.</li>
+            <li><b>كن واثقاً:</b> عندما تُسأل عن جزء برمجيم، قل "قمت بكتابة Parser مخصص لهذا الجزء لضمان دقة البيانات".</li>
+        </ul>
+    </section>
+
+    <div style="margin-top: 50px; border-top: 1px solid #ccc; padding-top: 10px; font-size: 0.9em; color: #777;">
+        تم إعداد هذا الدليل لمساعدتك في الحصول على أعلى تقدير. بالتوفيق في المناقشة!
+    </div>
+</body>
+</html>
