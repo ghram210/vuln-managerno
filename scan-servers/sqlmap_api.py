@@ -25,7 +25,8 @@ TIMEOUT_NORMAL  = 1200
 # scans of the same host lets sqlmap restore its session.sqlite cache so
 # heuristics, crawl results and previously-found injection points survive
 # between runs (this is what "session support" gives us).
-SESSIONS_ROOT = os.path.expanduser("~/.sqlmap-sessions")
+# Using a local directory within the project to ensure write permissions.
+SESSIONS_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sqlmap_sessions")
 
 # Flags we always control ourselves. Anything the caller passes via
 # `options` that collides with one of these is dropped so it cannot
@@ -37,6 +38,7 @@ PROTECTED_FLAGS = {
     "-v", "--keep-alive", "--random-agent", "--tamper",
     "--text-only", "--titles", "--parse-errors",
     "--smart",
+    "--crawl", "--crawl-exclude",
     # We always inject `--cookie` ourselves from the dedicated `cookie`
     # field, so silently drop a `--cookie=` someone tucked into options
     # to avoid sqlmap getting two of them.
@@ -320,6 +322,13 @@ def run_sqlmap(req: ScanRequest):
 
     sqlmap_path = shutil.which("sqlmap")
     if not sqlmap_path:
+        # Fallback for common locations if which() fails
+        for p in ["/usr/bin/sqlmap", "/usr/local/bin/sqlmap"]:
+            if os.path.exists(p):
+                sqlmap_path = p
+                break
+
+    if not sqlmap_path:
         print("[SQLMAP-API] sqlmap binary NOT FOUND in PATH", flush=True)
         raise HTTPException(
             status_code=500,
@@ -382,12 +391,8 @@ def run_sqlmap(req: ScanRequest):
         "-u", url,
         "--batch",
         "--random-agent",
-        "--tamper=space2comment",
-        "--level=5",
-        "--risk=3",
         # Better detection: response diff + title diff + DBMS error
         # parsing instead of relying on "HTTP 200 == ok".
-        "--text-only",
         "--titles",
         "--parse-errors",
         # Persistent session so repeat scans actually progress instead
@@ -401,27 +406,28 @@ def run_sqlmap(req: ScanRequest):
     ])
 
     if req.stealth:
+        # Polite/Stealth mode for sensitive targets or PortSwigger labs
         cmd = common + [
-            "--threads=2",
-            "--time-sec=5",
+            "--threads=1",
             "--delay=1",
         ]
     else:
-        cmd = common + [
-            "--threads=5",
-            "--time-sec=5",
-        ]
+        # Default mode: let sqlmap handle its own defaults for better parity
+        # with manual runs unless specific options are requested.
+        cmd = common + []
 
     # If the URL has parameters, focus on it directly (like manual tool).
     # If it's a "clean" URL, crawl and check forms to find parameters.
     # This ensures specific lab links (e.g. PortSwigger) are targeted correctly.
     cmd.append("--dbs")
+    print(f"[SQLMAP-API] has_query={has_query} url={url}", flush=True)
     if has_query:
         print(f"[SQLMAP-API] URL has query string; skipping auto-crawl/forms to focus on provided parameters.", flush=True)
     else:
         cmd.extend(["--forms", "--crawl=2"])
-    # Always exclude logout/reset/delete links to avoid losing the session.
-    cmd.append("--crawl-exclude=logout|signout|delete|reset|change-password")
+        # Always exclude logout/reset/delete links to avoid losing the session.
+        # ONLY append if crawling is active to avoid CRITICAL error.
+        cmd.append("--crawl-exclude=logout|signout|delete|reset|change-password")
 
     # Authenticated session support — same effect as accepting the
     # "use server cookie" prompt in the interactive workflow. When a
@@ -540,4 +546,4 @@ def resume(scan_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8003)
+    uvicorn.run(app, host="0.0.0.0", port=8013)
