@@ -1,25 +1,5 @@
-[SQLMAP-SRV] INFO:     Started server process [514114]
+[SQLMAP-SRV] INFO:     Started server process [1340016]
 [SQLMAP-SRV] INFO:     Waiting for application startup.
 [SQLMAP-SRV] INFO:     Application startup complete.
 [SQLMAP-SRV] INFO:     Uvicorn running on http://0.0.0.0:8003 (Press CTRL+C to quit)
-[SQLMAP-SRV] INFO:     127.0.0.1:33864 - "GET /health HTTP/1.1" 200 OK
-[SQLMAP-SRV]
-[SQLMAP-SRV] [SQLMAP-API] /scan request received: target='https://example.com/test?id=1' stealth=True scan_id=final-parity-check
-[SQLMAP-SRV] [SQLMAP-API] sqlmap binary: /usr/bin/sqlmap
-[SQLMAP-SRV] [SQLMAP-API] pre-flight: ok=True msg=TCP example.com:443 (104.20.23.154) reachable
-[SQLMAP-SRV] [SQLMAP-API-V4] has_query=True url=https://example.com/test?id=1
-[SQLMAP-SRV] [SQLMAP-API-V4] URL has query string; skipping auto-crawl/forms to focus on provided parameters.
-[SQLMAP-SRV] [SQLMAP-API-V4] launching sqlmap (timeout=1800s): /usr/bin/stdbuf -oL -eL /usr/bin/sqlmap -u https://example.com/test?id=1 --batch --random-agent --titles --parse-errors --output-dir /home/jules/.sqlmap-sessions -v 2 --keep-alive --timeout=30 --retries=2 --threads=2 --time-sec=5 --delay=1 --dbs
-[SQLMAP-SRV]
-[SQLMAP-SRV] ======================================================================
-[SQLMAP-SRV] [SQLMAP] Starting: /usr/bin/stdbuf -oL -eL /usr/bin/sqlmap -u https://example.com/test?id=1 --batch --random-agent --titles --parse-errors --output-dir /home/jules/.sqlmap-sessions -v 2 --keep-alive --timeout=30 --retries=2 --threads=2 --time-sec=5 --delay=1 --dbs
-[SQLMAP-SRV] [SQLMAP] scan_id=final-parity-check
-[SQLMAP-SRV] ======================================================================
-[SQLMAP-SRV] [SQLMAP] /usr/bin/stdbuf: failed to run command ‘/usr/bin/sqlmap’: No such file or directory
-[SQLMAP-SRV]
-[SQLMAP-SRV] [SQLMAP] Finished in 0s (paused ~0s) with exit code 127
-[SQLMAP-SRV] [SQLMAP] Total output lines: 1
-[SQLMAP-SRV] ======================================================================
-[SQLMAP-SRV]
-[SQLMAP-SRV] [SQLMAP-API-V4] sqlmap finished rc=127
-[SQLMAP-SRV] INFO:     127.0.0.1:43648 - "POST /scan HTTP/1.1" 200 OK
+[SQLMAP-SRV] INFO:     127.0.0.1:60486 - "GET /health HTTP/1.1" 200 OK

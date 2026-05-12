@@ -1,5 +1,5 @@
-[NMAP-SRV] INFO:     Started server process [514105]
+[NMAP-SRV] INFO:     Started server process [1340007]
 [NMAP-SRV] INFO:     Waiting for application startup.
 [NMAP-SRV] INFO:     Application startup complete.
 [NMAP-SRV] INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-[NMAP-SRV] INFO:     127.0.0.1:55582 - "GET /health HTTP/1.1" 200 OK
+[NMAP-SRV] INFO:     127.0.0.1:33404 - "GET /health HTTP/1.1" 200 OK

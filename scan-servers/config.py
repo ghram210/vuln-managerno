@@ -11,5 +11,5 @@ GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8090")
 
 NMAP_URL = "http://localhost:8001"
 NIKTO_URL = "http://localhost:8002"
-SQLMAP_URL = "http://localhost:8003"
+SQLMAP_URL = "http://localhost:8013"
 FFUF_URL = "http://localhost:8004"
