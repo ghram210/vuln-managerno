@@ -28,11 +28,11 @@ fi
 echo "[*] Using Python: $PYTHON ($($PYTHON --version))"
 echo "[*] Installing dependencies (one time setup)..."
 
-$PYTHON -m pip install --break-system-packages fastapi uvicorn supabase python-dotenv requests httpx -q 2>/dev/null || true
+$PYTHON -m pip install --break-system-packages fastapi uvicorn supabase python-dotenv requests httpx pyyaml six python-owasp-zap-v2.4 -q 2>/dev/null || true
 
 # Kill existing servers on these ports (clean restart)
-echo "[*] Clearing ports 8001 8002 8003 8004 8090..."
-for port in 8001 8002 8003 8004 8090; do
+echo "[*] Clearing ports 8001 8002 8003 8004 8005 8090..."
+for port in 8001 8002 8003 8004 8005 8090; do
     pid=$(lsof -ti :$port 2>/dev/null || true)
     if [ -n "$pid" ]; then
         kill -9 $pid 2>/dev/null || true
@@ -63,13 +63,18 @@ echo "[*] Starting FFUF API     -> http://localhost:8004"
 ( $PYTHON -u -m uvicorn ffuf_api:app --host 0.0.0.0 --port 8004 2>&1 | sed -u 's/^/[FFUF-SRV] /' | tee "$LOG_DIR/ffuf.log" ) &
 FFUF_PID=$!
 
+# Start ZAP API (port 8005)
+echo "[*] Starting ZAP API      -> http://localhost:8005"
+( $PYTHON -u -m uvicorn zap_api:app --host 0.0.0.0 --port 8005 2>&1 | sed -u 's/^/[ZAP-SRV] /' | tee "$LOG_DIR/zap.log" ) &
+ZAP_PID=$!
+
 # Wait for tool servers to initialize
 sleep 3
 
 # Verify tool servers started
 echo ""
 echo "[*] Checking tool servers..."
-for port in 8001 8002 8003 8004; do
+for port in 8001 8002 8003 8004 8005; do
     if curl -s "http://localhost:$port/health" > /dev/null 2>&1; then
         echo "    [OK] Port $port is responding"
     else
@@ -84,6 +89,7 @@ echo "  Nmap API   -> http://localhost:8001  [log: logs/nmap.log]"
 echo "  Nikto API  -> http://localhost:8002  [log: logs/nikto.log]"
 echo "  SQLmap API -> http://localhost:8003  [log: logs/sqlmap.log]"
 echo "  FFUF API   -> http://localhost:8004  [log: logs/ffuf.log]"
+echo "  ZAP API    -> http://localhost:8005  [log: logs/zap.log]"
 echo ""
 echo "  Starting Gateway on port 8090..."
 echo "  Express API should run separately on port 8080"
@@ -95,7 +101,7 @@ echo ""
 cleanup() {
     echo ""
     echo "[*] Stopping all servers..."
-    kill $NMAP_PID $NIKTO_PID $SQLMAP_PID $FFUF_PID 2>/dev/null || true
+    kill $NMAP_PID $NIKTO_PID $SQLMAP_PID $FFUF_PID $ZAP_PID 2>/dev/null || true
     pkill -f "uvicorn" 2>/dev/null || true
     echo "[*] All servers stopped."
 }

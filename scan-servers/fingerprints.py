@@ -292,6 +292,39 @@ def from_ffuf(output: str) -> list[Fingerprint]:
     return _dedup(fps)
 
 
+def from_zap(output: str) -> list[Fingerprint]:
+    """Parse ZAP baseline output.
+    Example lines:
+    PASS: Absence of Anti-CSRF Tokens [10202]
+    WARN-NEW: X-Frame-Options Header Not Set [10020] x 2.
+    """
+    fps: list[Fingerprint] = []
+    for line in output.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        if "WARN-NEW:" in line or "FAIL-NEW:" in line:
+            # Extract the rule name
+            # Example: "WARN-NEW: X-Frame-Options Header Not Set [10020] x 2."
+            match = re.search(r"(?:WARN|FAIL)-NEW:\s*(.*?)\s*\[(\d+)\]", line)
+            if match:
+                rule_name = match.group(1)
+                rule_id = match.group(2)
+                fps.append(Fingerprint(
+                    vendor="Intelligence",
+                    product=f"ZAP: {rule_name}",
+                    version=None,
+                    source="zap",
+                    evidence=line
+                ))
+
+        # Also try to extract version info if ZAP reports server headers
+        fps.extend(_pairs_from_line(line, source="zap"))
+
+    return _dedup(fps)
+
+
 # ---------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------
@@ -301,6 +334,7 @@ _DISPATCH = {
     "NIKTO":  from_nikto,
     "SQLMAP": from_sqlmap,
     "FFUF":   from_ffuf,
+    "ZAP":    from_zap,
 }
 
 

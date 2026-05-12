@@ -75,6 +75,21 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
         
         return "MEDIUM"
 
+    if tool == "ZAP":
+        # ZAP findings usually look like "FAIL-NEW: ..." or "WARN-NEW: ..." in evidence
+        if "FAIL-NEW" in evidence:
+            return "HIGH"
+        if "WARN-NEW" in evidence:
+            return "MEDIUM"
+
+        # Keyword based mapping for ZAP
+        if any(kw in evidence.lower() for kw in ["xss", "sqli", "injection", "rce", "traversal"]):
+            return "CRITICAL"
+        if "disclosure" in evidence.lower() or "vulnerable" in evidence.lower():
+            return "HIGH"
+
+        return "LOW"
+
     # Default fallback
     if any(kw in evidence for kw in ["critical", "fatal", "emergency"]):
         return "CRITICAL"
