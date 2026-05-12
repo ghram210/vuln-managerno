@@ -425,10 +425,8 @@ def run_sqlmap(req: ScanRequest):
         print(f"[SQLMAP-API] URL has query string; skipping auto-crawl/forms to focus on provided parameters.", flush=True)
     else:
         cmd.extend(["--forms", "--crawl=2"])
-
-    # Always exclude logout/reset/delete links to avoid losing the session.
-    # ONLY append if crawling is active to avoid CRITICAL error.
-    if "--crawl" in cmd:
+        # Always exclude logout/reset/delete links to avoid losing the session.
+        # ONLY append if crawling is active to avoid CRITICAL error.
         cmd.append("--crawl-exclude=logout|signout|delete|reset|change-password")
 
     # Authenticated session support — same effect as accepting the
