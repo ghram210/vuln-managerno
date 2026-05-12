@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from config import (
     SUPABASE_URL, SUPABASE_SERVICE_KEY,
-    NMAP_URL, NIKTO_URL, SQLMAP_URL, FFUF_URL,
+    NMAP_URL, NIKTO_URL, SQLMAP_URL, FFUF_URL, ZAP_URL,
 )
 from security import sanitize_target, sanitize_options
 from auth import get_admin_user
@@ -68,6 +68,7 @@ TOOL_SERVERS = {
     "NIKTO": NIKTO_URL,
     "SQLMAP": SQLMAP_URL,
     "FFUF": FFUF_URL,
+    "ZAP": ZAP_URL,
 }
 
 TOOL_DEFAULT_OPTIONS = {
@@ -75,6 +76,7 @@ TOOL_DEFAULT_OPTIONS = {
     "NIKTO":  "",
     "SQLMAP": "",
     "FFUF":   "",
+    "ZAP":    "",
 }
 
 SUPABASE_HEADERS = {
@@ -192,6 +194,24 @@ def count_findings_detailed(tool: str, output: str) -> tuple[int, dict[str, int]
                 count = len(re.findall(r'Size:\d+', output))
         sev_map["low_count"] = count
         return count, sev_map
+
+    if tool == "ZAP":
+        # Parse ZAP baseline output summary:
+        # FAIL-NEW: 3	FAIL-INPROG: 0	WARN-NEW: 5	WARN-INPROG: 0 ...
+        fail_new = 0
+        warn_new = 0
+
+        m_fail = re.search(r'FAIL-NEW:\s*(\d+)', output)
+        if m_fail:
+            fail_new = int(m_fail.group(1))
+
+        m_warn = re.search(r'WARN-NEW:\s*(\d+)', output)
+        if m_warn:
+            warn_new = int(m_warn.group(1))
+
+        sev_map["high_count"] = fail_new
+        sev_map["medium_count"] = warn_new
+        return fail_new + warn_new, sev_map
 
     base_count = output.lower().count("finding") + output.lower().count("vulnerable")
     sev_map["medium_count"] = base_count
