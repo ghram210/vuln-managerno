@@ -147,6 +147,7 @@ const VulnDashboard = () => {
     { label: "NIKTO", color: "hsl(280 65% 60%)" },
     { label: "SQLMAP", color: "hsl(340 75% 55%)" },
     { label: "FFUF", color: "hsl(160 60% 45%)" },
+    { label: "ZAP", color: "hsl(30 90% 55%)" },
   ];
   const aggregatedByTool = fixedTools.map(tool => {
     // Case-insensitive matching for tool labels

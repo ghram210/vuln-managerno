@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Globe, Terminal, Zap, Shield, Maximize2, Loader2 } from "lucide-react";
+import { Globe, Terminal, Zap, Shield, Maximize2, Loader2, Search } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ const tools = [
   { key: "SQLMAP", label: "SQLmap", desc: "SQL injection detection and exploitation", icon: Terminal },
   { key: "FFUF", label: "FFUF", desc: "Fast web fuzzer for content discovery", icon: Zap },
   { key: "NIKTO", label: "Nikto", desc: "Web server vulnerability scanner", icon: Shield },
+  { key: "ZAP", label: "ZAP", desc: "OWASP Zed Attack Proxy baseline scan", icon: Search },
   { key: "FULL", label: "Full Scan", desc: "Comprehensive scan using all tools", icon: Maximize2 },
 ];
 
