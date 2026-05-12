@@ -1,0 +1,147 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Amiri&display=swap');
+        body {
+            font-family: 'Amiri', serif;
+            direction: rtl;
+            line-height: 1.6;
+            margin: 40px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .highlight {
+            background-color: #f8f9fa;
+            border-right: 5px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .question {
+            font-weight: bold;
+            color: #d9534f;
+        }
+        .answer {
+            margin-bottom: 20px;
+            padding-right: 20px;
+        }
+        .code-block {
+            background-color: #2d3436;
+            color: #dfe6e9;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', Courier, monospace;
+            direction: ltr;
+            text-align: left;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: right;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h1>دليل مناقشة مشروع التخرج</h1>
+        <h2>هندسة الخداع: كشف المستور الرقمي في أنظمة إدارة الثغرات</h2>
+    </div>
+
+    <section>
+        <h2>1. ملخص المشروع (Executive Summary)</h2>
+        <p>
+            المشروع هو <b>نظام متكامل لإدارة وتحليل الثغرات الأمنية بشكل مؤتمت</b>. لا يكتفي النظام بتشغيل أدوات الفحص فحسب، بل يمتلك "عقلاً" يسمى <b>Intelligence Pipeline</b> يقوم بتحليل النتائج الخام، وتحويلها إلى معلومات دقيقة (CVEs) وربطها بأكواد استغلال جاهزة (Exploits)، كل ذلك في بيئة <b>Offline</b> بالكامل للحفاظ على خصوصية البيانات.
+        </p>
+    </section>
+
+    <section>
+        <h2>2. الهيكل التقني وتطوير الأدوات (Development & Architecture)</h2>
+        <p>لقد قمت بتطوير هذا النظام باستخدام بنية <b>Microservices</b>، حيث تعمل كل أداة فحص كخادم مستقل (API Server) يتم التحكم به من خلال بوابة مركزية (Gateway).</p>
+
+        <h3>أ. تطوير مغلفات الأدوات (Tool Wrappers):</h3>
+        <p>كل أداة (مثل SQLMap أو Nmap) لا تعمل بشكل مباشر، بل قمت ببناء <b>FastAPI Wrapper</b> حولها. هذا يسمح لنا بـ:</p>
+        <ul>
+            <li><b>التنفيذ المتوازي:</b> تشغيل عدة أدوات في نفس الوقت دون تداخل.</li>
+            <li><b>التحكم في العمليات:</b> إمكانية إيقاف (Pause) واستئناف (Resume) الفحص، وهو أمر لا توفره الأدوات الأصلية بسهولة عبر الويب.</li>
+            <li><b>الأمن والتعقيم (Sanitization):</b> قمت بتطوير وحدة <code>security.py</code> لتعقيم المدخلات ومنع هجمات <b>Command Injection</b>.</li>
+        </ul>
+
+        <div class="code-block">
+# مثال لكيفية تعقيم الأوامر قبل تنفيذها
+def sanitize_options(options: str):
+    forbidden = [";", "&", "|", "$", ">", "<", "`"]
+    for char in forbidden:
+        if char in options:
+            raise ValueError(f"Forbidden character: {char}")
+    return options
+        </div>
+
+        <h3>ب. منطق معالجة الأدوات (Tool Specific Logic):</h3>
+        <ul>
+            <li><b>Nmap:</b> قمت بتطوير منطق يقوم بالتبديل بين <code>-sS</code> (SYN Scan) و <code>-sT</code> (TCP Connect) بناءً على صلاحيات المستخدم (Root vs User) لضمان عمل الفحص في كل البيئات.</li>
+            <li><b>SQLMap:</b> قمت ببناء محرك <b>Heuristic Summary</b>. إذا فشل SQLMap في تأكيد الثغرة ولكنه وجد "مؤشرات" (مثل اختلاف حجم الصفحة أو ظهور أخطاء DB)، يقوم النظام برفع تنبيه للمحلل الأمني.</li>
+            <li><b>FFUF & Nikto:</b> قمت بتطوير <b>Regex Parsers</b> مخصصة لاستخراج الروابط الحساسة (Sensitive Paths) وإصدارات الخوادم من النتائج النصية غير المنظمة.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>3. خط تحليل الذكاء (Intelligence Pipeline 3.6.1)</h2>
+        <div class="highlight">
+            هذا الجزء يثبت قدرتك على بناء خوارزميات تحليلية معقدة.
+        </div>
+        <ol>
+            <li><b>Fingerprinting:</b> استخراج نوع الخادم وإصداره (مثل: Apache 2.4.49) باستخدام تقنيات <b>Pattern Matching</b>.</li>
+            <li><b>Local Matching:</b> قمت ببناء محرك استعلام (Matcher) يبحث في قاعدة بيانات NVD المحلية باستخدام لغة SQL.</li>
+            <li><b>Smart Version Logic:</b> تطوير خوارزمية لمقارنة الإصدارات (Loose Comparison) تفهم أن الإصدار 2.4.48 يقع ضمن نطاق خطر معين.</li>
+            <li><b>Exploit Correlation:</b> ربط الثغرة آلياً بـ Exploit-DB لتقديم حلول فورية للمحلل.</li>
+            <li><b>Smart Classification:</b> محرك تصنيف يعتمد على الكلمات المفتاحية وسياق الثغرة (Context-aware severity).</li>
+        </ol>
+    </section>
+
+    <section>
+        <h2>4. الأسئلة المتوقعة وإجاباتها النموذجية</h2>
+
+        <p class="question">س1: كيف قمت بدمج هذه الأدوات وهي تعمل بلغات وتقنيات مختلفة؟</p>
+        <p class="answer"><b>الإجابة:</b> استخدمت تقنية <b>Subprocess Orchestration</b> داخل Python. قمت بكتابة كود يقوم بإنشاء "عملية فرعية" (Subprocess) للأداة، ويقوم بقراءة مخرجاتها بشكل لحظي (Real-time Streaming) وتخزينها في قاعدة البيانات عبر الـ Gateway. هذا جعل النظام لغة-محايدة (Language Agnostic).</p>
+
+        <p class="question">س2: كيف تضمن عدم اكتشاف الفحص من قبل أنظمة الحماية (WAF/IDS)؟</p>
+        <p class="answer"><b>الإجابة:</b> قمت بتطوير <b>Stealth Mode</b> لكل أداة. في Nmap نستخدم <code>-T2</code> لتبطئ الفحص، وفي SQLMap نستخدم <code>--delay</code> و <code>--random-agent</code> لتغيير بصمة المتصفح في كل طلب، مما يجعل الفحص يبدو كحركة مرور طبيعية.</p>
+
+        <p class="question">س3: كيف تتعامل مع الثغرات التي تتطلب تسجيل دخول؟</p>
+        <p class="answer"><b>الإجابة:</b> النظام يدعم <b>Authenticated Scanning</b>. قمت بتطوير واجهة تسمح للمستخدم بإدخال <b>Session Cookies</b>، والتي يتم تمريرها للأدوات (مثل SQLMap عبر <code>--cookie</code>) ليتمكن النظام من فحص الأجزاء المحمية من الموقع.</p>
+
+        <p class="question">س4: ما هي الإضافة البرمجية التي قمت بها ولم تكن موجودة في الأدوات الأصلية؟</p>
+        <p class="answer"><b>الإجابة:</b> هي <b>Intelligence Pipeline</b>. الأدوات الأصلية تعطيك "ماذا وجدت"، لكن نظامي يخبرك "ماذا يعني هذا؟" و "هل هناك كود استغلال؟" و "ما مدى خطورة ذلك بناءً على معايير عالمية؟" بشكل آلي تماماً دون تدخل بشري.</p>
+
+        <p class="question">س5: لماذا اخترت هندسة Microservices بدلاً من Monolithic؟</p>
+        <p class="answer"><b>الإجابة:</b> لضمان <b>Scalability</b> و <b>Fault Tolerance</b>. إذا تعطل خادم أداة Nmap، يظل باقي النظام (SQLMap, Dashboard) يعمل بشكل طبيعي، كما يمكننا إضافة أدوات جديدة مستقبلاً بسهولة بمجرد بناء Wrapper جديد لها.</p>
+    </section>
+
+    <section>
+        <h2>5. نصائح ذهبية للمناقشة</h2>
+        <ul>
+            <li><b>تحدث عن الكود:</b> لا تقل "استخدمت SQLMap"، قل "قمت ببناء API Wrapper حول SQLMap لإدارة الجلسات بشكل أفضل".</li>
+            <li><b>ركز على التكامل:</b> اشرح كيف تنتقل البيانات من الأداة الخام -> الـ Gateway -> الـ Intel Pipeline -> لوحة التحكم.</li>
+            <li><b>أظهر التحديات:</b> قل "واجهت مشكلة في قراءة مخرجات الأدوات بشكل لحظي وحللتها باستخدام Async IO في Python".</li>
+        </ul>
+    </section>
+
+    <div style="margin-top: 50px; border-top: 1px solid #ccc; padding-top: 10px; font-size: 0.9em; color: #777;">
+        تم تحديث الدليل ليشمل الجوانب البرمجية وتفاصيل تطوير الأدوات. بالتوفيق!
+    </div>
+</body>
+</html>
