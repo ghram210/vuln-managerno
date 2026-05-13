@@ -345,29 +345,16 @@ async def run_scan_background(
             # add up to `total_findings`. The raw tool item count remains
             # available in raw_output for context.
             if intel_ran:
-                critical = sev.get("critical_count", 0)
-                high     = sev.get("high_count", 0)
-                medium   = sev.get("medium_count", 0)
-                low      = sev.get("low_count", 0)
-                
-                # Merge counts: ensure findings from both raw tool output (severity_map)
-                # and CVE matches (sev) are represented. We take the max for each bucket
-                # to account for tools that report specific counts (like Nmap ports).
-                m_critical = max(critical, severity_map.get("critical_count", 0))
-                m_high     = max(high, severity_map.get("high_count", 0))
-                m_medium   = max(medium, severity_map.get("medium_count", 0))
-                m_low      = max(low, severity_map.get("low_count", 0))
-                
-                # Total findings should include ALL findings (including INFO level)
-                # to stay in sync with the scan_findings table row count.
-                m_total = max(sev.get("total_findings", 0), findings)
-
+                # When the intel pipeline ran successfully, its results are the
+                # canonical source of truth for classified findings. We use
+                # these counts directly to ensure the dashboard reflects the
+                # actual items inserted into the scan_findings table.
                 update_payload.update({
-                    "critical_count": m_critical,
-                    "high_count":     m_high,
-                    "medium_count":   m_medium,
-                    "low_count":      m_low,
-                    "total_findings": m_total,
+                    "critical_count": sev.get("critical_count", 0),
+                    "high_count":     sev.get("high_count", 0),
+                    "medium_count":   sev.get("medium_count", 0),
+                    "low_count":      sev.get("low_count", 0),
+                    "total_findings": sev.get("total_findings", 0),
                 })
         except Exception as e:
             print(f"[gateway] intel({scan_id}) failed: "

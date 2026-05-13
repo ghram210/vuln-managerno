@@ -58,12 +58,24 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
         return "INFO"
 
     if tool == "NIKTO":
-        # Downgrade informational noise
+        # Categorize common security header issues as LOW instead of INFO
+        # to ensure they appear in the vulnerability dashboard counts.
+        low_keywords = [
+            "suggested security header",
+            "header missing",
+            "referrer-policy",
+            "content-security-policy",
+            "strict-transport-security",
+            "x-content-type-options",
+            "permissions-policy",
+            "x-frame-options",
+            "x-xss-protection",
+        ]
+        if any(kw in evidence for kw in low_keywords):
+            return "LOW"
+
+        # Downgrade remaining informational noise
         info_keywords = [
-            "the anti-clickjacking x-frame-options header is not present",
-            "the x-xss-protection header is not defined",
-            "the x-content-type-options header is not set",
-            "header missing", "suggested security header",
             "cookie", "header", "allowed methods",
         ]
         if any(kw in evidence for kw in info_keywords):
