@@ -58,9 +58,9 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
         return "INFO"
 
     if tool == "NIKTO":
-        # Categorize common security header issues as LOW instead of INFO
-        # to ensure they appear in the vulnerability dashboard counts.
-        low_keywords = [
+        # Informational findings for security headers and other noise.
+        # User requested keeping these as INFO.
+        info_keywords = [
             "suggested security header",
             "header missing",
             "referrer-policy",
@@ -70,12 +70,6 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
             "permissions-policy",
             "x-frame-options",
             "x-xss-protection",
-        ]
-        if any(kw in evidence for kw in low_keywords):
-            return "LOW"
-
-        # Downgrade remaining informational noise
-        info_keywords = [
             "cookie", "header", "allowed methods",
         ]
         if any(kw in evidence for kw in info_keywords):
