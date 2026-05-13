@@ -13,18 +13,11 @@ const ReportsTab = () => {
   const { data: scans = [] } = useQuery({
     queryKey: ["report_scans", userRole],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-
       let query = supabase
         .from("scan_results" as any)
         .select("id, name, target, created_at, status, tool, critical_count, high_count, medium_count, low_count, total_findings")
         .eq("status", "completed")
         .order("created_at", { ascending: false });
-
-      if (userRole !== 'admin') {
-        query = (query as any).eq("user_id", user.id);
-      }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -36,17 +29,11 @@ const ReportsTab = () => {
     queryKey: ["target_report_data", selectedScanId, userRole],
     queryFn: async () => {
       if (selectedScanId === "all") return [];
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
 
       let query = supabase
         .from("target_report_data" as any)
         .select("*")
         .eq("scan_id", selectedScanId);
-
-      if (userRole !== 'admin') {
-        query = (query as any).eq("user_id", user.id);
-      }
 
       const { data, error } = await query;
       if (error) throw error;

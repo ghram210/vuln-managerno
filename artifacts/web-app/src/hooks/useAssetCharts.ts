@@ -95,13 +95,9 @@ export function useScanTargets() {
   return useQuery<ScanTarget[]>({
     queryKey: ["scan_targets_summary"],
     queryFn: async () => {
-      const user = await getUser();
-      if (!user) return [];
-
       const { data, error } = await (supabase as any)
         .from("scan_results")
         .select("target, tool, total_findings, created_at")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error || !data?.length) return [];
@@ -188,13 +184,12 @@ type VulnRow = {
 // For each (target, tool) pair keep only the LATEST scan.
 // This matches the logic in the 'scanned_assets' view used by the table.
 async function getScanRows(targetFilter: string | string[] | null): Promise<ScanRow[]> {
-  const user = await getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
   let q = (supabase as any)
     .from("scan_results")
     .select("id, target, tool, total_findings, critical_count, high_count, medium_count, low_count, completed_at, started_at, created_at")
-    .eq("user_id", user.id)
     .order("target")
     .order("tool")
     .order("created_at", { ascending: false });
@@ -223,12 +218,12 @@ async function getScanRows(targetFilter: string | string[] | null): Promise<Scan
 
 // ─── Core Helper: unique targets for this user ────────────────────────────────
 async function getUserTargets(targetFilter: string | string[] | null): Promise<string[]> {
-  const user = await getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
+
   let q = (supabase as any)
     .from("scan_results")
-    .select("target")
-    .eq("user_id", user.id);
+    .select("target");
   
   if (targetFilter) {
     if (Array.isArray(targetFilter)) {
