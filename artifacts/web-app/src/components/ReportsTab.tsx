@@ -13,9 +13,6 @@ const ReportsTab = () => {
   const { data: scans = [] } = useQuery({
     queryKey: ["report_scans", userRole],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-
       let query = supabase
         .from("scan_results" as any)
         .select("id, name, target, created_at, status, tool, critical_count, high_count, medium_count, low_count, total_findings")
@@ -32,8 +29,6 @@ const ReportsTab = () => {
     queryKey: ["target_report_data", selectedScanId, userRole],
     queryFn: async () => {
       if (selectedScanId === "all") return [];
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
 
       let query = supabase
         .from("target_report_data" as any)

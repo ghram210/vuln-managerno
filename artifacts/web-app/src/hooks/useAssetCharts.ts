@@ -184,6 +184,9 @@ type VulnRow = {
 // For each (target, tool) pair keep only the LATEST scan.
 // This matches the logic in the 'scanned_assets' view used by the table.
 async function getScanRows(targetFilter: string | string[] | null): Promise<ScanRow[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   let q = (supabase as any)
     .from("scan_results")
     .select("id, target, tool, total_findings, critical_count, high_count, medium_count, low_count, completed_at, started_at, created_at")
@@ -215,6 +218,9 @@ async function getScanRows(targetFilter: string | string[] | null): Promise<Scan
 
 // ─── Core Helper: unique targets for this user ────────────────────────────────
 async function getUserTargets(targetFilter: string | string[] | null): Promise<string[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   let q = (supabase as any)
     .from("scan_results")
     .select("target");
