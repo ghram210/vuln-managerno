@@ -1,5 +1,5 @@
 -- =============================================================
--- Isolation & Visibility Fix v3: Invitation-Based Access
+-- Final Permissions & Isolation Fix
 -- =============================================================
 -- This migration ensures "Security Users" see data from the Admin
 -- who invited them, maintaining isolation between different Admins.
