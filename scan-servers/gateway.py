@@ -237,6 +237,97 @@ async def _heartbeat(scan_id: str, tool: str, started_at: float, stop_event: asy
         })
 
 
+async def reconcile_findings(scan_id: str, tool: str, target: str):
+    """
+    Compare findings of the current scan with the PREVIOUS successful scan
+    for the same target and tool.
+    - Findings in PREVIOUS but not CURRENT -> mark as 'fixed'.
+    - Findings in both CURRENT and PREVIOUS -> mark the OLD one as 'superseded'.
+    Matching is done via (title, path, service).
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            # 1. Get the ID of the previous successful scan for this target/tool
+            resp = await client.get(
+                f"{SUPABASE_URL}/rest/v1/scan_results",
+                params={
+                    "target": f"eq.{target}",
+                    "tool": f"eq.{tool}",
+                    "status": "eq.completed",
+                    "id": f"neq.{scan_id}",
+                    "select": "id,completed_at",
+                    "order": "completed_at.desc",
+                    "limit": "1"
+                },
+                headers=SUPABASE_HEADERS
+            )
+            if resp.status_code != 200 or not resp.json():
+                return
+
+            prev_scan_id = resp.json()[0]["id"]
+
+            # 2. Fetch findings for both scans
+            # Current scan findings
+            curr_resp = await client.get(
+                f"{SUPABASE_URL}/rest/v1/scan_findings",
+                params={"scan_id": f"eq.{scan_id}", "select": "id,title,path,service"},
+                headers=SUPABASE_HEADERS
+            )
+            # Previous scan findings (only 'open' or 'superseded' ones)
+            prev_resp = await client.get(
+                f"{SUPABASE_URL}/rest/v1/scan_findings",
+                params={
+                    "scan_id": f"eq.{prev_scan_id}",
+                    "status": "in.(open,superseded)",
+                    "select": "id,title,path,service"
+                },
+                headers=SUPABASE_HEADERS
+            )
+
+            if curr_resp.status_code != 200 or prev_resp.status_code != 200:
+                return
+
+            curr_findings = curr_resp.json()
+            prev_findings = prev_resp.json()
+
+            def get_key(f):
+                return (f.get("title") or "").strip(), (f.get("path") or "").strip(), (f.get("service") or "").strip()
+
+            curr_keys = {get_key(f) for f in curr_findings}
+            prev_map = {get_key(f): f["id"] for f in prev_findings}
+
+            # 3. Mark findings as 'fixed' or 'superseded'
+            updates = []
+
+            # Findings that disappeared -> Fixed
+            for key, fid in prev_map.items():
+                if key not in curr_keys:
+                    updates.append({"id": fid, "status": "fixed"})
+                else:
+                    # Findings that persisted -> Mark old one as 'superseded'
+                    updates.append({"id": fid, "status": "superseded"})
+
+            # Push updates to Supabase (batch PATCH)
+            for chunk in [updates[i:i + 50] for i in range(0, len(updates), 50)]:
+                # Supabase REST API doesn't support bulk PATCH with different values per row easily
+                # but we can do it row by row or use a RPC if defined.
+                # For simplicity and reliability in this environment, we'll do individual updates.
+                tasks = []
+                for up in chunk:
+                    tasks.append(client.patch(
+                        f"{SUPABASE_URL}/rest/v1/scan_findings",
+                        params={"id": f"eq.{up['id']}"},
+                        headers=SUPABASE_HEADERS,
+                        json={"status": up["status"]}
+                    ))
+                await asyncio.gather(*tasks)
+
+            print(f"[gateway] reconciled {len(updates)} findings from scan {prev_scan_id} -> {scan_id}")
+
+    except Exception as e:
+        print(f"[gateway] reconciliation failed: {e}")
+
+
 async def run_scan_background(
     scan_id: str, target: str, tool: str, options: str, stealth: bool = True,
     cookie: str = "",
@@ -361,6 +452,10 @@ async def run_scan_background(
                   f"{type(e).__name__}: {e}", flush=True)
 
     await update_scan_in_supabase(scan_id, update_payload)
+
+    # Reconcile findings (fixed/superseded) against previous scans
+    if final_status == "completed":
+        await reconcile_findings(scan_id, tool, target)
 
 
 async def reconcile_stale_scans():
