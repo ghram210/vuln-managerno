@@ -1,0 +1,109 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Amiri&display=swap');
+        body {
+            font-family: 'Amiri', serif;
+            direction: rtl;
+            line-height: 1.6;
+            margin: 40px;
+            color: #333;
+        }
+        h1 { color: #2c3e50; text-align: center; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #2980b9; margin-top: 30px; background: #f1f9ff; padding: 10px; border-radius: 5px; }
+        h3 { color: #16a085; border-right: 4px solid #16a085; padding-right: 10px; }
+        .chart-box {
+            border: 1px solid #eee;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .purpose { font-weight: bold; color: #e67e22; }
+        .data-source { font-style: italic; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+    <h1>دليل فهم المخططات البيانية (Dashboard Guide)</h1>
+
+    <section>
+        <h2>أولاً: صفحة Vulnerability Dashboard (لوحة المتابعة الأمنية)</h2>
+        <p>هذه الصفحة هي "غرفة العمليات" وتعرض البيانات بشكل كلي (Global Overview).</p>
+
+        <div class="chart-box">
+            <h3>1. مخطط Status Overview (نظرة عامة على الحالة)</h3>
+            <p><span class="purpose">الهدف:</span> معرفة أين وصلت الثغرات؟ هل تم حلها أم لا تزال قيد العمل؟</p>
+            <p><b>كيف تعرض البيانات؟</b> تظهر 4 مربعات (Open, Triaged, Fixed, False Positive). كل مربع فيه رقم ونسبة مئوية وشريط تقدم.</p>
+            <p><b>فائدتها:</b> تخبر المدير الأمني بسرعة: "لدينا 100 ثغرة مفتوحة و 50 تم إصلاحها".</p>
+        </div>
+
+        <div class="chart-box">
+            <h3>2. مخطط Rating Overview (توزيع الخطورة)</h3>
+            <p><span class="purpose">الهدف:</span> معرفة مدى "حرج" الوضع الحالي.</p>
+            <p><b>كيف تعرض البيانات؟</b> مربعات ملونة حسب الخطورة (Critical-أحمر، High-برتقالي، Medium-أصفر، Low-أخضر).</p>
+            <p><b>فائدتها:</b> تجعلك تركز على الـ Critical أولاً. إذا رأيت اللون الأحمر مرتفعاً، فهذا يعني أن هناك خطراً فورياً.</p>
+        </div>
+
+        <div class="chart-box">
+            <h3>3. مخطط Open vulnerabilities by day (تريند الثغرات)</h3>
+            <p><span class="purpose">الهدف:</span> مراقبة أداء الفريق الأمني عبر الزمن (آخر 45 يوم).</p>
+            <p><b>كيف تعرض البيانات؟</b> مخطط خطي (Line Chart) يرتفع وينخفض.</p>
+            <p><b>فائدتها:</b> إذا كان الخط ينخفض، فهذا يعني أننا نغلق ثغرات أكثر مما نكتشف. إذا كان يرتفع، فهذا يعني أن هناك هجمة أو زيادة في الثغرات غير المكتشفة.</p>
+        </div>
+
+        <div class="chart-box">
+            <h3>4. مخطط Risk Score (مقياس المخاطر المركب)</h3>
+            <p><span class="purpose">الهدف:</span> إعطاء "درجة واحدة" تمثل صحة النظام بالكامل.</p>
+            <p><b>كيف تعرض البيانات؟</b> عداد (Gauge) مثل عداد سرعة السيارة. يتكون من 4 أجزاء: (CVSS + سهولة الاستغلال + أهمية الأصل + مدى التعرض).</p>
+            <p><b>فائدتها:</b> هي "ترمومتر" المشروع. رقم واحد يخبرك إذا كان النظام آمناً (أزرق/أخضر) أو في خطر (أحمر).</p>
+        </div>
+
+        <div class="chart-box">
+            <h3>5. مخطط Remediation Compliance (الالتزام بالحل)</h3>
+            <p><span class="purpose">الهدف:</span> مراقبة سرعة الاستجابة للثغرات.</p>
+            <p><b>كيف تعرض البيانات؟</b> جدول يوضح هدف الحل (SLA Goal) لكل مستوى خطورة. مثلاً الـ Critical يجب حله في 7 أيام.</p>
+            <p><b>فائدتها:</b> تظهر لنا هل الفريق ملتزم بالوقت العالمي للحل أم أنه متأخر (In Compliance vs Not In Compliance).</p>
+        </div>
+    </section>
+
+    <section>
+        <h2>ثانياً: صفحة Asset Dashboard (لوحة الأصول والأهداف)</h2>
+        <p>هذه الصفحة تركز على "الأهداف" (Targets) وكيف تتوزع الثغرات عليها.</p>
+
+        <div class="chart-box">
+            <h3>1. مخطط Finding Severity (خطورة الثغرات لكل هدف)</h3>
+            <p><span class="purpose">الهدف:</span> تصنيف الثغرات داخل هدف معين.</p>
+            <p><b>كيف تعرض البيانات؟</b> مخطط دائري (Donut Chart) يظهر نسبة الـ Critical والـ High داخل السيرفر المختار.</p>
+            <p><b>فائدتها:</b> تعرف منها فوراً ما هو نوع الثغرات الأكثر انتشاراً في هذا السيرفر.</p>
+        </div>
+
+        <div class="chart-box">
+            <h3>2. مخطط Findings by Tool (الثغرات حسب الأداة)</h3>
+            <p><span class="purpose">الهدف:</span> معرفة أي أداة هي "البطلة" في هذا الهدف.</p>
+            <p><b>كيف تعرض البيانات؟</b> دائرة مقسمة حسب الأدوات (Nmap, SQLMap, Nikto, FFUF).</p>
+            <p><b>فائدتها:</b> إذا وجدت أن SQLMap هو الأكثر اكتشافاً في سيرفر معين، فهذا يعني أن السيرفر يعاني من مشاكل في قواعد البيانات بشكل أساسي.</p>
+        </div>
+
+        <div class="chart-box">
+            <h3>3. مخطط Exploitability Risk (خطر الاستغلال)</h3>
+            <p><span class="purpose">الهدف:</span> هل الثغرة "عملية" أم مجرد "نظرة"؟</p>
+            <p><b>كيف تعرض البيانات؟</b> دائرة توضح كم ثغرة لها "كود استغلال جاهز" (Weaponized) وكم ثغرة هي مجرد "توقع" (Theoretical).</p>
+            <p><b>فائدتها:</b> الثغرات التي لها Exploit هي التي يجب حلها فوراً لأن أي طفل يستطيع استخدام كود جاهز لاختراقها.</p>
+        </div>
+
+        <div class="chart-box">
+            <h3>4. مخطط Attack Vector (ناقل الهجوم)</h3>
+            <p><span class="purpose">الهدف:</span> من أين سيأتي الهجوم؟</p>
+            <p><b>كيف تعرض البيانات؟</b> تصنيف للثغرات حسب مكان الوصول (Network, Local, Physical).</p>
+            <p><b>فائدتها:</b> تساعدك في معرفة هل الهجوم سيأتي من خارج المؤسسة (Network) أم من داخلها (Local).</p>
+        </div>
+    </section>
+
+    <div style="margin-top: 50px; background: #fff3e0; padding: 20px; border-radius: 10px;">
+        <h3>نصيحة لك للمناقشة:</h3>
+        <p>عندما تشرح أي مخطط، قل: <b>"هذا المخطط ليس مجرد رسم، بل هو محرك تحليل يأخذ البيانات الخام من الأدوات، يمررها عبر الـ Intelligence Pipeline، ثم يعرضها بهذا الشكل لاتخاذ قرار سريع"</b>.</p>
+    </div>
+</body>
+</html>
