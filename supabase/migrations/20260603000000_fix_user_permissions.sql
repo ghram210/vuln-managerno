@@ -1,33 +1,64 @@
 -- =============================================================
--- Fix User Permissions & Dashboard Visibility for Security Users
+-- Fix User Permissions & Dashboard Visibility for Security Users (REFINED)
 -- =============================================================
 -- This migration ensures that users with the 'user' role (Security User)
--- can view all dashboard data, while maintainers (Admin) see their own.
+-- can view all dashboard data, while management (CRUD) remains
+-- strictly restricted to Admins.
 -- =============================================================
 
 BEGIN;
 
--- 1. Update RLS Policies to allow 'user' role to SELECT everything
+-- 1. Update RLS Policies to allow 'user' role to SELECT, but not manage
 -- =============================================================
 
+-- Table: scan_results
 DROP POLICY IF EXISTS "scan_results_isolation" ON public.scan_results;
-CREATE POLICY "scan_results_isolation" ON public.scan_results
-FOR ALL TO authenticated
+DROP POLICY IF EXISTS "scan_results_select" ON public.scan_results;
+DROP POLICY IF EXISTS "scan_results_admin" ON public.scan_results;
+
+CREATE POLICY "scan_results_select" ON public.scan_results
+FOR SELECT TO authenticated
 USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'user') OR public.has_role(auth.uid(), 'admin'));
 
-DROP POLICY IF EXISTS "scan_findings_isolation" ON public.scan_findings;
-CREATE POLICY "scan_findings_isolation" ON public.scan_findings
+CREATE POLICY "scan_results_admin" ON public.scan_results
 FOR ALL TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+
+-- Table: scan_findings
+DROP POLICY IF EXISTS "scan_findings_isolation" ON public.scan_findings;
+DROP POLICY IF EXISTS "scan_findings_select" ON public.scan_findings;
+DROP POLICY IF EXISTS "scan_findings_admin" ON public.scan_findings;
+
+CREATE POLICY "scan_findings_select" ON public.scan_findings
+FOR SELECT TO authenticated
 USING (
   EXISTS (SELECT 1 FROM public.scan_results sr WHERE sr.id = scan_id AND (sr.user_id = auth.uid() OR public.has_role(auth.uid(), 'user') OR public.has_role(auth.uid(), 'admin')))
 );
 
-DROP POLICY IF EXISTS "finding_cves_isolation" ON public.finding_cves;
-CREATE POLICY "finding_cves_isolation" ON public.finding_cves
+CREATE POLICY "scan_findings_admin" ON public.scan_findings
 FOR ALL TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+
+-- Table: finding_cves
+DROP POLICY IF EXISTS "finding_cves_isolation" ON public.finding_cves;
+DROP POLICY IF EXISTS "finding_cves_select" ON public.finding_cves;
+DROP POLICY IF EXISTS "finding_cves_admin" ON public.finding_cves;
+
+CREATE POLICY "finding_cves_select" ON public.finding_cves
+FOR SELECT TO authenticated
 USING (
   EXISTS (SELECT 1 FROM public.scan_findings f JOIN public.scan_results sr ON sr.id = f.scan_id WHERE f.id = finding_id AND (sr.user_id = auth.uid() OR public.has_role(auth.uid(), 'user') OR public.has_role(auth.uid(), 'admin')))
 );
+
+CREATE POLICY "finding_cves_admin" ON public.finding_cves
+FOR ALL TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
 
 -- 2. Redefine Dashboard Views with Role-Based Visibility
 -- =============================================================
