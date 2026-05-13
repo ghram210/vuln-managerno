@@ -27,7 +27,9 @@ DROP POLICY IF EXISTS "scan_results_isolation" ON public.scan_results;
 DROP POLICY IF EXISTS "scan_results_select" ON public.scan_results;
 DROP POLICY IF EXISTS "scan_results_select_v2" ON public.scan_results;
 DROP POLICY IF EXISTS "scan_results_admin" ON public.scan_results;
+DROP POLICY IF EXISTS "scan_results_manage" ON public.scan_results;
 
+DROP POLICY IF EXISTS "scan_results_select" ON public.scan_results;
 CREATE POLICY "scan_results_select" ON public.scan_results
 FOR SELECT TO authenticated
 USING (
@@ -45,7 +47,9 @@ WITH CHECK (public.has_role(auth.uid(), 'admin') AND user_id = auth.uid());
 DROP POLICY IF EXISTS "scan_findings_isolation" ON public.scan_findings;
 DROP POLICY IF EXISTS "scan_findings_select" ON public.scan_findings;
 DROP POLICY IF EXISTS "scan_findings_admin" ON public.scan_findings;
+DROP POLICY IF EXISTS "scan_findings_manage" ON public.scan_findings;
 
+DROP POLICY IF EXISTS "scan_findings_select" ON public.scan_findings;
 CREATE POLICY "scan_findings_select" ON public.scan_findings
 FOR SELECT TO authenticated
 USING (
@@ -62,7 +66,9 @@ WITH CHECK (public.has_role(auth.uid(), 'admin'));
 DROP POLICY IF EXISTS "finding_cves_isolation" ON public.finding_cves;
 DROP POLICY IF EXISTS "finding_cves_select" ON public.finding_cves;
 DROP POLICY IF EXISTS "finding_cves_admin" ON public.finding_cves;
+DROP POLICY IF EXISTS "finding_cves_manage" ON public.finding_cves;
 
+DROP POLICY IF EXISTS "finding_cves_select" ON public.finding_cves;
 CREATE POLICY "finding_cves_select" ON public.finding_cves
 FOR SELECT TO authenticated
 USING (

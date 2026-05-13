@@ -7,6 +7,7 @@ BEGIN;
 -- 1. Ensure user_roles is readable by all authenticated users
 -- This allows the has_role function and frontend role checks to work correctly
 DROP POLICY IF EXISTS "Users can view own role" ON public.user_roles;
+DROP POLICY IF EXISTS "authenticated_select_user_roles" ON public.user_roles;
 CREATE POLICY "authenticated_select_user_roles" ON public.user_roles
 FOR SELECT TO authenticated
 USING (true);
@@ -18,6 +19,7 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;
 -- 3. Double-check RLS on scan_results to ensure it matches the 'user' requirement
 -- We want 'user' (Security User) to see ALL scans, but only 'admin' to manage them.
 DROP POLICY IF EXISTS "scan_results_select" ON public.scan_results;
+DROP POLICY IF EXISTS "scan_results_select_v2" ON public.scan_results;
 CREATE POLICY "scan_results_select_v2" ON public.scan_results
 FOR SELECT TO authenticated
 USING (
