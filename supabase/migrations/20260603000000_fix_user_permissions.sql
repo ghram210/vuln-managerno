@@ -276,8 +276,8 @@ with_exploits AS (
   SELECT
     m.cve_id,
     m.sev,
-    COUNT(e.id) FILTER (WHERE e.verified IS TRUE)  AS verified_count,
-    COUNT(e.id)                                    AS total_exploits
+    COUNT(e.cve_id) FILTER (WHERE e.verified IS TRUE)  AS verified_count,
+    COUNT(e.cve_id)                                    AS total_exploits
   FROM   matched m
   LEFT JOIN public.exploits e ON e.cve_id = m.cve_id
   GROUP BY m.cve_id, m.sev
