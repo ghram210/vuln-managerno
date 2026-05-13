@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Globe, Terminal, Zap, Shield, Maximize2, Loader2 } from "lucide-react";
+import { Globe, Terminal, Zap, Shield, Maximize2, Loader2, CheckCircle2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import AppSidebar from "@/components/AppSidebar";
 import TopBar from "@/components/TopBar";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || "http://localhost:8090";
 
@@ -24,8 +25,10 @@ const NewScan = () => {
   const [target, setTarget] = useState("");
   const [description, setDescription] = useState("");
   const [selectedTool, setSelectedTool] = useState("");
-  const [options, setOptions] = useState("");
-  const [cookie, setCookie] = useState("");
+  const [confirmOwnership, setConfirmOwnership] = useState(false);
+  const [confirmNonMalicious, setConfirmNonMalicious] = useState(false);
+  const [confirmNoDamage, setConfirmNoDamage] = useState(false);
+  const [confirmLogging, setConfirmLogging] = useState(false);
   const navigate = useNavigate();
 
   const mutation = useMutation({
@@ -46,8 +49,6 @@ const NewScan = () => {
           target,
           tool: selectedTool,
           description,
-          options,
-          cookie,
         }),
       });
 
@@ -67,7 +68,15 @@ const NewScan = () => {
     },
   });
 
-  const canSubmit = scanName.trim() && target.trim() && selectedTool && !mutation.isPending;
+  const canSubmit =
+    scanName.trim() &&
+    target.trim() &&
+    selectedTool &&
+    confirmOwnership &&
+    confirmNonMalicious &&
+    confirmNoDamage &&
+    confirmLogging &&
+    !mutation.isPending;
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -111,23 +120,62 @@ const NewScan = () => {
                   className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
-              <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">Extra Options (optional)</label>
-                <input
-                  value={options}
-                  onChange={(e) => setOptions(e.target.value)}
-                  placeholder="e.g. --top-ports 100"
-                  className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+            </div>
+
+            <div className="pt-8 border-t border-border mt-8">
+              <div className="flex items-center gap-2 mb-6">
+                <CheckCircle2 className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-bold text-primary uppercase tracking-tight">Pre-Scan Confirmation</h2>
               </div>
-              <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">Auth Cookie / Session (optional)</label>
-                <input
-                  value={cookie}
-                  onChange={(e) => setCookie(e.target.value)}
-                  placeholder="e.g. session=abc123xyz"
-                  className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <div className="flex items-start space-x-3 group">
+                  <Checkbox
+                    id="ownership"
+                    checked={confirmOwnership}
+                    onCheckedChange={(checked) => setConfirmOwnership(checked === true)}
+                    className="mt-1 border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                  />
+                  <label htmlFor="ownership" className="text-sm leading-relaxed text-muted-foreground group-hover:text-foreground transition-colors cursor-pointer">
+                    I certify that I own this target or have explicit, written authorization to perform security testing.
+                  </label>
+                </div>
+
+                <div className="flex items-start space-x-3 group">
+                  <Checkbox
+                    id="damage"
+                    checked={confirmNoDamage}
+                    onCheckedChange={(checked) => setConfirmNoDamage(checked === true)}
+                    className="mt-1 border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                  />
+                  <label htmlFor="damage" className="text-sm leading-relaxed text-muted-foreground group-hover:text-foreground transition-colors cursor-pointer">
+                    I agree not to utilize these tools to cause any intentional damage to the target infrastructure.
+                  </label>
+                </div>
+
+                <div className="flex items-start space-x-3 group">
+                  <Checkbox
+                    id="malicious"
+                    checked={confirmNonMalicious}
+                    onCheckedChange={(checked) => setConfirmNonMalicious(checked === true)}
+                    className="mt-1 border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                  />
+                  <label htmlFor="malicious" className="text-sm leading-relaxed text-muted-foreground group-hover:text-foreground transition-colors cursor-pointer">
+                    I agree not to use the scan results for any unauthorized or malicious activities.
+                  </label>
+                </div>
+
+                <div className="flex items-start space-x-3 group">
+                  <Checkbox
+                    id="logging"
+                    checked={confirmLogging}
+                    onCheckedChange={(checked) => setConfirmLogging(checked === true)}
+                    className="mt-1 border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                  />
+                  <label htmlFor="logging" className="text-sm leading-relaxed text-muted-foreground group-hover:text-foreground transition-colors cursor-pointer">
+                    I acknowledge that scanning activities may be logged by the target’s security systems, including my source IP address.
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -169,7 +217,11 @@ const NewScan = () => {
             disabled={!canSubmit}
             onClick={() => {
               if (!canSubmit) {
-                toast.error("Please fill in Scan Name, Target, and select a tool");
+                if (!scanName.trim() || !target.trim() || !selectedTool) {
+                  toast.error("Please fill in Scan Name, Target, and select a tool");
+                } else {
+                  toast.error("Please acknowledge all pre-scan confirmations");
+                }
                 return;
               }
               mutation.mutate();
