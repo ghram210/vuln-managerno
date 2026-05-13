@@ -22,10 +22,6 @@ const ReportsTab = () => {
         .eq("status", "completed")
         .order("created_at", { ascending: false });
 
-      if (userRole !== 'admin') {
-        query = (query as any).eq("user_id", user.id);
-      }
-
       const { data, error } = await query;
       if (error) throw error;
       return data as any[];
@@ -43,10 +39,6 @@ const ReportsTab = () => {
         .from("target_report_data" as any)
         .select("*")
         .eq("scan_id", selectedScanId);
-
-      if (userRole !== 'admin') {
-        query = (query as any).eq("user_id", user.id);
-      }
 
       const { data, error } = await query;
       if (error) throw error;
