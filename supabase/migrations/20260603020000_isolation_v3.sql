@@ -257,6 +257,5 @@ FROM latest_scans ls LEFT JOIN scan_ports sp ON sp.scan_id = ls.id LEFT JOIN fal
 -- 4. Final Permission Cleanup
 -- =============================================================
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT SELECT ON ALL VIEWS IN SCHEMA public TO authenticated;
 
 COMMIT;

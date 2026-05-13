@@ -14,7 +14,6 @@ USING (true);
 -- 2. Ensure all relevant dashboard views and tables have SELECT granted
 -- Some views might have been created without explicit grants or with restrictive ones
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT SELECT ON ALL VIEWS IN SCHEMA public TO authenticated;
 
 -- 3. Double-check RLS on scan_results to ensure it matches the 'user' requirement
 -- We want 'user' (Security User) to see ALL scans, but only 'admin' to manage them.
