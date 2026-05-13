@@ -22,8 +22,7 @@ CREATE POLICY "scan_results_select_v2" ON public.scan_results
 FOR SELECT TO authenticated
 USING (
   user_id = auth.uid() OR
-  public.has_role(auth.uid(), 'user') OR
-  public.has_role(auth.uid(), 'admin')
+  public.has_role(auth.uid(), 'user')
 );
 
 -- 4. Ensure target_report_data view (used by ReportsTab) is also covered

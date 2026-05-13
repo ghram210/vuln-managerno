@@ -18,12 +18,12 @@ DROP POLICY IF EXISTS "scan_results_admin" ON public.scan_results;
 
 CREATE POLICY "scan_results_select" ON public.scan_results
 FOR SELECT TO authenticated
-USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'user') OR public.has_role(auth.uid(), 'admin'));
+USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'user'));
 
 CREATE POLICY "scan_results_admin" ON public.scan_results
 FOR ALL TO authenticated
-USING (public.has_role(auth.uid(), 'admin'))
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
+USING (public.has_role(auth.uid(), 'admin') AND user_id = auth.uid())
+WITH CHECK (public.has_role(auth.uid(), 'admin') AND user_id = auth.uid());
 
 
 -- Table: scan_findings

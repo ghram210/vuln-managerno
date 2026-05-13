@@ -32,16 +32,13 @@ CREATE POLICY "scan_results_select" ON public.scan_results
 FOR SELECT TO authenticated
 USING (
   user_id = auth.uid() OR
-  user_id = public.get_inviter_id(auth.uid()) OR
-  public.has_role(auth.uid(), 'admin') -- Keep admin visibility global or restricted?
-  -- User asked for isolation between admins too? "my friend's tests he doesn't see".
-  -- Let's stick to: Admins see all for platform management, but Users are isolated.
+  user_id = public.get_inviter_id(auth.uid())
 );
 
 CREATE POLICY "scan_results_manage" ON public.scan_results
 FOR ALL TO authenticated
-USING (public.has_role(auth.uid(), 'admin'))
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
+USING (public.has_role(auth.uid(), 'admin') AND user_id = auth.uid())
+WITH CHECK (public.has_role(auth.uid(), 'admin') AND user_id = auth.uid());
 
 
 -- Table: scan_findings (Inherits via scan_id)
