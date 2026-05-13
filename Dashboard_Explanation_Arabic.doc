@@ -1,0 +1,96 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Amiri&display=swap');
+        body {
+            font-family: 'Amiri', serif;
+            direction: rtl;
+            line-height: 1.6;
+            margin: 40px;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .highlight {
+            background-color: #e8f4fd;
+            border-right: 5px solid #2980b9;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .section-box {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+        }
+        .tech-detail {
+            color: #27ae60;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h1>دليل واجهات الاستخدام والتحليل الأمني</h1>
+        <h2>تفسير البيانات واللوحات البيانية للخبراء والمناقشين</h2>
+    </div>
+
+    <p class="highlight">
+        هذا المستند مصمم لمساعدتك في شرح "الفلسفة التصميمية" و"المنطق البرمجي" خلف لوحات التحكم (Dashboards) في مشروعك، لإظهار أنك لا تعرض مجرد بيانات، بل تقدم <b>Decision Support System (نظام دعم اتخاذ القرار)</b>.
+    </p>
+
+    <div class="section-box">
+        <h2>1. لوحة تحكم الثغرات الرئيسية (Vulnerability Dashboard)</h2>
+        <p><b>الهدف:</b> تقديم رؤية بانورامية (Executive View) عن حالة الأمن السيبراني في المؤسسة.</p>
+        <ul>
+            <li><b>Severity Distribution (توزيع الخطورة):</b> نستخدم مخططات "الدونات" لعرض عدد الثغرات مصنفة حسب CVSS. اشرح للدكاترة أن هذا يساعد في <b>Risk Prioritization</b> (ترتيب الأولويات).</li>
+            <li><b>SLA Compliance (الالتزام باتفاقية مستوى الخدمة):</b> هذا جزء متقدم جداً. نحن نحسب المدة الزمنية منذ اكتشاف الثغرة ونقارنها بالمعايير العالمية (مثلاً: الثغرة الـ Critical يجب حلها خلال 7 أيام). إذا تجاوزت المدة، يظهر التنبيه.</li>
+            <li><b>Discovery Tools Chart:</b> يوضح أي أداة (Nmap, ZAP, etc) كانت الأكثر فاعلية في اكتشاف التهديدات، مما يساعد في تحسين استراتيجية الفحص مستقبلاً.</li>
+        </ul>
+        <p class="tech-detail">ملاحظة تقنية: البيانات هنا يتم حسابها عبر "Aggregated Queries" في Supabase لضمان السرعة العالية حتى مع وجود آلاف السجلات.</p>
+    </div>
+
+    <div class="section-box">
+        <h2>2. نظام إدارة الثغرات (Vulnerability Management Tab)</h2>
+        <p><b>الهدف:</b> توفير بيئة عمل (Workspace) للمحللين الأمنيين لمتابعة دورة حياة الثغرة.</p>
+        <ul>
+            <li><b>Vulnerability Lifecycle:</b> اشرح أن الثغرة تمر بمراحل (New -> In Progress -> Resolved -> Fixed).</li>
+            <li><b>Deep-Linking Logic:</b> عند الضغط على ثغرة معينة، يقوم النظام بربطها فوراً بـ <b>Raw Output</b> للأداة التي اكتشفتها. هذا يسمى <b>Evidence Traceability</b> (تتبع الدليل)، وهو ضروري جداً لإثبات وجود الثغرة للمطورين.</li>
+            <li><b>Filtering & Searching:</b> قمت بتطوير نظام فلترة متقدم يسمح بالبحث عن ثغرات معينة (مثلاً ثغرات CISA KEV) أو البحث حسب الخدمة المصابة.</li>
+        </ul>
+        <p class="tech-detail">ملاحظة تقنية: نستخدم نظام Composite Fingerprinting (Title, Path, Service) لمنع تكرار نفس الثغرة في القائمة وتسهيل عملية الـ Reconciliation.</p>
+    </div>
+
+    <div class="section-box">
+        <h2>3. لوحة تحكم الأصول (Asset Dashboard / Scanned Assets)</h2>
+        <p><b>الهدف:</b> إدارة الـ Attack Surface (سطح الهجوم) ومعرفة الأجهزة والخدمات النشطة.</p>
+        <ul>
+            <li><b>Asset Risk Scoring:</b> كل أصل (Host/IP) يحصل على درجة خطورة بناءً على عدد ونوع الثغرات المكتشفة فيه. هذا يساعد في معرفة "الحلقة الأضعف" في الشبكة.</li>
+            <li><b>Service Inventory:</b> سرد كامل لجميع الخدمات المكتشفة (Apache, MySQL, etc) مع إصداراتها، وهو ما يتم تغذيته مباشرة من مرحلة الـ Fingerprinting.</li>
+            <li><b>Last Scan Status:</b> تتبع متى تم فحص كل أصل لضمان عدم وجود "Blind Spots" (نقاط عمياء) في الشبكة لم يتم فحصها منذ فترة طويلة.</li>
+        </ul>
+        <p class="tech-detail">ملاحظة تقنية: نستخدم "PostgREST Pagination" لعرض الأصول لضمان عدم تحميل المتصفح فوق طاقته عند وجود مئات السيرفرات.</p>
+    </div>
+
+    <div class="section-box">
+        <h2>4. أسئلة ذكية للمناقشة حول لوحات التحكم</h2>
+
+        <p><b>س: لماذا اخترت هذه الألوان (الأحمر، البرتقالي، الأصفر)؟</b><br>
+        ج: التزمت بمعايير الـ UI/UX العالمية للأمن السيبراني، حيث الأحمر يمثل الخطورة الحرجة التي تتطلب تدخلاً فورياً، مما يقلل من <b>Cognitive Load</b> (الحمل الإدراكي) على المحلل.</p>
+
+        <p><b>س: كيف تضمن أن البيانات في اللوحة البيانية "حية" (Real-time)؟</b><br>
+        ج: استخدمت <b>Supabase Realtime Subscriptions</b>. بمجرد انتهاء الفحص في الـ Gateway وتحديث قاعدة البيانات، تنعكس النتائج فوراً في اللوحة دون الحاجة لتحديث الصفحة (Refresh).</p>
+
+        <p><b>س: هل اللوحات البيانية تدعم استخراج تقارير؟</b><br>
+        ج: نعم، النظام مصمم ليدعم <b>Professional Reporting</b>. يمكن تحويل هذه الرسوم البيانية إلى تقارير PDF لتقديمها للإدارة العليا، مما يربط الجانب التقني بالجانب الإداري.</p>
+    </div>
+
+    <div style="margin-top: 50px; border-top: 1px solid #ccc; padding-top: 10px; font-size: 0.9em; color: #777;">
+        تم إعداد هذا الدليل لتعزيز قدرتك على شرح الجانب التحليلي والإداري للمشروع بأسلوب الخبراء.
+    </div>
+</body>
+</html>
