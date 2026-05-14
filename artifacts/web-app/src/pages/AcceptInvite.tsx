@@ -168,14 +168,6 @@ const AcceptInvite = () => {
             )}
           </div>
 
-          <div className="block">
-            <button
-              onClick={() => navigate("/login")}
-              className="text-primary hover:underline text-sm"
-            >
-              Go to Login
-            </button>
-          </div>
         </div>
       </div>
     );
