@@ -332,7 +332,7 @@ const VulnDashboard = () => {
           {/* Charts Row 1 */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold mb-4">Discovered vulnerabilities by day · Last 45 days</h3>
+              <h3 className="text-sm font-semibold mb-4">Cumulative vulnerabilities discovered · Last 45 days</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={aggregatedDaily}>
                   <XAxis dataKey="day" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />

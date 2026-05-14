@@ -1,5 +1,5 @@
--- Update the daily trend view to track discovery instead of cumulative open vulnerabilities
--- This version maintains original user isolation logic as requested.
+-- Update the daily trend view to track Cumulative Discovery (Total found up to that date)
+-- This maintains original user isolation logic as requested.
 BEGIN;
 
 DROP VIEW IF EXISTS public.vuln_daily_open CASCADE;
@@ -25,7 +25,7 @@ SELECT
     COUNT(DISTINCT f.id)::int AS count
 FROM days d
 CROSS JOIN targets t
-LEFT JOIN public.scan_findings f ON f.created_at::date = d.day_date AND f.target = t.target
+LEFT JOIN public.scan_findings f ON f.created_at::date <= d.day_date AND f.target = t.target
 GROUP BY d.day_date, d.day_num, t.target;
 
 CREATE OR REPLACE VIEW public.vuln_daily_open WITH (security_invoker = true) AS
