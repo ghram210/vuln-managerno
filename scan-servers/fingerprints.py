@@ -223,14 +223,18 @@ def from_nikto(output: str) -> list[Fingerprint]:
         if any(s in low for s in (
             "+ start time", "+ end time", "+ scan terminated",
             "+ host:", "+ target host", "+ root page", "+ no cgi", "+ target ip",
-            "+ target hostname", "+ target port", "+ site link",
+            "+ target hostname", "+ target port", "+ site link", "+ target ",
         )):
             continue
         
         # Prioritize specific software fingerprints
         specific = _pairs_from_line(line_clean, source="nikto")
         if specific:
-            fps.extend(specific)
+            # To avoid over-counting findings compared to tool output,
+            # we only take the FIRST software match per line if it's a discovery tool.
+            # This ensures "Apache/2.4.49 PHP/7.4.3" counts as 1 finding in the summary
+            # but still allows NVD matching for the primary product.
+            fps.append(specific[0])
         else:
             # Fallback to generic smart finding (Intelligence)
             fps.append(Fingerprint(
@@ -280,7 +284,8 @@ def from_ffuf(output: str) -> list[Fingerprint]:
         # Prioritize specific software fingerprints (e.g. from Server header)
         specific = _pairs_from_line(line, source="ffuf")
         if specific:
-            fps.extend(specific)
+            # Only take the first one to keep counts matching tool output (1 line = 1 finding)
+            fps.append(specific[0])
             # If we found specific product info, we skip the generic path discovery
             # for this line to prevent double-counting.
             continue
