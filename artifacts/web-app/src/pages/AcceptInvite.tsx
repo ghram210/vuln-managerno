@@ -20,6 +20,7 @@ const AcceptInvite = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isLoginMode, setIsLoginMode] = useState(false);
 
   useEffect(() => {
     const validate = async () => {
@@ -75,14 +76,54 @@ const AcceptInvite = () => {
     validate();
   }, [token]);
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || loading) return;
+
+    setLoading(true);
+    try {
+      // 1. Force sign out first to clear any existing Admin session
+      await supabase.auth.signOut();
+
+      // 2. Sign in with the user's existing credentials
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) throw signInError;
+      if (!data.user) throw new Error("Login failed - no user returned");
+
+      // 3. Link the invitation to this existing user (ensures they get 'user' role)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: inviteResult, error: inviteError } = await (supabase.rpc as any)("use_invitation_token", {
+        token_param: token,
+        user_id_param: data.user.id,
+      });
+
+      if (inviteError) {
+        console.error("Invitation linking error:", inviteError);
+        toast.warning("Signed in, but there was an issue linking your invitation.");
+      } else if (inviteResult === false) {
+        toast.warning("Signed in, but the invitation link could not be verified.");
+      }
+
+      toast.success("Welcome back! Your account has been linked to the invitation.");
+      navigate("/", { replace: true });
+    } catch (err: any) {
+      console.error("Login flow crash:", err);
+      toast.error(err.message || "Authentication failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token || loading) return;
     
     setLoading(true);
     try {
-      console.log("Starting registration for:", email);
-      
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -105,8 +146,6 @@ const AcceptInvite = () => {
       }
 
       if (!data.user) throw new Error("Registration failed - no user returned");
-
-      console.log("Registration successful, linking invitation...");
 
       // Accept invitation and assign 'user' role
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -222,39 +261,43 @@ const AcceptInvite = () => {
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground">Create Your Account</h2>
+            <h2 className="text-3xl font-bold text-foreground">
+              {isLoginMode ? "Sign In to Accept" : "Create Your Account"}
+            </h2>
             <p className="text-muted-foreground mt-2">
-              {inviteEmail
-                ? `You were invited as ${inviteEmail}`
-                : "Fill in your details to complete registration"}
+              {isLoginMode
+                ? "Login with your existing account to link this invitation"
+                : (inviteEmail ? `You were invited as ${inviteEmail}` : "Fill in your details to complete registration")}
             </p>
           </div>
 
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="First Name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  className="w-full bg-card border border-border rounded-lg pl-10 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-                />
+          <form onSubmit={isLoginMode ? handleLogin : handleRegister} className="space-y-4">
+            {!isLoginMode && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="First Name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    className="w-full bg-card border border-border rounded-lg pl-10 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                  />
+                </div>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Last Name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    className="w-full bg-card border border-border rounded-lg pl-10 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                  />
+                </div>
               </div>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Last Name"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                  className="w-full bg-card border border-border rounded-lg pl-10 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
-                />
-              </div>
-            </div>
+            )}
 
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -298,7 +341,7 @@ const AcceptInvite = () => {
                 <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               ) : (
                 <>
-                  Create Account
+                  {isLoginMode ? "Sign In & Accept" : "Create Account"}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -306,9 +349,12 @@ const AcceptInvite = () => {
           </form>
 
           <p className="text-center text-muted-foreground text-sm mt-6">
-            Already have an account?{" "}
-            <button onClick={() => navigate("/login")} className="text-primary hover:underline font-medium">
-              Sign In
+            {isLoginMode ? "Need to create an account?" : "Already have an account?"}{" "}
+            <button
+              onClick={() => setIsLoginMode(!isLoginMode)}
+              className="text-primary hover:underline font-medium"
+            >
+              {isLoginMode ? "Register Now" : "Sign In"}
             </button>
           </p>
         </div>
