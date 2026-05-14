@@ -168,14 +168,6 @@ const AcceptInvite = () => {
             )}
           </div>
 
-          <div className="block">
-            <button
-              onClick={() => navigate("/login")}
-              className="text-primary hover:underline text-sm"
-            >
-              Go to Login
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -305,12 +297,6 @@ const AcceptInvite = () => {
             </button>
           </form>
 
-          <p className="text-center text-muted-foreground text-sm mt-6">
-            Already have an account?{" "}
-            <button onClick={() => navigate("/login")} className="text-primary hover:underline font-medium">
-              Sign In
-            </button>
-          </p>
         </div>
       </div>
     </div>
