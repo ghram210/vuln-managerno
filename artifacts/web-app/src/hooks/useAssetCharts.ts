@@ -101,6 +101,7 @@ export function useScanTargets() {
       const { data, error } = await (supabase as any)
         .from("scan_results")
         .select("target, tool, total_findings, created_at")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error || !data?.length) return [];
@@ -193,6 +194,7 @@ async function getScanRows(targetFilter: string | string[] | null): Promise<Scan
   let q = (supabase as any)
     .from("scan_results")
     .select("id, target, tool, total_findings, critical_count, high_count, medium_count, low_count, completed_at, started_at, created_at")
+    .eq("user_id", user.id)
     .order("target")
     .order("tool")
     .order("created_at", { ascending: false });
@@ -225,7 +227,8 @@ async function getUserTargets(targetFilter: string | string[] | null): Promise<s
   if (!user) return [];
   let q = (supabase as any)
     .from("scan_results")
-    .select("target");
+    .select("target")
+    .eq("user_id", user.id);
   
   if (targetFilter) {
     if (Array.isArray(targetFilter)) {

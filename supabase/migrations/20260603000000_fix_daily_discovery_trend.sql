@@ -1,5 +1,9 @@
 -- Update the daily trend view to track discovery instead of cumulative open vulnerabilities
+-- This version maintains original user isolation logic as requested.
+BEGIN;
+
 DROP VIEW IF EXISTS public.vuln_daily_open CASCADE;
+DROP VIEW IF EXISTS public.vuln_daily_discovered CASCADE;
 
 CREATE OR REPLACE VIEW public.vuln_daily_discovered WITH (security_invoker = true) AS
 WITH RECURSIVE days AS (
@@ -24,6 +28,10 @@ CROSS JOIN targets t
 LEFT JOIN public.scan_findings f ON f.created_at::date = d.day_date AND f.target = t.target
 GROUP BY d.day_date, d.day_num, t.target;
 
--- Provide an alias for compatibility if needed, or we just update frontend
 CREATE OR REPLACE VIEW public.vuln_daily_open WITH (security_invoker = true) AS
 SELECT * FROM public.vuln_daily_discovered;
+
+GRANT SELECT ON public.vuln_daily_discovered TO authenticated;
+GRANT SELECT ON public.vuln_daily_open TO authenticated;
+
+COMMIT;
