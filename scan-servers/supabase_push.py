@@ -150,15 +150,24 @@ def build_payload(
 # ---------------------------------------------------------------
 
 def severity_counts(payload: dict) -> dict[str, int]:
+    """
+    Roll up severity counts for the scan summary.
+    Only counts the 4 primary severity buckets (Critical, High, Medium, Low)
+    to ensure the 'total_findings' matches the sum of colored dots in the UI.
+    Informational findings (INFO) are stored but excluded from this aggregate.
+    """
     counts = {f"{s.lower()}_count": 0 for s in SEVERITIES}
     findings = payload.get("scan_findings", [])
-    counts["total_findings"] = len(findings)
 
+    total = 0
     for f in findings:
         sev = (f.get("severity") or "info").lower()
         key = f"{sev}_count"
         if key in counts:
             counts[key] += 1
+            total += 1
+
+    counts["total_findings"] = total
     return counts
 
 

@@ -261,8 +261,8 @@ def from_sqlmap(output: str) -> list[Fingerprint]:
                 source="sqlmap",
                 evidence=line.strip()
             ))
-            # Continue to see if we can also extract software versions from the same line (rare but possible)
 
+        # Extract software versions (Low Priority fallback or secondary)
         if "back-end dbms" in low or "web application technology" in low:
             fps.extend(_pairs_from_line(line, source="sqlmap"))
 
@@ -277,11 +277,15 @@ def from_ffuf(output: str) -> list[Fingerprint]:
     noise_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.css', '.ico', '.woff', '.svg')
     
     for line in output.splitlines():
-        # Capture Server header fingerprints if present
-        if "server:" in line.lower():
-            fps.extend(_pairs_from_line(line, source="ffuf"))
+        # Prioritize specific software fingerprints (e.g. from Server header)
+        specific = _pairs_from_line(line, source="ffuf")
+        if specific:
+            fps.extend(specific)
+            # If we found specific product info, we skip the generic path discovery
+            # for this line to prevent double-counting.
+            continue
         
-        # Capture discovered paths (Formatted output looks like "  /path  [HTTP ...]")
+        # Fallback to generic discovered paths (Formatted output looks like "  /path  [HTTP ...]")
         if " [HTTP " in line:
             path_match = re.search(r"^\s*([^\s]+)", line)
             if path_match:
