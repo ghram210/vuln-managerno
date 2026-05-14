@@ -19,18 +19,21 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
 
     if tool == "FFUF":
         # Critical paths
-        if any(x in path for x in [".env", ".git", ".svn", ".htpasswd"]):
+        if any(x in path for x in [".env", ".git", ".svn", ".htpasswd", "wp-config", "settings.py", "web.config"]):
             return "CRITICAL"
         # High impact configs/backups
-        if any(x in path for x in ["config.php", "database.php", "db.php", "backup", ".sql", ".db"]):
+        if any(x in path for x in ["config.php", "database.php", "db.php", "backup", ".sql", ".db", ".bak", ".old", ".zip", ".tar"]):
             return "CRITICAL"
         # Admin panels
-        if any(x in path for x in ["admin", "administrator", "wp-admin", "cpanel"]):
+        if any(x in path for x in ["admin", "administrator", "wp-admin", "cpanel", "phpmyadmin"]):
             return "HIGH"
         # General discoveries
         if "info.php" in path or "phpinfo.php" in path:
             return "HIGH"
-        return "MEDIUM"
+        # Log files
+        if ".log" in path:
+            return "MEDIUM"
+        return "LOW"
 
     if tool == "NMAP":
         # Extract port if possible
@@ -58,22 +61,33 @@ def classify(tool: str, evidence: str, path: str = None) -> str:
         return "INFO"
 
     if tool == "NIKTO":
-        # Downgrade informational noise
+        # Informational findings for security headers and other noise.
+        # User requested keeping these as INFO.
         info_keywords = [
-            "the anti-clickjacking x-frame-options header is not present",
-            "the x-xss-protection header is not defined",
-            "the x-content-type-options header is not set",
-            "header missing", "suggested security header",
+            "suggested security header",
+            "header missing",
+            "referrer-policy",
+            "content-security-policy",
+            "strict-transport-security",
+            "x-content-type-options",
+            "permissions-policy",
+            "x-frame-options",
+            "x-xss-protection",
             "cookie", "header", "allowed methods",
+            "anti-clickjacking", "not found", "icon",
         ]
         if any(kw in evidence for kw in info_keywords):
             return "INFO"
         
         # Real vulnerabilities
-        if any(kw in evidence for kw in ["vulnerable", "vulnerability", "exploit", "rce", "sqli"]):
+        if any(kw in evidence for kw in ["vulnerable", "vulnerability", "exploit", "rce", "sqli", "os command", "overflow"]):
             return "HIGH"
         
-        return "MEDIUM"
+        # Exposed files/folders
+        if any(kw in evidence for kw in ["found", "exposed", "directory index", "sensitive"]):
+            return "MEDIUM"
+
+        return "LOW"
 
     # Default fallback
     if any(kw in evidence for kw in ["critical", "fatal", "emergency"]):

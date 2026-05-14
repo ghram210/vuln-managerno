@@ -237,6 +237,97 @@ async def _heartbeat(scan_id: str, tool: str, started_at: float, stop_event: asy
         })
 
 
+async def reconcile_findings(scan_id: str, tool: str, target: str):
+    """
+    Compare findings of the current scan with the PREVIOUS successful scan
+    for the same target and tool.
+    - Findings in PREVIOUS but not CURRENT -> mark as 'fixed'.
+    - Findings in both CURRENT and PREVIOUS -> mark the OLD one as 'superseded'.
+    Matching is done via (title, path, service).
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            # 1. Get the ID of the previous successful scan for this target/tool
+            resp = await client.get(
+                f"{SUPABASE_URL}/rest/v1/scan_results",
+                params={
+                    "target": f"eq.{target}",
+                    "tool": f"eq.{tool}",
+                    "status": "eq.completed",
+                    "id": f"neq.{scan_id}",
+                    "select": "id,completed_at",
+                    "order": "completed_at.desc",
+                    "limit": "1"
+                },
+                headers=SUPABASE_HEADERS
+            )
+            if resp.status_code != 200 or not resp.json():
+                return
+
+            prev_scan_id = resp.json()[0]["id"]
+
+            # 2. Fetch findings for both scans
+            # Current scan findings
+            curr_resp = await client.get(
+                f"{SUPABASE_URL}/rest/v1/scan_findings",
+                params={"scan_id": f"eq.{scan_id}", "select": "id,title,path,service"},
+                headers=SUPABASE_HEADERS
+            )
+            # Previous scan findings (only 'open' or 'superseded' ones)
+            prev_resp = await client.get(
+                f"{SUPABASE_URL}/rest/v1/scan_findings",
+                params={
+                    "scan_id": f"eq.{prev_scan_id}",
+                    "status": "in.(open,superseded)",
+                    "select": "id,title,path,service"
+                },
+                headers=SUPABASE_HEADERS
+            )
+
+            if curr_resp.status_code != 200 or prev_resp.status_code != 200:
+                return
+
+            curr_findings = curr_resp.json()
+            prev_findings = prev_resp.json()
+
+            def get_key(f):
+                return (f.get("title") or "").strip(), (f.get("path") or "").strip(), (f.get("service") or "").strip()
+
+            curr_keys = {get_key(f) for f in curr_findings}
+            prev_map = {get_key(f): f["id"] for f in prev_findings}
+
+            # 3. Mark findings as 'fixed' or 'superseded'
+            updates = []
+
+            # Findings that disappeared -> Fixed
+            for key, fid in prev_map.items():
+                if key not in curr_keys:
+                    updates.append({"id": fid, "status": "fixed"})
+                else:
+                    # Findings that persisted -> Mark old one as 'superseded'
+                    updates.append({"id": fid, "status": "superseded"})
+
+            # Push updates to Supabase (batch PATCH)
+            for chunk in [updates[i:i + 50] for i in range(0, len(updates), 50)]:
+                # Supabase REST API doesn't support bulk PATCH with different values per row easily
+                # but we can do it row by row or use a RPC if defined.
+                # For simplicity and reliability in this environment, we'll do individual updates.
+                tasks = []
+                for up in chunk:
+                    tasks.append(client.patch(
+                        f"{SUPABASE_URL}/rest/v1/scan_findings",
+                        params={"id": f"eq.{up['id']}"},
+                        headers=SUPABASE_HEADERS,
+                        json={"status": up["status"]}
+                    ))
+                await asyncio.gather(*tasks)
+
+            print(f"[gateway] reconciled {len(updates)} findings from scan {prev_scan_id} -> {scan_id}")
+
+    except Exception as e:
+        print(f"[gateway] reconciliation failed: {e}")
+
+
 async def run_scan_background(
     scan_id: str, target: str, tool: str, options: str, stealth: bool = True,
     cookie: str = "",
@@ -345,35 +436,27 @@ async def run_scan_background(
             # add up to `total_findings`. The raw tool item count remains
             # available in raw_output for context.
             if intel_ran:
-                critical = sev.get("critical_count", 0)
-                high     = sev.get("high_count", 0)
-                medium   = sev.get("medium_count", 0)
-                low      = sev.get("low_count", 0)
-                
-                # Merge counts: ensure findings from both raw tool output (severity_map)
-                # and CVE matches (sev) are represented. We take the max for each bucket
-                # to account for tools that report specific counts (like Nmap ports).
-                m_critical = max(critical, severity_map.get("critical_count", 0))
-                m_high     = max(high, severity_map.get("high_count", 0))
-                m_medium   = max(medium, severity_map.get("medium_count", 0))
-                m_low      = max(low, severity_map.get("low_count", 0))
-                
-                # Total findings should include ALL findings (including INFO level)
-                # to stay in sync with the scan_findings table row count.
-                m_total = max(sev.get("total_findings", 0), findings)
-
+                # When the intel pipeline ran successfully, its results are the
+                # canonical source of truth for classified findings. We use
+                # these counts directly to ensure the dashboard reflects the
+                # actual items inserted into the scan_findings table.
                 update_payload.update({
-                    "critical_count": m_critical,
-                    "high_count":     m_high,
-                    "medium_count":   m_medium,
-                    "low_count":      m_low,
-                    "total_findings": m_total,
+                    "critical_count": sev.get("critical_count", 0),
+                    "high_count":     sev.get("high_count", 0),
+                    "medium_count":   sev.get("medium_count", 0),
+                    "low_count":      sev.get("low_count", 0),
+                    "info_count":     sev.get("info_count", 0),
+                    "total_findings": sev.get("total_findings", 0),
                 })
         except Exception as e:
             print(f"[gateway] intel({scan_id}) failed: "
                   f"{type(e).__name__}: {e}", flush=True)
 
     await update_scan_in_supabase(scan_id, update_payload)
+
+    # Reconcile findings (fixed/superseded) against previous scans
+    if final_status == "completed":
+        await reconcile_findings(scan_id, tool, target)
 
 
 async def reconcile_stale_scans():
@@ -502,6 +585,7 @@ async def start_scan(
         "high_count": 0,
         "medium_count": 0,
         "low_count": 0,
+        "info_count": 0,
         "total_findings": 0,
     }
 
@@ -694,12 +778,14 @@ async def reimport_scan_intel(scan_id: str, authorization: str = Header(None)):
         high     = sev.get("high_count", 0)
         medium   = sev.get("medium_count", 0)
         low      = sev.get("low_count", 0)
+        info     = sev.get("info_count", 0)
         total    = sev.get("total_findings", 0)
         await update_scan_in_supabase(scan_id, {
             "critical_count": critical,
             "high_count":     high,
             "medium_count":   medium,
             "low_count":      low,
+            "info_count":     info,
             "total_findings": total,
         })
 

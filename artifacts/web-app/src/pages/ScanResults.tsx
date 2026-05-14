@@ -24,6 +24,7 @@ interface ScanResult {
   high_count: number;
   medium_count: number;
   low_count: number;
+  info_count: number;
   total_findings: number;
   created_at: string;
 }
@@ -202,11 +203,15 @@ const ScanResults = () => {
                                 <span className="w-2 h-2 rounded-full bg-blue-500" />
                                 <span className="text-foreground">{scan.low_count}</span>
                               </span>
+                              <span className="flex items-center gap-1" title="Informational Findings">
+                                <span className="w-2.5 h-2.5 rounded-full bg-purple-600 shadow-[0_0_8px_rgba(147,51,234,0.5)]" />
+                                <span className="text-foreground font-semibold min-w-[1ch]">{scan.info_count ?? 0}</span>
+                              </span>
                               <span
-                                className="text-muted-foreground"
-                                title="CVE-classified findings (sum of severity buckets). Raw tool output may contain more informational items — see Raw Output."
+                                className="text-muted-foreground font-medium ml-2 border-l border-border pl-2"
+                                title="Total classified findings (sum of all severity buckets)."
                               >
-                                {scan.total_findings} classified findings
+                                {scan.total_findings ?? 0} findings
                               </span>
                             </div>
                           )}
@@ -313,9 +318,18 @@ const ScanResults = () => {
                       )}
                       <div>
                         <p className="text-xs text-muted-foreground">Classified Findings</p>
-                        <p className="text-foreground font-semibold">{selectedScanUpdated.total_findings}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Sum of severity buckets (CVE-classified). Tool may have produced more raw items — see Raw Output.
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-foreground font-bold text-lg leading-none">{selectedScanUpdated.total_findings}</p>
+                          <div className="flex gap-1.5 ml-1">
+                            {selectedScanUpdated.critical_count > 0 && <span className="w-2 h-2 rounded-full bg-red-500" />}
+                            {selectedScanUpdated.high_count > 0 && <span className="w-2 h-2 rounded-full bg-orange-500" />}
+                            {selectedScanUpdated.medium_count > 0 && <span className="w-2 h-2 rounded-full bg-yellow-500" />}
+                            {selectedScanUpdated.low_count > 0 && <span className="w-2 h-2 rounded-full bg-blue-500" />}
+                            {selectedScanUpdated.info_count > 0 && <span className="w-2 h-2 rounded-full bg-purple-600" />}
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
+                          Sum of severity buckets (Critical to Info). Raw tool output may contain additional metadata.
                         </p>
                       </div>
                     </div>
