@@ -24,6 +24,7 @@ interface ScanResult {
   high_count: number;
   medium_count: number;
   low_count: number;
+  info_count: number;
   total_findings: number;
   created_at: string;
 }
@@ -206,11 +207,15 @@ const ScanResults = () => {
                                 <span className="w-2 h-2 rounded-full bg-blue-500" />
                                 <span className="text-foreground">{scan.low_count}</span>
                               </span>
+                              <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                                <span className="text-foreground">{scan.info_count}</span>
+                              </span>
                               <span
                                 className="text-muted-foreground"
-                                title="CVE-classified findings (sum of severity buckets). Raw tool output may contain more informational items — see Raw Output."
+                                title="Total findings including informational items."
                               >
-                                {scan.total_findings} classified findings
+                                {scan.total_findings} findings
                               </span>
                             </div>
                           )}

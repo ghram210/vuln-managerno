@@ -445,6 +445,7 @@ async def run_scan_background(
                     "high_count":     sev.get("high_count", 0),
                     "medium_count":   sev.get("medium_count", 0),
                     "low_count":      sev.get("low_count", 0),
+                    "info_count":     sev.get("info_count", 0),
                     "total_findings": sev.get("total_findings", 0),
                 })
         except Exception as e:
@@ -584,6 +585,7 @@ async def start_scan(
         "high_count": 0,
         "medium_count": 0,
         "low_count": 0,
+        "info_count": 0,
         "total_findings": 0,
     }
 
@@ -776,12 +778,14 @@ async def reimport_scan_intel(scan_id: str, authorization: str = Header(None)):
         high     = sev.get("high_count", 0)
         medium   = sev.get("medium_count", 0)
         low      = sev.get("low_count", 0)
+        info     = sev.get("info_count", 0)
         total    = sev.get("total_findings", 0)
         await update_scan_in_supabase(scan_id, {
             "critical_count": critical,
             "high_count":     high,
             "medium_count":   medium,
             "low_count":      low,
+            "info_count":     info,
             "total_findings": total,
         })
 

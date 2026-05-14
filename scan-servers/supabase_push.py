@@ -23,7 +23,7 @@ from matcher import MatchResult
 import classifier
 
 
-SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
 
 
 # ---------------------------------------------------------------
@@ -152,9 +152,8 @@ def build_payload(
 def severity_counts(payload: dict) -> dict[str, int]:
     """
     Roll up severity counts for the scan summary.
-    Only counts the 4 primary severity buckets (Critical, High, Medium, Low)
-    to ensure the 'total_findings' matches the sum of colored dots in the UI.
-    Informational findings (INFO) are stored but excluded from this aggregate.
+    Counts all buckets including INFO to ensure total_findings reflects
+    the complete set of discovered items as requested by the user.
     """
     counts = {f"{s.lower()}_count": 0 for s in SEVERITIES}
     findings = payload.get("scan_findings", [])
