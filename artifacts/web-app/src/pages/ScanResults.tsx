@@ -72,7 +72,6 @@ const ScanResults = () => {
       const { data, error } = await supabase
         .from("scan_results")
         .select("*")
-        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as ScanResult[];

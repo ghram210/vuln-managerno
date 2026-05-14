@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Globe, Check, ShieldCheck, ShieldAlert } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import DonutChart from "@/components/DonutChart";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import {
   useChartSeverity,
   useChartByTool,
@@ -195,6 +198,21 @@ const DashboardDonuts = () => {
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
   const [selectedUrls, setSelectedUrls] = useState<string[] | null>(null);
 
+  const { data: rawDaily } = useQuery({
+    queryKey: ["vuln-daily-main", selectedUrl],
+    queryFn: async () => {
+      const { data } = await supabase.from("vuln_daily_open").select("*").order("day");
+      return (data || []) as any[];
+    },
+  });
+
+  const daily = (rawDaily || []).filter(d => !selectedUrl || d.target === selectedUrl);
+  const aggregatedDaily = Array.from({ length: 45 }, (_, i) => i + 1).map(dayNum => {
+    const matching = daily.filter(d => d.day === dayNum);
+    const count = matching.reduce((s, d) => s + (d.count || 0), 0);
+    return { day: dayNum, count };
+  });
+
   const severity       = useChartSeverity(selectedUrls);
   const byTool         = useChartByTool(selectedUrls);
   const exposure       = useChartExposure(selectedUrls);
@@ -286,6 +304,20 @@ const DashboardDonuts = () => {
         />
 
       </div>
+
+      {/* ── Daily Discovery Trend ── */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold mb-4">Discovered vulnerabilities by day · Last 45 days</h3>
+        <ResponsiveContainer width="100%" height={220}>
+          <LineChart data={aggregatedDaily}>
+            <XAxis dataKey="day" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+            <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
     </div>
   );
 };
