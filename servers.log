@@ -1,0 +1,53 @@
+==================================================
+  Penetration Testing Scan System
+==================================================
+[*] Using Python: /home/jules/.pyenv/shims/python3 (Python 3.12.13)
+[*] Installing dependencies (one time setup)...
+[*] Clearing ports 8001 8002 8003 8004 8090...
+[*] Starting Nmap API     -> http://localhost:8001
+[*] Starting Nikto API    -> http://localhost:8002
+[*] Starting SQLmap API   -> http://localhost:8003
+[*] Starting FFUF API     -> http://localhost:8004
+[NMAP-SRV] INFO:     Started server process [132040]
+[NMAP-SRV] INFO:     Waiting for application startup.
+[NMAP-SRV] INFO:     Application startup complete.
+[NMAP-SRV] INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+[NIKTO-SRV] INFO:     Started server process [132043]
+[NIKTO-SRV] INFO:     Waiting for application startup.
+[NIKTO-SRV] INFO:     Application startup complete.
+[NIKTO-SRV] INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
+[FFUF-SRV] INFO:     Started server process [132052]
+[FFUF-SRV] INFO:     Waiting for application startup.
+[FFUF-SRV] INFO:     Application startup complete.
+[FFUF-SRV] INFO:     Uvicorn running on http://0.0.0.0:8004 (Press CTRL+C to quit)
+[SQLMAP-SRV] INFO:     Started server process [132049]
+[SQLMAP-SRV] INFO:     Waiting for application startup.
+[SQLMAP-SRV] INFO:     Application startup complete.
+[SQLMAP-SRV] INFO:     Uvicorn running on http://0.0.0.0:8003 (Press CTRL+C to quit)
+
+[*] Checking tool servers...
+[NMAP-SRV] INFO:     127.0.0.1:55236 - "GET /health HTTP/1.1" 200 OK
+    [OK] Port 8001 is responding
+[NIKTO-SRV] INFO:     127.0.0.1:52276 - "GET /health HTTP/1.1" 200 OK
+    [OK] Port 8002 is responding
+[SQLMAP-SRV] INFO:     127.0.0.1:51352 - "GET /health HTTP/1.1" 200 OK
+    [OK] Port 8003 is responding
+[FFUF-SRV] INFO:     127.0.0.1:41004 - "GET /health HTTP/1.1" 200 OK
+    [OK] Port 8004 is responding
+
+==================================================
+  All tool servers started!
+  Nmap API   -> http://localhost:8001  [log: logs/nmap.log]
+  Nikto API  -> http://localhost:8002  [log: logs/nikto.log]
+  SQLmap API -> http://localhost:8003  [log: logs/sqlmap.log]
+  FFUF API   -> http://localhost:8004  [log: logs/ffuf.log]
+
+  Starting Gateway on port 8090...
+  Express API should run separately on port 8080
+  Press Ctrl+C to stop all servers
+==================================================
+
+INFO:     Started server process [133479]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8090 (Press CTRL+C to quit)

@@ -60,6 +60,27 @@ def sanitize_cookie(cookie: str) -> str:
 
 
 def extract_hostname(target: str) -> str:
+    """
+    Safely extract hostname from a target string (URL or IP:port).
+    """
     target = target.strip()
-    parsed = urllib.parse.urlparse(target if "://" in target else f"http://{target}")
-    return parsed.hostname or target
+    if not target:
+        return ""
+
+    # URL parsing
+    if "://" in target:
+        try:
+            parsed = urllib.parse.urlparse(target)
+            if parsed.hostname:
+                return parsed.hostname
+        except Exception:
+            pass
+
+    # Handle IP:port or domain:port
+    if ":" in target:
+        # Avoid breaking on IPv6 [::1]:80
+        if target.startswith("[") and "]" in target:
+            return target[1:target.find("]")]
+        return target.split(":")[0]
+
+    return target

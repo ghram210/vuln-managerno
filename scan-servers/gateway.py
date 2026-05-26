@@ -15,8 +15,8 @@ from config import (
     SUPABASE_URL, SUPABASE_SERVICE_KEY,
     NMAP_URL, NIKTO_URL, SQLMAP_URL, FFUF_URL,
 )
-from security import sanitize_target, sanitize_options
-from auth import get_admin_user
+from security import sanitize_target, sanitize_options, extract_hostname
+from auth import get_authenticated_user, get_admin_user
 from intel import process_scan_intelligence, indexes_available
 
 app = FastAPI(title="Scan Gateway", version="1.0.0")
@@ -466,7 +466,55 @@ async def start_scan(
     background_tasks: BackgroundTasks,
     authorization: str = Header(None),
 ):
-    user = await get_admin_user(authorization)
+    user = await get_authenticated_user(authorization)
+    user_id = user["id"]
+    user_email = user.get("email", "").lower()
+    user_role = user.get("role", "user").lower()
+
+    # Domain ownership verification logic
+    target_hostname = extract_hostname(req.target).lower()
+
+    WHITELISTED_DOMAINS = ["testfire.net", "testphp.vulnweb.com", "scanme.nmap.org"]
+    is_whitelisted = target_hostname in WHITELISTED_DOMAINS
+
+    # Admins get immediate access to whitelisted domains.
+    # Others (or non-whitelisted for admins) must have verified ownership.
+    can_scan = False
+    if user_role == "admin" and is_whitelisted:
+        can_scan = True
+    else:
+        # Check database for verified domain
+        try:
+            async with httpx.AsyncClient() as client:
+                # We query user_domains table in Supabase
+                resp = await client.get(
+                    f"{SUPABASE_URL}/rest/v1/user_domains",
+                    params={
+                        "user_id": f"eq.{user_id}",
+                        "domain": f"eq.{target_hostname}",
+                        "is_verified": "is.true",
+                        "select": "id"
+                    },
+                    headers=SUPABASE_HEADERS,
+                    timeout=10,
+                )
+                if resp.status_code == 200 and len(resp.json()) > 0:
+                    can_scan = True
+        except Exception as e:
+            print(f"[gateway] Domain verification check failed: {e}")
+            # Fallback: if check fails, we might want to block or allow.
+            # Given the strict requirement, we block.
+            can_scan = False
+
+    if not can_scan:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "⚠️ إجراء أمني خطير: غير مسموح لك بإجراء عمليات فحص على هذا النطاق. "
+                "تم تسجيل هذه المحاولة كإجراء غير مصرح به. "
+                "فحص النطاقات غير المملوكة لك يقع تحت طائلة المسؤولية القانونية."
+            )
+        )
 
     if req.tool not in TOOL_SERVERS and req.tool != "FULL":
         raise HTTPException(

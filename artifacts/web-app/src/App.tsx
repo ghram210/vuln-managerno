@@ -31,9 +31,9 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/vulnerabilities" element={<ProtectedRoute><Vulnerabilities /></ProtectedRoute>} />
             <Route path="/vuln-dashboard" element={<ProtectedRoute><VulnDashboard /></ProtectedRoute>} />
-            <Route path="/new-scan" element={<ProtectedRoute adminOnly><NewScan /></ProtectedRoute>} />
+            <Route path="/new-scan" element={<ProtectedRoute><NewScan /></ProtectedRoute>} />
             <Route path="/scan-results" element={<ProtectedRoute><ScanResults /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

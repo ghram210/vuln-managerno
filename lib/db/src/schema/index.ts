@@ -5,3 +5,4 @@ export * from "./cve_catalog";
 export * from "./exploits";
 export * from "./finding_cves";
 export * from "./system_logs";
+export * from "./user_domains";

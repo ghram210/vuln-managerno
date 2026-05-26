@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Globe, Terminal, Zap, Shield, Maximize2, Loader2, CheckCircle2 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { Globe, Terminal, Zap, Shield, Maximize2, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -23,6 +23,52 @@ const NewScan = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [scanName, setScanName] = useState("");
   const [target, setTarget] = useState("");
+
+  const { data: userDomains } = useQuery({
+    queryKey: ["user_domains"],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch("/api/domains", {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch domains");
+      return response.json();
+    },
+  });
+
+  const { data: sessionData } = useQuery({
+    queryKey: ["session"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session;
+    }
+  });
+
+  const { data: userRole } = useQuery({
+    queryKey: ["user_role", sessionData?.user?.id],
+    enabled: !!sessionData?.user?.id,
+    queryFn: async () => {
+      const { data } = await supabase.from("user_roles").select("role").eq("user_id", sessionData!.user.id).maybeSingle();
+      return data?.role;
+    }
+  });
+
+  const extractHostname = (url: string) => {
+    try {
+      const hostname = url.includes("://") ? new URL(url).hostname : url.split(":")[0].split("/")[0];
+      return hostname.toLowerCase();
+    } catch {
+      return url.toLowerCase();
+    }
+  };
+
+  const WHITELISTED_DOMAINS = ["testfire.net", "testphp.vulnweb.com", "scanme.nmap.org"];
+  const targetHostname = extractHostname(target);
+  const isWhitelisted = WHITELISTED_DOMAINS.includes(targetHostname);
+  const isVerified = userDomains?.some((d: any) => d.domain.toLowerCase() === targetHostname && d.isVerified);
+  const canScan = (userRole === "admin" && isWhitelisted) || isVerified;
   const [description, setDescription] = useState("");
   const [selectedTool, setSelectedTool] = useState("");
   const [confirmOwnership, setConfirmOwnership] = useState(false);
@@ -76,6 +122,7 @@ const NewScan = () => {
     confirmNonMalicious && 
     confirmNoDamage && 
     confirmLogging && 
+    canScan &&
     !mutation.isPending;
 
   return (
@@ -108,8 +155,23 @@ const NewScan = () => {
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
                   placeholder="e.g. https://example.com or 192.168.1.1"
-                  className="w-full bg-background border border-primary/50 rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className={cn(
+                    "w-full bg-background border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1",
+                    target && !canScan ? "border-red-500/50 focus:ring-red-500" : "border-primary/50 focus:ring-primary"
+                  )}
                 />
+                {target && !canScan && (
+                  <div className="mt-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="text-sm text-red-200">
+                      <p className="font-bold mb-1">⚠️ إجراء أمني خطير</p>
+                      <p>غير مسموح لك بإجراء عمليات فحص على هذا النطاق. يجب عليك أولاً إضافة الدومين في الإعدادات وتوثيق ملكيته عبر ملف verify.txt.</p>
+                      {userRole === "admin" && (
+                        <p className="mt-2 text-xs opacity-80">نصيحة للأدمن: يمكنك فحص المواقع التجريبية المسموحة (testfire.net, testphp.vulnweb.com, scanme.nmap.org) دون توثيق.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-sm text-muted-foreground mb-1.5 block">Description (optional)</label>
