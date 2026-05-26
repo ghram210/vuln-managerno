@@ -235,45 +235,7 @@ const AdminPanel = () => {
               </div>
               <p className="text-muted-foreground">System administration and user management</p>
             </div>
-            <button
-              onClick={() => setShowInvite(!showInvite)}
-              className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors"
-            >
-              <UserPlus className="w-4 h-4" />
-              Invite User
-            </button>
           </div>
-
-          {showInvite && (
-            <div className="bg-card border border-border rounded-xl p-5 mb-6">
-              <div className="flex items-end gap-4">
-                <div className="flex-1">
-                  <label className="text-sm text-muted-foreground mb-1 block">Email (optional)</label>
-                  <input
-                    type="email"
-                    placeholder="user@example.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-                  />
-                </div>
-                <button
-                  onClick={handleGenerateInvite}
-                  disabled={isGeneratingInvite}
-                  className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors whitespace-nowrap disabled:opacity-50"
-                >
-                  {isGeneratingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  Generate Link
-                </button>
-                <button
-                  onClick={() => { setShowInvite(false); setInviteEmail(""); }}
-                  className="px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
 
           <div className="grid grid-cols-4 gap-4 mb-6">
             {stats.map((stat) => {

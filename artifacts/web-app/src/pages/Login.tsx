@@ -10,8 +10,11 @@ const Login = () => {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [domains, setDomains] = useState<string[]>(["", "", "", "", ""]);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -32,6 +35,61 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data.user) {
+        // Many Supabase configs don't return session immediately on signUp
+        // If we have a session, use it. Otherwise, user must log in.
+        const session = data.session;
+
+        if (session) {
+          const validDomains = domains.filter(d => d.trim() !== "");
+          for (const domain of validDomains) {
+            try {
+              await fetch("/api/domains", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ domain: domain.trim() }),
+              });
+            } catch (domainErr) {
+              console.error("Failed to add domain during signup:", domainErr);
+            }
+          }
+          toast.success("Registration successful!");
+          navigate("/", { replace: true });
+        } else {
+          toast.success("Registration successful! Please check your email to confirm your account, then log in.");
+          setIsSignUp(false);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateDomain = (index: number, value: string) => {
+    const newDomains = [...domains];
+    newDomains[index] = value;
+    setDomains(newDomains);
   };
 
   return (
@@ -84,11 +142,26 @@ const Login = () => {
           </div>
 
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground">Welcome Back</h2>
-            <p className="text-muted-foreground mt-2">Sign in to your security dashboard</p>
+            <h2 className="text-3xl font-bold text-foreground">{isSignUp ? "Create Account" : "Welcome Back"}</h2>
+            <p className="text-muted-foreground mt-2">
+              {isSignUp ? "Register your security profile" : "Sign in to your security dashboard"}
+            </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-4">
+            {isSignUp && (
+              <div className="relative">
+                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="w-full bg-card border border-border rounded-lg pl-10 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                />
+              </div>
+            )}
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -120,25 +193,53 @@ const Login = () => {
               </button>
             </div>
 
+            {isSignUp && (
+              <div className="space-y-3 pt-2">
+                <p className="text-sm font-semibold text-primary uppercase tracking-wider">
+                  Enter your domains (Max 5)
+                </p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Enter domains you own and are authorized to scan.
+                </p>
+                {domains.map((domain, index) => (
+                  <div key={index} className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder={`Domain ${index + 1} (e.g. example.com)`}
+                      value={domain}
+                      onChange={(e) => updateDomain(index, e.target.value)}
+                      className="w-full bg-card border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 mt-4"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               ) : (
                 <>
-                  Sign In
+                  {isSignUp ? "Register" : "Sign In"}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          <p className="text-center text-muted-foreground text-sm mt-8">
-            New users must be invited by an administrator.
-          </p>
+          <div className="mt-8 text-center">
+            <button
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-primary hover:underline text-sm font-medium"
+            >
+              {isSignUp ? "Already have an account? Sign In" : "New user? Create an account"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
