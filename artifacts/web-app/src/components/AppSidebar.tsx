@@ -33,10 +33,10 @@ const navItems: NavItem[] = [
   { icon: BarChart3, label: "Assets Dashboard", key: "dashboard", path: "/" },
   { icon: Bug, label: "Vulnerabilities", key: "vulnerabilities", path: "/vulnerabilities" },
   { icon: Globe, label: "Vuln Dashboard", key: "vuln-dashboard", path: "/vuln-dashboard" },
-  { icon: PlusCircle, label: "New Scan", key: "new-scan", path: "/new-scan", adminOnly: true },
+  { icon: PlusCircle, label: "New Scan", key: "new-scan", path: "/new-scan" },
   { icon: RefreshCw, label: "Scan Results", key: "scan-results", path: "/scan-results" },
   { type: "header", label: "SYSTEM" },
-  { icon: Settings, label: "Settings", key: "settings", path: "/settings", adminOnly: true },
+  { icon: Settings, label: "Settings", key: "settings", path: "/settings" },
   { icon: Users, label: "Admin Panel", key: "admin", path: "/admin", adminOnly: true },
 ];
 
@@ -64,12 +64,10 @@ const AppSidebar = ({ collapsed, onToggle, activePage = "dashboard" }: SidebarPr
 
       <nav className="flex-1 px-2 space-y-1 overflow-y-auto">
         {navItems.map((item, i) => {
-          // Hide admin-only items from non-admin users
           if (item.adminOnly && userRole !== "admin") return null;
 
           if (item.type === "header") {
-            // Hide SYSTEM header if user is not admin
-            if (item.label === "SYSTEM" && userRole !== "admin") return null;
+            if (item.label === "SYSTEM" && userRole !== "admin" && userRole !== "user") return null;
             return !collapsed ? (
               <p key={i} className="text-primary text-xs font-semibold tracking-wider px-3 pt-5 pb-2">
                 {item.label}
