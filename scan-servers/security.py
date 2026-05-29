@@ -63,3 +63,21 @@ def extract_hostname(target: str) -> str:
     target = target.strip()
     parsed = urllib.parse.urlparse(target if "://" in target else f"http://{target}")
     return parsed.hostname or target
+
+
+def extract_domain(target: str) -> str:
+    """
+    Extracts the base domain from a target URL or IP, stripping 'www.'
+    and protocol, matching the logic in artifacts/api-server/src/routes/domains.ts.
+    """
+    try:
+        url = target if target.startswith("http") else f"http://{target}"
+        parsed = urllib.parse.urlparse(url)
+        hostname = (parsed.hostname or "").lower()
+        if hostname.startswith("www."):
+            hostname = hostname[4:]
+        return hostname
+    except Exception:
+        # Fallback for malformed strings
+        host = target.lower().replace("www.", "").split("/")[0]
+        return host

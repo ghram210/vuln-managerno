@@ -15,8 +15,8 @@ from config import (
     SUPABASE_URL, SUPABASE_SERVICE_KEY,
     NMAP_URL, NIKTO_URL, SQLMAP_URL, FFUF_URL,
 )
-from security import sanitize_target, sanitize_options
-from auth import get_admin_user
+from security import sanitize_target, sanitize_options, extract_domain
+from auth import get_authenticated_user, get_admin_user
 from intel import process_scan_intelligence, indexes_available
 
 app = FastAPI(title="Scan Gateway", version="1.0.0")
@@ -69,6 +69,20 @@ TOOL_SERVERS = {
     "SQLMAP": SQLMAP_URL,
     "FFUF": FFUF_URL,
 }
+
+HARDCODED_ADMIN_WHITELIST = [
+    "localhost",
+    "127.0.0.1",
+    "testfire.net",
+    "demo.testfire.net",
+    "testphp.vulnweb.com",
+    "testasp.vulnweb.com",
+    "vulnweb.com",
+    "scanme.nmap.org",
+    "zero.webappsecurity.com",
+    "dvwa.co.uk",
+    "hackazon.webscantest.com",
+]
 
 TOOL_DEFAULT_OPTIONS = {
     "NMAP":   "",
@@ -466,7 +480,7 @@ async def start_scan(
     background_tasks: BackgroundTasks,
     authorization: str = Header(None),
 ):
-    user = await get_admin_user(authorization)
+    user = await get_authenticated_user(authorization)
 
     if req.tool not in TOOL_SERVERS and req.tool != "FULL":
         raise HTTPException(
@@ -478,12 +492,57 @@ async def start_scan(
         target = sanitize_target(req.target)
         options = sanitize_options(req.options) if req.options else ""
         cookie = (req.cookie or "").strip()
-        # Light validation here; sqlmap_api re-validates with the
-        # cookie-specific sanitizer before passing it to sqlmap.
         if cookie and len(cookie) > 4000:
             raise ValueError("Cookie string too long")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    # ── Domain Authorization Check ──
+    domain = extract_domain(target)
+    is_authorized = False
+
+    if user["role"] == "admin":
+        # 1. Admin Whitelist
+        if any(domain == w or domain.endswith(f".{w}") for w in HARDCODED_ADMIN_WHITELIST):
+            is_authorized = True
+        else:
+            # 2. Check user_domains for this admin
+            async with httpx.AsyncClient() as client:
+                d_resp = await client.get(
+                    f"{SUPABASE_URL}/rest/v1/user_domains",
+                    params={
+                        "user_id": f"eq.{user['id']}",
+                        "domain": f"eq.{domain}",
+                        "status": "eq.verified",
+                        "select": "id"
+                    },
+                    headers=SUPABASE_HEADERS,
+                    timeout=10
+                )
+                if d_resp.status_code == 200 and d_resp.json():
+                    is_authorized = True
+    else:
+        # Regular user: must have a verified domain in DB
+        async with httpx.AsyncClient() as client:
+            d_resp = await client.get(
+                f"{SUPABASE_URL}/rest/v1/user_domains",
+                params={
+                    "user_id": f"eq.{user['id']}",
+                    "domain": f"eq.{domain}",
+                    "status": "eq.verified",
+                    "select": "id"
+                },
+                headers=SUPABASE_HEADERS,
+                timeout=10
+            )
+            if d_resp.status_code == 200 and d_resp.json():
+                is_authorized = True
+
+    if not is_authorized:
+        raise HTTPException(
+            status_code=403,
+            detail=f"⛔ \"{domain}\" is not authorized for scanning. Add and verify it in Settings first."
+        )
 
     scan_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
