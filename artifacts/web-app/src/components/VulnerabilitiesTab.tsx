@@ -305,6 +305,7 @@ const VulnerabilitiesTab = () => {
           <thead>
             <tr className="border-b border-border bg-secondary/30">
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVE</th>
+              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Vulnerability</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Scan Name</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exprt Rating</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Severity</th>
@@ -337,6 +338,11 @@ const VulnerabilitiesTab = () => {
                         {v.cve_id ?? "—"}
                       </span>
                     </div>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className="text-foreground/90 font-medium truncate max-w-[180px] block" title={v.vulnerability_name ?? ""}>
+                      {v.vulnerability_name ?? "—"}
+                    </span>
                   </td>
                   <td className="px-5 py-3.5">
                     <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
@@ -388,7 +394,7 @@ const VulnerabilitiesTab = () => {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={9} className="px-5 py-8 text-center text-sm text-muted-foreground">
                   No vulnerabilities match the current filters.
                 </td>
               </tr>
