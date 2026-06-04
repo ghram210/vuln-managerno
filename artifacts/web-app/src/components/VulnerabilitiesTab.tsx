@@ -355,8 +355,8 @@ const VulnerabilitiesTab = () => {
                   <td className="px-5 py-3.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-5 py-3.5 text-foreground/85 max-w-[320px]">
-                    <span className="line-clamp-2 leading-snug" title={v.description ?? ""}>
+                  <td className="px-5 py-3.5 text-foreground/85 max-w-[200px]">
+                    <span className="line-clamp-1 leading-snug" title={v.description ?? ""}>
                       {v.description ?? "—"}
                     </span>
                   </td>
