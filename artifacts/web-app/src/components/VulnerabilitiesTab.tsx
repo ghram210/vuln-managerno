@@ -101,41 +101,9 @@ const getVulnerabilityName = (desc: string | null | undefined): string => {
 
 const getSmartSummary = (desc: string | null | undefined): string => {
   if (!desc) return "—";
-
-  // 1. Identify Vulnerability Type (What)
-  const type = getVulnerabilityName(desc);
-
-  // 2. Identify Product (Where)
-  let product = "";
-  // Skip common introductory phrases
-  let cleanDesc = desc.replace(/^(A flaw was found in|A vulnerability was discovered in|Vulnerability in|In)\s+/i, "");
-
-  // Strategy A: Starts with product name (e.g. "Apache httpd allows...")
-  const productMatch = cleanDesc.match(/^([^,]+?)\s+(?:before|version|allows|in|contains|is|has|vulnerability)\b/i);
-  if (productMatch && productMatch[1].length < 30 && !productMatch[1].toLowerCase().includes("issue") && !productMatch[1].toLowerCase().includes("vulnerability")) {
-    product = productMatch[1].trim();
-  }
-
-  // Strategy B: Fallback to "in [Product]"
-  if (!product) {
-    const inMatch = cleanDesc.match(/(?:in|for)\s+([^,.]+)/i);
-    if (inMatch && inMatch[1].length < 30) {
-      product = inMatch[1].trim();
-    }
-  }
-
-  // Default to "System" if no product found
-  if (!product) product = "System";
-
-  // 3. Format strictly as: "[Vulnerability] in [Product]"
-  const finalType = type === "Security Issue" ? "Vulnerability" : type;
-
-  // If the product name already contains the vulnerability type (e.g. "SSRF in SSRF"), fix it
-  if (product.toLowerCase().includes(finalType.toLowerCase())) {
-     return cleanDesc.split(/[.!?]/)[0].substring(0, 60);
-  }
-
-  return `${finalType} in ${product}`;
+  // Return only the first sentence (up to the first period)
+  const firstSentence = desc.split(/[.!?]/)[0].trim();
+  return firstSentence;
 };
 
 const VulnerabilitiesTab = () => {
@@ -416,7 +384,7 @@ const VulnerabilitiesTab = () => {
                   <td className="px-3 py-2.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-3 py-2.5 text-foreground max-w-0 overflow-hidden">
+                  <td className="px-3 py-2.5 text-foreground max-w-0 overflow-hidden h-[40px]">
                     <span className="leading-tight block whitespace-nowrap text-[11px] overflow-hidden font-bold" title={v.description ?? ""}>
                       {getSmartSummary(v.description)}
                     </span>
