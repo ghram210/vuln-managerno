@@ -77,6 +77,35 @@ const ExploitCell = ({ value }: { value: string | null | undefined }) => {
   );
 };
 
+const getVulnerabilityName = (desc: string | null | undefined): string => {
+  if (!desc) return "—";
+  const vulnTypes = [
+    "SQL Injection", "SSRF", "RCE", "XSS", "CSRF", "LFI", "RFI",
+    "Buffer Overflow", "Path Traversal", "Insecure Deserialization",
+    "Privilege Escalation", "Denial of Service", "Command Injection", "Directory Traversal",
+    "Information Disclosure", "Authentication Bypass", "Integer Overflow",
+    "Out-of-bounds Read", "Out-of-bounds Write", "Use After Free",
+    "Heap Overflow", "Stack Overflow", "Improper Neutralization",
+    "Weak Cryptography", "Exposed Credentials", "Missing Authorization"
+  ];
+  const sortedTypes = [...vulnTypes].sort((a, b) => b.length - a.length);
+  for (const t of sortedTypes) {
+    if (desc.toLowerCase().includes(t.toLowerCase())) return t;
+  }
+  if (desc.includes("SSRF")) return "SSRF";
+  if (desc.includes("RCE")) return "RCE";
+  if (desc.includes("XSS")) return "XSS";
+  if (desc.includes("DoS")) return "Denial of Service";
+  return "Security Issue";
+};
+
+const getSmartSummary = (desc: string | null | undefined): string => {
+  if (!desc) return "—";
+  // Return only the first sentence (up to the first period)
+  const firstSentence = desc.split(/[.!?]/)[0].trim();
+  return firstSentence;
+};
+
 const VulnerabilitiesTab = () => {
   const navigate = useNavigate();
   const [filterRating, setFilterRating] = useState("all");
@@ -304,15 +333,16 @@ const VulnerabilitiesTab = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-secondary/30">
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVE</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Scan Name</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exprt Rating</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Severity</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Description</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Affected</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exploit Status</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Score</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Actions</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">CVE</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Vulnerability</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Scan</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Rating</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Severity</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider w-full">Description</th>
+              <th className="text-center px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider whitespace-nowrap">Hits</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Exploit</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Score</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider"></th>
             </tr>
           </thead>
           <tbody>
@@ -321,8 +351,8 @@ const VulnerabilitiesTab = () => {
               const sevStyle = severityStyles[sev] ?? fallbackStyle;
               const dot = sevStyle.dot;
               const color = "hex" in sevStyle ? sevStyle.hex : undefined;
-              const cveInfo = cveMap.get(v.cve_id);
-              const score = cveInfo?.score;
+              // Use the score directly from the view if available
+              const score = (v as any).cvss_score ?? cveMap.get(v.cve_id)?.score;
               const scoreStyle = severityStyles[sev] ?? fallbackStyle;
               return (
                 <tr
@@ -330,37 +360,42 @@ const VulnerabilitiesTab = () => {
                   className="border-t border-border hover:bg-secondary/50 transition-colors cursor-pointer"
                   onClick={() => navigate("/scan-results")}
                 >
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${dot}`} style={color ? { backgroundColor: color } : {}} />
-                      <span className="text-primary font-mono text-xs font-semibold">
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${dot}`} style={color ? { backgroundColor: color } : {}} />
+                      <span className="text-primary font-mono text-[11px] font-semibold">
                         {v.cve_id ?? "—"}
                       </span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
+                  <td className="px-3 py-2.5">
+                    <span className="text-foreground/90 font-bold truncate max-w-[140px] block text-[11px]" title={v.description ?? ""}>
+                      {getVulnerabilityName(v.description)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className="text-foreground font-bold truncate max-w-[100px] block text-[11px]">
                       {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-3 py-2.5">
                     <SeverityCell value={v.exprt_rating} />
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-3 py-2.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-5 py-3.5 text-foreground/85 max-w-[320px]">
-                    <span className="line-clamp-2 leading-snug" title={v.description ?? ""}>
-                      {v.description ?? "—"}
+                  <td className="px-3 py-2.5 text-foreground max-w-0 overflow-hidden h-[40px]">
+                    <span className="leading-tight block whitespace-nowrap text-[11px] overflow-hidden font-bold" title={v.description ?? ""}>
+                      {getSmartSummary(v.description)}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-foreground text-center font-medium tabular-nums">
+                  <td className="px-3 py-2.5 text-foreground text-center font-bold tabular-nums text-[11px]">
                     {(v.vulnerability_count ?? 0).toLocaleString("en-US")}
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-3 py-2.5">
                     <ExploitCell value={v.exploit_status} />
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-3 py-2.5">
                     {score !== undefined && score !== null ? (
                       <span
                         className={`inline-flex items-center justify-center min-w-[44px] px-2 py-1 rounded-md text-xs font-bold tabular-nums bg-secondary border border-border ${scoreStyle.text}`}
@@ -372,9 +407,9 @@ const VulnerabilitiesTab = () => {
                       <span className="text-muted-foreground text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-4 py-3 text-right">
                     <button
-                      className="text-muted-foreground hover:text-foreground"
+                      className="text-muted-foreground/50 hover:text-foreground"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate("/scan-results");
@@ -388,7 +423,7 @@ const VulnerabilitiesTab = () => {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={10} className="px-5 py-8 text-center text-sm text-muted-foreground">
                   No vulnerabilities match the current filters.
                 </td>
               </tr>
