@@ -102,52 +102,52 @@ const getVulnerabilityName = (desc: string | null | undefined): string => {
 const getSmartSummary = (desc: string | null | undefined): string => {
   if (!desc) return "—";
 
-  // 1. Identify Vulnerability Type
-  const type = getVulnerabilityName(desc);
+  // 1. Identify Product - Try to find the most specific name
+  // CVEs often start with "Product Name allows..."
+  let product = "";
 
-  // 2. Identify Product (look for nouns before 'allows', 'leads to', 'in', etc.)
-  // Often CVEs start with "Product Name [version] allows..."
-  let product = "System";
-  const productMatch = desc.match(/^([^,]+?)\s+(?:before|version|allows|in|contains|is)\b/i);
-  if (productMatch && productMatch[1].length < 30) {
+  // Skip common introductory phrases
+  let cleanDesc = desc.replace(/^(A flaw was found in|A vulnerability was discovered in|Vulnerability in|In)\s+/i, "");
+
+  const productMatch = cleanDesc.match(/^([^,]+?)\s+(?:before|version|allows|in|contains|is|has)\b/i);
+  if (productMatch && productMatch[1].length < 30 && !productMatch[1].toLowerCase().includes("issue") && !productMatch[1].toLowerCase().includes("vulnerability")) {
     product = productMatch[1].trim();
   } else {
-    // Secondary check for "vulnerability in [Product]"
-    const inMatch = desc.match(/vulnerability\s+in\s+([^,.]+)/i);
+    const inMatch = cleanDesc.match(/(?:in|for)\s+([^,.]+)/i);
     if (inMatch && inMatch[1].length < 30) {
       product = inMatch[1].trim();
     }
   }
 
-  // 3. Identify Core Impact
+  // 2. Identify Core Impact (Extreme Conciseness)
   let impact = "";
-  const allowsMatch = desc.match(/allows\s+([^.!?]{10,60})/i);
+  const allowsMatch = cleanDesc.match(/allows\s+([^.!?]{5,40})/i);
   if (allowsMatch) {
     impact = allowsMatch[1].trim();
   } else {
-    const leadsMatch = desc.match(/(?:could result in|leads to)\s+([^.!?]{10,60})/i);
+    const leadsMatch = cleanDesc.match(/(?:could result in|leads to)\s+([^.!?]{5,40})/i);
     if (leadsMatch) {
       impact = leadsMatch[1].trim();
     }
   }
 
-  // Clean up impact if it starts with 'to'
+  // Cleanup impact
   if (impact.toLowerCase().startsWith('to ')) impact = impact.slice(3);
+  if (impact.toLowerCase().startsWith('a ')) impact = impact.slice(2);
 
-  // Construct the "Smart" string: [Type] in [Product]: [Impact]
+  // 3. Combine in a very short format: "[Product]: [Impact]"
+  if (!product && !impact) {
+    return cleanDesc.length > 60 ? cleanDesc.substring(0, 57) + "..." : cleanDesc;
+  }
+
   let result = "";
-  if (type !== "Security Issue") {
-    result = `${type} in ${product}`;
-  } else {
-    result = `Issue in ${product}`;
-  }
-
+  if (product) result = product;
   if (impact) {
-    result += `: ${impact.charAt(0).toUpperCase() + impact.slice(1)}`;
+    result = result ? `${result}: ${impact}` : impact;
   }
 
-  // Final length guard
-  return result.length > 85 ? result.substring(0, 82) + "..." : result;
+  // Make sure it's really short
+  return result.length > 70 ? result.substring(0, 67) + "..." : result;
 };
 
 const VulnerabilitiesTab = () => {
@@ -395,8 +395,8 @@ const VulnerabilitiesTab = () => {
               const sevStyle = severityStyles[sev] ?? fallbackStyle;
               const dot = sevStyle.dot;
               const color = "hex" in sevStyle ? sevStyle.hex : undefined;
-              const cveInfo = cveMap.get(v.cve_id);
-              const score = cveInfo?.score;
+              // Use the score directly from the view if available
+              const score = (v as any).cvss_score ?? cveMap.get(v.cve_id)?.score;
               const scoreStyle = severityStyles[sev] ?? fallbackStyle;
               return (
                 <tr
@@ -428,8 +428,8 @@ const VulnerabilitiesTab = () => {
                   <td className="px-3 py-2.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-3 py-2.5 text-foreground/70 max-w-0 overflow-hidden">
-                    <span className="leading-tight block whitespace-nowrap text-[11px] overflow-hidden font-medium" title={v.description ?? ""}>
+                  <td className="px-3 py-2.5 text-foreground max-w-0 overflow-hidden">
+                    <span className="leading-tight block whitespace-nowrap text-[11px] overflow-hidden font-bold" title={v.description ?? ""}>
                       {getSmartSummary(v.description)}
                     </span>
                   </td>
