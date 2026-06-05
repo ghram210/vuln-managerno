@@ -77,6 +77,12 @@ const ExploitCell = ({ value }: { value: string | null | undefined }) => {
   );
 };
 
+const getSmartSummary = (text: string | null) => {
+  if (!text) return "—";
+  const match = text.match(/^.*?\.(?:\s|$)/);
+  return match ? match[0].trim() : text;
+};
+
 const VulnerabilitiesTab = () => {
   const navigate = useNavigate();
   const [filterRating, setFilterRating] = useState("all");
@@ -305,6 +311,7 @@ const VulnerabilitiesTab = () => {
           <thead>
             <tr className="border-b border-border bg-secondary/30">
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVE</th>
+              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Vulnerability</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Scan Name</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exprt Rating</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Severity</th>
@@ -340,6 +347,11 @@ const VulnerabilitiesTab = () => {
                   </td>
                   <td className="px-5 py-3.5">
                     <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
+                      {v.vulnerability_name ?? "—"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
                       {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
                     </span>
                   </td>
@@ -351,7 +363,7 @@ const VulnerabilitiesTab = () => {
                   </td>
                   <td className="px-5 py-3.5 text-foreground/85 max-w-[320px]">
                     <span className="line-clamp-2 leading-snug" title={v.description ?? ""}>
-                      {v.description ?? "—"}
+                      {getSmartSummary(v.description)}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-foreground text-center font-medium tabular-nums">
@@ -388,7 +400,7 @@ const VulnerabilitiesTab = () => {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={10} className="px-5 py-8 text-center text-sm text-muted-foreground">
                   No vulnerabilities match the current filters.
                 </td>
               </tr>
