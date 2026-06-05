@@ -80,47 +80,60 @@ const ExploitCell = ({ value }: { value: string | null | undefined }) => {
 const summarizeDescription = (desc: string | null | undefined): string => {
   if (!desc) return "—";
 
+  // Map long names to concise versions
+  const replacements: Record<string, string> = {
+    "Server-Side Request Forgery": "SSRF",
+    "Remote Code Execution": "RCE",
+    "Cross-site Scripting": "XSS",
+    "Cross-Site Request Forgery": "CSRF",
+    "Apache HTTP Server": "Apache",
+    "Microsoft Windows": "Windows",
+    "Denial of Service": "DoS"
+  };
+
   // Common vulnerability patterns
   const vulnTypes = [
-    "SSRF", "SQL Injection", "XSS", "Cross-site Scripting", "RCE", "Remote Code Execution",
-    "Buffer Overflow", "Path Traversal", "Insecure Deserialization", "Privilege Escalation",
-    "Denial of Service", "DoS", "CSRF", "Cross-Site Request Forgery", "Command Injection"
+    "SSRF", "SQL Injection", "XSS", "RCE", "Buffer Overflow", "Path Traversal",
+    "Insecure Deserialization", "Privilege Escalation", "DoS", "CSRF", "Command Injection"
   ];
 
+  let text = desc;
+  Object.entries(replacements).forEach(([long, short]) => {
+    text = text.replace(new RegExp(long, 'g'), short);
+  });
+
   let type = "";
-  // Try to find types in parentheses first (often like "Server-Side Request Forgery (SSRF)")
-  const parenMatch = desc.match(/\(([^)]+)\)/);
+  // Try to find types in parentheses first (often like "(SSRF)")
+  const parenMatch = text.match(/\(([^)]+)\)/);
   if (parenMatch && vulnTypes.some(t => parenMatch[1].includes(t))) {
     type = parenMatch[1];
   } else {
-    // Look for explicit type mention
     for (const t of vulnTypes) {
-      if (desc.includes(t)) {
+      if (text.includes(t)) {
         type = t;
         break;
       }
     }
   }
 
-  // Look for product/service (usually after "in", "in the", "affecting")
+  // Look for product/service
   let product = "";
-  const productMatch = desc.match(/(?:in|affecting|for|within)\s+([A-Z][a-zA-Z0-9\s]+?)(?:\s+on|\s+before|\s+versions|\s+allows|\.|$)/);
+  const productMatch = text.match(/(?:in|affecting|for|within)\s+([A-Z][a-zA-Z0-9\s]+?)(?:\s+on|\s+before|\s+versions|\s+allows|\.|$)/);
   if (productMatch) {
-    product = productMatch[1].trim();
+    product = productMatch[1].trim().replace("Apache HTTP Server", "Apache");
   }
 
   if (type && product) return `${type} in ${product}`;
   if (type) return type;
   if (product) return `Issue in ${product}`;
 
-  // Fallback to first part before comma or period
-  const separatorMatch = desc.match(/^(.+?)(?:,|\.|$)/);
+  // Fallback to first part without dots if possible
+  const separatorMatch = text.match(/^(.+?)(?:,|\.|$)/);
   if (separatorMatch) {
-    const candidate = separatorMatch[1].trim();
-    return candidate.length > 60 ? candidate.substring(0, 57) + "..." : candidate;
+    return separatorMatch[1].trim().substring(0, 80);
   }
 
-  return desc.length > 60 ? desc.substring(0, 57) + "..." : desc;
+  return text.substring(0, 80);
 };
 
 const VulnerabilitiesTab = () => {
@@ -401,8 +414,8 @@ const VulnerabilitiesTab = () => {
                   <td className="px-5 py-3.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-5 py-3.5 text-foreground/85 max-w-[220px]">
-                    <span className="leading-snug block whitespace-nowrap overflow-hidden text-ellipsis" title={v.description ?? ""}>
+                  <td className="px-5 py-3.5 text-foreground/85 max-w-[320px]">
+                    <span className="leading-snug block whitespace-nowrap overflow-hidden" title={v.description ?? ""}>
                       {summarizeDescription(v.description)}
                     </span>
                   </td>
