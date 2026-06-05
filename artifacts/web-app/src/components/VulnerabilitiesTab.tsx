@@ -406,7 +406,7 @@ const VulnerabilitiesTab = () => {
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <span className="text-foreground/70 truncate max-w-[100px] block text-[11px]">
+                    <span className="text-foreground font-bold truncate max-w-[100px] block text-[11px]">
                       {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
                     </span>
                   </td>
