@@ -77,6 +77,52 @@ const ExploitCell = ({ value }: { value: string | null | undefined }) => {
   );
 };
 
+const summarizeDescription = (desc: string | null | undefined): string => {
+  if (!desc) return "—";
+
+  // Common vulnerability patterns
+  const vulnTypes = [
+    "SSRF", "SQL Injection", "XSS", "Cross-site Scripting", "RCE", "Remote Code Execution",
+    "Buffer Overflow", "Path Traversal", "Insecure Deserialization", "Privilege Escalation",
+    "Denial of Service", "DoS", "CSRF", "Cross-Site Request Forgery", "Command Injection"
+  ];
+
+  let type = "";
+  // Try to find types in parentheses first (often like "Server-Side Request Forgery (SSRF)")
+  const parenMatch = desc.match(/\(([^)]+)\)/);
+  if (parenMatch && vulnTypes.some(t => parenMatch[1].includes(t))) {
+    type = parenMatch[1];
+  } else {
+    // Look for explicit type mention
+    for (const t of vulnTypes) {
+      if (desc.includes(t)) {
+        type = t;
+        break;
+      }
+    }
+  }
+
+  // Look for product/service (usually after "in", "in the", "affecting")
+  let product = "";
+  const productMatch = desc.match(/(?:in|affecting|for|within)\s+([A-Z][a-zA-Z0-9\s]+?)(?:\s+on|\s+before|\s+versions|\s+allows|\.|$)/);
+  if (productMatch) {
+    product = productMatch[1].trim();
+  }
+
+  if (type && product) return `${type} in ${product}`;
+  if (type) return type;
+  if (product) return `Issue in ${product}`;
+
+  // Fallback to first part before comma or period
+  const separatorMatch = desc.match(/^(.+?)(?:,|\.|$)/);
+  if (separatorMatch) {
+    const candidate = separatorMatch[1].trim();
+    return candidate.length > 60 ? candidate.substring(0, 57) + "..." : candidate;
+  }
+
+  return desc.length > 60 ? desc.substring(0, 57) + "..." : desc;
+};
+
 const VulnerabilitiesTab = () => {
   const navigate = useNavigate();
   const [filterRating, setFilterRating] = useState("all");
@@ -356,17 +402,8 @@ const VulnerabilitiesTab = () => {
                     <SeverityCell value={v.cvss_severity} />
                   </td>
                   <td className="px-5 py-3.5 text-foreground/85 max-w-[220px]">
-                    <span className="leading-snug block" title={v.description ?? ""}>
-                      {(() => {
-                        if (!v.description) return "—";
-                        const firstPeriod = v.description.indexOf('.');
-                        if (firstPeriod !== -1 && firstPeriod > 10) {
-                          return v.description.substring(0, firstPeriod + 1);
-                        }
-                        return v.description.length > 85
-                          ? `${v.description.substring(0, 82)}...`
-                          : v.description;
-                      })()}
+                    <span className="leading-snug block whitespace-nowrap overflow-hidden text-ellipsis" title={v.description ?? ""}>
+                      {summarizeDescription(v.description)}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-foreground text-center font-medium tabular-nums">
