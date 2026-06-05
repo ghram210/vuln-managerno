@@ -102,52 +102,40 @@ const getVulnerabilityName = (desc: string | null | undefined): string => {
 const getSmartSummary = (desc: string | null | undefined): string => {
   if (!desc) return "—";
 
-  // 1. Identify Product - Try to find the most specific name
-  // CVEs often start with "Product Name allows..."
-  let product = "";
+  // 1. Identify Vulnerability Type (What)
+  const type = getVulnerabilityName(desc);
 
+  // 2. Identify Product (Where)
+  let product = "";
   // Skip common introductory phrases
   let cleanDesc = desc.replace(/^(A flaw was found in|A vulnerability was discovered in|Vulnerability in|In)\s+/i, "");
 
-  const productMatch = cleanDesc.match(/^([^,]+?)\s+(?:before|version|allows|in|contains|is|has)\b/i);
+  // Strategy A: Starts with product name (e.g. "Apache httpd allows...")
+  const productMatch = cleanDesc.match(/^([^,]+?)\s+(?:before|version|allows|in|contains|is|has|vulnerability)\b/i);
   if (productMatch && productMatch[1].length < 30 && !productMatch[1].toLowerCase().includes("issue") && !productMatch[1].toLowerCase().includes("vulnerability")) {
     product = productMatch[1].trim();
-  } else {
+  }
+
+  // Strategy B: Fallback to "in [Product]"
+  if (!product) {
     const inMatch = cleanDesc.match(/(?:in|for)\s+([^,.]+)/i);
     if (inMatch && inMatch[1].length < 30) {
       product = inMatch[1].trim();
     }
   }
 
-  // 2. Identify Core Impact (Extreme Conciseness)
-  let impact = "";
-  const allowsMatch = cleanDesc.match(/allows\s+([^.!?]{5,40})/i);
-  if (allowsMatch) {
-    impact = allowsMatch[1].trim();
-  } else {
-    const leadsMatch = cleanDesc.match(/(?:could result in|leads to)\s+([^.!?]{5,40})/i);
-    if (leadsMatch) {
-      impact = leadsMatch[1].trim();
-    }
+  // Default to "System" if no product found
+  if (!product) product = "System";
+
+  // 3. Format strictly as: "[Vulnerability] in [Product]"
+  const finalType = type === "Security Issue" ? "Vulnerability" : type;
+
+  // If the product name already contains the vulnerability type (e.g. "SSRF in SSRF"), fix it
+  if (product.toLowerCase().includes(finalType.toLowerCase())) {
+     return cleanDesc.split(/[.!?]/)[0].substring(0, 60);
   }
 
-  // Cleanup impact
-  if (impact.toLowerCase().startsWith('to ')) impact = impact.slice(3);
-  if (impact.toLowerCase().startsWith('a ')) impact = impact.slice(2);
-
-  // 3. Combine in a very short format: "[Product]: [Impact]"
-  if (!product && !impact) {
-    return cleanDesc.length > 60 ? cleanDesc.substring(0, 57) + "..." : cleanDesc;
-  }
-
-  let result = "";
-  if (product) result = product;
-  if (impact) {
-    result = result ? `${result}: ${impact}` : impact;
-  }
-
-  // Make sure it's really short
-  return result.length > 70 ? result.substring(0, 67) + "..." : result;
+  return `${finalType} in ${product}`;
 };
 
 const VulnerabilitiesTab = () => {
