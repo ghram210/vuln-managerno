@@ -355,9 +355,11 @@ const VulnerabilitiesTab = () => {
                   <td className="px-5 py-3.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-5 py-3.5 text-foreground/85 max-w-[200px]">
-                    <span className="line-clamp-1 leading-snug" title={v.description ?? ""}>
-                      {v.description ?? "—"}
+                  <td className="px-5 py-3.5 text-foreground/85 max-w-[220px]">
+                    <span className="leading-snug block" title={v.description ?? ""}>
+                      {v.description && v.description.length > 85
+                        ? `${v.description.substring(0, 82)}...`
+                        : (v.description ?? "—")}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-foreground text-center font-medium tabular-nums">
