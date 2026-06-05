@@ -357,9 +357,16 @@ const VulnerabilitiesTab = () => {
                   </td>
                   <td className="px-5 py-3.5 text-foreground/85 max-w-[220px]">
                     <span className="leading-snug block" title={v.description ?? ""}>
-                      {v.description && v.description.length > 85
-                        ? `${v.description.substring(0, 82)}...`
-                        : (v.description ?? "—")}
+                      {(() => {
+                        if (!v.description) return "—";
+                        const firstPeriod = v.description.indexOf('.');
+                        if (firstPeriod !== -1 && firstPeriod > 10) {
+                          return v.description.substring(0, firstPeriod + 1);
+                        }
+                        return v.description.length > 85
+                          ? `${v.description.substring(0, 82)}...`
+                          : v.description;
+                      })()}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-foreground text-center font-medium tabular-nums">
