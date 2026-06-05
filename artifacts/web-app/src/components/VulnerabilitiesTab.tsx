@@ -102,21 +102,52 @@ const getVulnerabilityName = (desc: string | null | undefined): string => {
 const getSmartSummary = (desc: string | null | undefined): string => {
   if (!desc) return "—";
 
-  // Try to find the "allows" part which usually describes the impact
-  const allowsMatch = desc.match(/allows\s+([^.!?]{5,60})/i);
+  // 1. Identify Vulnerability Type
+  const type = getVulnerabilityName(desc);
+
+  // 2. Identify Product (look for nouns before 'allows', 'leads to', 'in', etc.)
+  // Often CVEs start with "Product Name [version] allows..."
+  let product = "System";
+  const productMatch = desc.match(/^([^,]+?)\s+(?:before|version|allows|in|contains|is)\b/i);
+  if (productMatch && productMatch[1].length < 30) {
+    product = productMatch[1].trim();
+  } else {
+    // Secondary check for "vulnerability in [Product]"
+    const inMatch = desc.match(/vulnerability\s+in\s+([^,.]+)/i);
+    if (inMatch && inMatch[1].length < 30) {
+      product = inMatch[1].trim();
+    }
+  }
+
+  // 3. Identify Core Impact
+  let impact = "";
+  const allowsMatch = desc.match(/allows\s+([^.!?]{10,60})/i);
   if (allowsMatch) {
-    return "Allows " + allowsMatch[1].trim();
+    impact = allowsMatch[1].trim();
+  } else {
+    const leadsMatch = desc.match(/(?:could result in|leads to)\s+([^.!?]{10,60})/i);
+    if (leadsMatch) {
+      impact = leadsMatch[1].trim();
+    }
   }
 
-  // Try to find "could result in" or "leads to"
-  const leadsMatch = desc.match(/(?:could result in|leads to)\s+([^.!?]{5,60})/i);
-  if (leadsMatch) {
-    return leadsMatch[1].charAt(0).toUpperCase() + leadsMatch[1].slice(1).trim();
+  // Clean up impact if it starts with 'to'
+  if (impact.toLowerCase().startsWith('to ')) impact = impact.slice(3);
+
+  // Construct the "Smart" string: [Type] in [Product]: [Impact]
+  let result = "";
+  if (type !== "Security Issue") {
+    result = `${type} in ${product}`;
+  } else {
+    result = `Issue in ${product}`;
   }
 
-  // Fallback to first part of first sentence, but keep it very short
-  const firstSentence = desc.split(/[.!?]/)[0].trim();
-  return firstSentence.length > 60 ? firstSentence.substring(0, 60).trim() : firstSentence;
+  if (impact) {
+    result += `: ${impact.charAt(0).toUpperCase() + impact.slice(1)}`;
+  }
+
+  // Final length guard
+  return result.length > 85 ? result.substring(0, 82) + "..." : result;
 };
 
 const VulnerabilitiesTab = () => {
@@ -397,8 +428,8 @@ const VulnerabilitiesTab = () => {
                   <td className="px-3 py-2.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-3 py-2.5 text-foreground/60 max-w-0 overflow-hidden">
-                    <span className="leading-tight block whitespace-nowrap text-[11px] overflow-hidden" title={v.description ?? ""}>
+                  <td className="px-3 py-2.5 text-foreground/70 max-w-0 overflow-hidden">
+                    <span className="leading-tight block whitespace-nowrap text-[11px] overflow-hidden font-medium" title={v.description ?? ""}>
                       {getSmartSummary(v.description)}
                     </span>
                   </td>
