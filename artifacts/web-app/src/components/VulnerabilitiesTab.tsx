@@ -94,7 +94,11 @@ const summarizeDescription = (desc: string | null | undefined): string => {
   // Common vulnerability patterns
   const vulnTypes = [
     "SSRF", "SQL Injection", "XSS", "RCE", "Buffer Overflow", "Path Traversal",
-    "Insecure Deserialization", "Privilege Escalation", "DoS", "CSRF", "Command Injection"
+    "Insecure Deserialization", "Privilege Escalation", "DoS", "CSRF", "Command Injection",
+    "Directory Traversal", "Information Disclosure", "Authentication Bypass",
+    "Integer Overflow", "Out-of-bounds Read", "Out-of-bounds Write", "Use After Free",
+    "Heap Overflow", "Stack Overflow", "Improper Neutralization", "Weak Cryptography",
+    "Exposed Credentials", "Missing Authorization", "Incorrect Permission"
   ];
 
   let text = desc;
@@ -108,7 +112,9 @@ const summarizeDescription = (desc: string | null | undefined): string => {
   if (parenMatch && vulnTypes.some(t => parenMatch[1].includes(t))) {
     type = parenMatch[1];
   } else {
-    for (const t of vulnTypes) {
+    // Look for longest matches first to avoid partial matches
+    const sortedTypes = [...vulnTypes].sort((a, b) => b.length - a.length);
+    for (const t of sortedTypes) {
       if (text.includes(t)) {
         type = t;
         break;
@@ -123,17 +129,18 @@ const summarizeDescription = (desc: string | null | undefined): string => {
     product = productMatch[1].trim().replace("Apache HTTP Server", "Apache");
   }
 
-  if (type && product) return `${type} in ${product}`;
+  // Return the shortest meaningful name
   if (type) return type;
-  if (product) return `Issue in ${product}`;
+  if (product) return product;
 
   // Fallback to first part without dots if possible
   const separatorMatch = text.match(/^(.+?)(?:,|\.|$)/);
   if (separatorMatch) {
-    return separatorMatch[1].trim().substring(0, 80);
+    const fallback = separatorMatch[1].trim();
+    return fallback.length > 30 ? fallback.substring(0, 27) + "..." : fallback;
   }
 
-  return text.substring(0, 80);
+  return text.length > 30 ? text.substring(0, 27) + "..." : text;
 };
 
 const VulnerabilitiesTab = () => {
@@ -363,16 +370,17 @@ const VulnerabilitiesTab = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-secondary/30">
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVE</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Vulnerability</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Scan Name</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exprt Rating</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Severity</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Description</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Affected</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exploit Status</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Score</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Actions</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">CVE</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Vulnerability</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Component</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Scan</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Rating</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Severity</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider w-full">Description</th>
+              <th className="text-center px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider whitespace-nowrap">Hits</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Exploit</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Score</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider"></th>
             </tr>
           </thead>
           <tbody>
@@ -390,42 +398,47 @@ const VulnerabilitiesTab = () => {
                   className="border-t border-border hover:bg-secondary/50 transition-colors cursor-pointer"
                   onClick={() => navigate("/scan-results")}
                 >
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${dot}`} style={color ? { backgroundColor: color } : {}} />
-                      <span className="text-primary font-mono text-xs font-semibold">
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${dot}`} style={color ? { backgroundColor: color } : {}} />
+                      <span className="text-primary font-mono text-[11px] font-semibold">
                         {v.cve_id ?? "—"}
                       </span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-foreground/90 font-medium truncate max-w-[180px] block" title={v.vulnerability_name ?? ""}>
-                      {v.vulnerability_name ?? "—"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
-                      {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <SeverityCell value={v.exprt_rating} />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <SeverityCell value={v.cvss_severity} />
-                  </td>
-                  <td className="px-5 py-3.5 text-foreground/85 max-w-[320px]">
-                    <span className="leading-snug block whitespace-nowrap overflow-hidden" title={v.description ?? ""}>
+                  <td className="px-3 py-2.5">
+                    <span className="text-foreground/90 font-bold truncate max-w-[140px] block text-[11px]" title={v.description ?? ""}>
                       {summarizeDescription(v.description)}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-foreground text-center font-medium tabular-nums">
+                  <td className="px-3 py-2.5">
+                    <span className="text-foreground/70 font-medium truncate max-w-[160px] block text-[11px]" title={v.vulnerability_name ?? ""}>
+                      {v.vulnerability_name ?? "—"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className="text-foreground/70 truncate max-w-[80px] block text-[11px]">
+                      {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <SeverityCell value={v.exprt_rating} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <SeverityCell value={v.cvss_severity} />
+                  </td>
+                  <td className="px-3 py-2.5 text-foreground/60">
+                    <span className="leading-tight block line-clamp-2 text-[11px]" title={v.description ?? ""}>
+                      {v.description ?? "—"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-foreground text-center font-bold tabular-nums text-[11px]">
                     {(v.vulnerability_count ?? 0).toLocaleString("en-US")}
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-3 py-2.5">
                     <ExploitCell value={v.exploit_status} />
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-3 py-2.5">
                     {score !== undefined && score !== null ? (
                       <span
                         className={`inline-flex items-center justify-center min-w-[44px] px-2 py-1 rounded-md text-xs font-bold tabular-nums bg-secondary border border-border ${scoreStyle.text}`}
@@ -437,9 +450,9 @@ const VulnerabilitiesTab = () => {
                       <span className="text-muted-foreground text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-4 py-3 text-right">
                     <button
-                      className="text-muted-foreground hover:text-foreground"
+                      className="text-muted-foreground/50 hover:text-foreground"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate("/scan-results");
@@ -453,7 +466,7 @@ const VulnerabilitiesTab = () => {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={11} className="px-5 py-8 text-center text-sm text-muted-foreground">
                   No vulnerabilities match the current filters.
                 </td>
               </tr>
