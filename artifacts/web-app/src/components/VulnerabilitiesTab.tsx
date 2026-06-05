@@ -77,70 +77,46 @@ const ExploitCell = ({ value }: { value: string | null | undefined }) => {
   );
 };
 
-const summarizeDescription = (desc: string | null | undefined): string => {
+const getVulnerabilityName = (desc: string | null | undefined): string => {
+  if (!desc) return "—";
+  const vulnTypes = [
+    "SQL Injection", "SSRF", "RCE", "XSS", "CSRF", "LFI", "RFI",
+    "Buffer Overflow", "Path Traversal", "Insecure Deserialization",
+    "Privilege Escalation", "Denial of Service", "Command Injection", "Directory Traversal",
+    "Information Disclosure", "Authentication Bypass", "Integer Overflow",
+    "Out-of-bounds Read", "Out-of-bounds Write", "Use After Free",
+    "Heap Overflow", "Stack Overflow", "Improper Neutralization",
+    "Weak Cryptography", "Exposed Credentials", "Missing Authorization"
+  ];
+  const sortedTypes = [...vulnTypes].sort((a, b) => b.length - a.length);
+  for (const t of sortedTypes) {
+    if (desc.toLowerCase().includes(t.toLowerCase())) return t;
+  }
+  if (desc.includes("SSRF")) return "SSRF";
+  if (desc.includes("RCE")) return "RCE";
+  if (desc.includes("XSS")) return "XSS";
+  if (desc.includes("DoS")) return "Denial of Service";
+  return "Security Issue";
+};
+
+const getSmartSummary = (desc: string | null | undefined): string => {
   if (!desc) return "—";
 
-  // Map long names to concise versions
-  const replacements: Record<string, string> = {
-    "Server-Side Request Forgery": "SSRF",
-    "Remote Code Execution": "RCE",
-    "Cross-site Scripting": "XSS",
-    "Cross-Site Request Forgery": "CSRF",
-    "Apache HTTP Server": "Apache",
-    "Microsoft Windows": "Windows",
-    "Denial of Service": "DoS"
-  };
-
-  // Common vulnerability patterns
-  const vulnTypes = [
-    "SSRF", "SQL Injection", "XSS", "RCE", "Buffer Overflow", "Path Traversal",
-    "Insecure Deserialization", "Privilege Escalation", "DoS", "CSRF", "Command Injection",
-    "Directory Traversal", "Information Disclosure", "Authentication Bypass",
-    "Integer Overflow", "Out-of-bounds Read", "Out-of-bounds Write", "Use After Free",
-    "Heap Overflow", "Stack Overflow", "Improper Neutralization", "Weak Cryptography",
-    "Exposed Credentials", "Missing Authorization", "Incorrect Permission"
-  ];
-
-  let text = desc;
-  Object.entries(replacements).forEach(([long, short]) => {
-    text = text.replace(new RegExp(long, 'g'), short);
-  });
-
-  let type = "";
-  // Try to find types in parentheses first (often like "(SSRF)")
-  const parenMatch = text.match(/\(([^)]+)\)/);
-  if (parenMatch && vulnTypes.some(t => parenMatch[1].includes(t))) {
-    type = parenMatch[1];
-  } else {
-    // Look for longest matches first to avoid partial matches
-    const sortedTypes = [...vulnTypes].sort((a, b) => b.length - a.length);
-    for (const t of sortedTypes) {
-      if (text.includes(t)) {
-        type = t;
-        break;
-      }
-    }
+  // Try to find the "allows" part which usually describes the impact
+  const allowsMatch = desc.match(/allows\s+([^.!?]{5,60})/i);
+  if (allowsMatch) {
+    return "Allows " + allowsMatch[1].trim();
   }
 
-  // Look for product/service
-  let product = "";
-  const productMatch = text.match(/(?:in|affecting|for|within)\s+([A-Z][a-zA-Z0-9\s]+?)(?:\s+on|\s+before|\s+versions|\s+allows|\.|$)/);
-  if (productMatch) {
-    product = productMatch[1].trim().replace("Apache HTTP Server", "Apache");
+  // Try to find "could result in" or "leads to"
+  const leadsMatch = desc.match(/(?:could result in|leads to)\s+([^.!?]{5,60})/i);
+  if (leadsMatch) {
+    return leadsMatch[1].charAt(0).toUpperCase() + leadsMatch[1].slice(1).trim();
   }
 
-  // Return the shortest meaningful name
-  if (type) return type;
-  if (product) return product;
-
-  // Fallback to first part without dots if possible
-  const separatorMatch = text.match(/^(.+?)(?:,|\.|$)/);
-  if (separatorMatch) {
-    const fallback = separatorMatch[1].trim();
-    return fallback.length > 30 ? fallback.substring(0, 27) + "..." : fallback;
-  }
-
-  return text.length > 30 ? text.substring(0, 27) + "..." : text;
+  // Fallback to first part of first sentence, but keep it very short
+  const firstSentence = desc.split(/[.!?]/)[0].trim();
+  return firstSentence.length > 60 ? firstSentence.substring(0, 60).trim() : firstSentence;
 };
 
 const VulnerabilitiesTab = () => {
@@ -372,7 +348,6 @@ const VulnerabilitiesTab = () => {
             <tr className="border-b border-border bg-secondary/30">
               <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">CVE</th>
               <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Vulnerability</th>
-              <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Component</th>
               <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Scan</th>
               <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Rating</th>
               <th className="text-left px-3 py-2.5 text-[11px] font-bold text-primary uppercase tracking-wider">Severity</th>
@@ -408,16 +383,11 @@ const VulnerabilitiesTab = () => {
                   </td>
                   <td className="px-3 py-2.5">
                     <span className="text-foreground/90 font-bold truncate max-w-[140px] block text-[11px]" title={v.description ?? ""}>
-                      {summarizeDescription(v.description)}
+                      {getVulnerabilityName(v.description)}
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <span className="text-foreground/70 font-medium truncate max-w-[160px] block text-[11px]" title={v.vulnerability_name ?? ""}>
-                      {v.vulnerability_name ?? "—"}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <span className="text-foreground/70 truncate max-w-[80px] block text-[11px]">
+                    <span className="text-foreground/70 truncate max-w-[100px] block text-[11px]">
                       {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
                     </span>
                   </td>
@@ -427,9 +397,9 @@ const VulnerabilitiesTab = () => {
                   <td className="px-3 py-2.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-3 py-2.5 text-foreground/60">
-                    <span className="leading-tight block line-clamp-2 text-[11px]" title={v.description ?? ""}>
-                      {v.description ?? "—"}
+                  <td className="px-3 py-2.5 text-foreground/60 max-w-0 overflow-hidden">
+                    <span className="leading-tight block whitespace-nowrap text-[11px] overflow-hidden" title={v.description ?? ""}>
+                      {getSmartSummary(v.description)}
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-foreground text-center font-bold tabular-nums text-[11px]">
@@ -466,7 +436,7 @@ const VulnerabilitiesTab = () => {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={10} className="px-5 py-8 text-center text-sm text-muted-foreground">
                   No vulnerabilities match the current filters.
                 </td>
               </tr>
