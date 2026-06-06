@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronDown, Globe, Check, ShieldCheck, ShieldAlert } from "lucide-react";
-import DonutChart from "@/components/DonutChart";
+import DonutChart, { type DonutSegment } from "@/components/DonutChart";
 import {
   useChartSeverity,
   useChartByTool,
@@ -192,6 +193,7 @@ function TargetFilter({
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 const DashboardDonuts = () => {
+  const navigate = useNavigate();
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
   const [selectedUrls, setSelectedUrls] = useState<string[] | null>(null);
 
@@ -203,6 +205,24 @@ const DashboardDonuts = () => {
   const status         = useChartStatus(selectedUrls);
 
   const selectedLabel = selectedUrl ? midTruncate(selectedUrl, 60) : null;
+
+  const handleExploitClick = (segment: DonutSegment) => {
+    const params = new URLSearchParams();
+    if (selectedUrl) params.set("target", selectedUrl);
+
+    // Map chart segment names to table filter values
+    const exploitMap: Record<string, string> = {
+      "Weaponized": "Actively Used",
+      "Public PoC": "Available",
+      "Known CVE": "Unproven", // Known CVEs with no PoC are considered Unproven in the table
+      "Theoretical": "None"
+    };
+
+    const exploitVal = exploitMap[segment.name];
+    if (exploitVal) params.set("exploit", exploitVal);
+
+    navigate(`/vulnerabilities?${params.toString()}`);
+  };
 
   return (
     <div className="space-y-4">
@@ -265,6 +285,7 @@ const DashboardDonuts = () => {
           accentColor="hsl(120 75% 38%)"
           data={exploitability.data ?? []}
           loading={exploitability.isLoading}
+          onSegmentClick={handleExploitClick}
         />
         <DonutChart
           title="Attack Vector"
