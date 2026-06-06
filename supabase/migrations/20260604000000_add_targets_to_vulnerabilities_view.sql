@@ -1,4 +1,6 @@
--- Update vulnerabilities view to include targets and vulnerability_name columns
+-- Drop and recreate the vulnerabilities view to avoid column name mismatch errors
+DROP VIEW IF EXISTS public.vulnerabilities;
+
 CREATE OR REPLACE VIEW public.vulnerabilities WITH (security_invoker = true) AS
 WITH cve_findings AS (
     SELECT
@@ -47,3 +49,6 @@ SELECT
 FROM public.cve_catalog c
 JOIN cve_findings cf ON cf.cve_id = c.cve_id
 LEFT JOIN cve_exploits ce ON TRIM(ce.cve_id) = TRIM(c.cve_id);
+
+-- Re-grant access after recreation
+GRANT SELECT ON public.vulnerabilities TO authenticated;
