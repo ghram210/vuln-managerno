@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useScanTargets } from "@/hooks/useAssetCharts";
 import { AlertTriangle, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,7 @@ const severityStyles: Record<SeverityKey, { dot: string; text: string; hex: stri
 const fallbackStyle = { dot: "bg-muted-foreground", text: "text-muted-foreground" };
 
 const exploitStyles: Record<string, { dot: string; text: string; bg: string }> = {
-  "Actively used": {
+  "Actively Used": {
     dot: "bg-severity-critical",
     text: "text-severity-critical",
     bg: "bg-severity-critical/15",
@@ -77,15 +78,58 @@ const ExploitCell = ({ value }: { value: string | null | undefined }) => {
   );
 };
 
+const getSmartSummary = (text: string | null) => {
+  if (!text) return "—";
+  const match = text.match(/^[\s\S]*?\.(?:\s|$)/);
+  return match ? match[0].trim() : text;
+};
+
+const VULN_TYPES = [
+  "SQL Injection", "Cross-Site Scripting", "XSS", "Server-Side Request Forgery", "SSRF",
+  "Remote Code Execution", "RCE", "Local File Inclusion", "LFI", "Remote File Inclusion", "RFI",
+  "Path Traversal", "Insecure Deserialization", "Broken Authentication", "Broken Access Control",
+  "Security Misconfiguration", "Cross-Site Request Forgery", "CSRF", "Open Redirect",
+  "Clickjacking", "Buffer Overflow", "Command Injection", "Directory Listing",
+  "Exposed Credentials", "Information Disclosure", "Insecure TLS", "Hardcoded Secrets",
+  "Denial of Service", "DoS", "Privilege Escalation", "Cryptographic Failures",
+  "Outdated Component", "Vulnerable Dependency", "Sensitive Data Exposure"
+];
+
+const getVulnerabilityName = (description: string | null, technicalTitle: string | null) => {
+  if (!description) return technicalTitle || "Security Vulnerability";
+
+  // 1. Try to find a standard vulnerability type in the description
+  for (const type of VULN_TYPES) {
+    const regex = new RegExp(`\\b${type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(description)) return type;
+  }
+
+  // 2. If technical title doesn't look like a fingerprint (contains non-alphanumeric or version-like patterns), maybe use it?
+  const isFingerprint = /^[a-z0-9_-]+ [\d.]+ \([a-z]+\)$/i.test(technicalTitle || "");
+  if (technicalTitle && !isFingerprint && technicalTitle.length < 40) return technicalTitle;
+
+  // 3. Fallback: Take the first few words of the description
+  const words = description.split(/\s+/).slice(0, 4).join(" ");
+  return words.length > 3 ? words.replace(/[^a-zA-Z\s]/g, "").trim() : "General Vulnerability";
+};
+
 const VulnerabilitiesTab = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { data: targetsData } = useScanTargets();
+
+  const initialExploit = searchParams.get("exploit") || "all";
+  const initialTarget = searchParams.get("target") || "all";
+
   const [filterRating, setFilterRating] = useState("all");
-  const [filterExploit, setFilterExploit] = useState("all");
+  const [filterExploit, setFilterExploit] = useState(initialExploit);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterTarget, setFilterTarget] = useState(initialTarget);
   const [selectedTags, setSelectedTags] = useState<string[]>(["Open vulnerabilities"]);
   const [showRatingDrop, setShowRatingDrop] = useState(false);
   const [showExploitDrop, setShowExploitDrop] = useState(false);
   const [showStatusDrop, setShowStatusDrop] = useState(false);
+  const [showTargetDrop, setShowTargetDrop] = useState(false);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -105,8 +149,6 @@ const VulnerabilitiesTab = () => {
     },
   });
 
-  // Pull CVSS scores + published dates from cve_catalog so we can show
-  // a real numeric column instead of REMEDIATIONS.
   const cveIds = useMemo(
     () =>
       Array.from(
@@ -143,16 +185,15 @@ const VulnerabilitiesTab = () => {
     return m;
   }, [cveCatalog]);
 
-  const filtered = vulnerabilities.filter((v) => {
+  const filtered = vulnerabilities.filter((v: any) => {
     if (filterRating !== "all" && v.cvss_severity !== filterRating) return false;
     if (filterExploit !== "all" && v.exploit_status !== filterExploit) return false;
     if (filterStatus !== "all" && v.status !== filterStatus) return false;
+    if (filterTarget !== "all" && !(v.targets || "").includes(filterTarget)) return false;
 
     // Apply tag filters
     if (selectedTags.includes("Open vulnerabilities") && v.status !== "Open") return false;
     
-    // Logic for CISA KEV - typically these are critical/high exploits. 
-    // Since we don't have a direct flag, we use 'Actively Used' as a proxy for this academic version.
     if (selectedTags.includes("CISA KEV") && v.exploit_status !== "Actively Used") return false;
 
     return true;
@@ -161,11 +202,17 @@ const VulnerabilitiesTab = () => {
   const ratingOptions = ["All Ratings", "Critical", "High", "Medium", "Low"];
   const exploitOptions = ["All Exploits", "Actively Used", "Available", "Unproven", "None"];
   const statusOptions = ["All Status", "Open", "In Progress", "Closed", "Suppressed"];
+  const targetOptions = useMemo(() => {
+    const base = ["All Targets"];
+    if (!targetsData) return base;
+    return [...base, ...targetsData.map(t => t.url)];
+  }, [targetsData]);
 
   const closeAllDrops = () => {
     setShowRatingDrop(false);
     setShowExploitDrop(false);
     setShowStatusDrop(false);
+    setShowTargetDrop(false);
   };
 
   const DropdownFilter = ({
@@ -254,6 +301,14 @@ const VulnerabilitiesTab = () => {
           setShow={setShowStatusDrop}
           setValue={setFilterStatus}
         />
+        <DropdownFilter
+          label="Targets"
+          value={filterTarget}
+          options={targetOptions}
+          show={showTargetDrop}
+          setShow={setShowTargetDrop}
+          setValue={setFilterTarget}
+        />
         <span className="ml-auto text-sm text-muted-foreground">{filtered.length.toLocaleString("en-US")} results</span>
       </div>
 
@@ -305,6 +360,7 @@ const VulnerabilitiesTab = () => {
           <thead>
             <tr className="border-b border-border bg-secondary/30">
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVE</th>
+              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Vulnerability</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Scan Name</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exprt Rating</th>
               <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Severity</th>
@@ -339,6 +395,11 @@ const VulnerabilitiesTab = () => {
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
+                    <span className="text-foreground/80 font-medium block">
+                      {getVulnerabilityName(v.description, (v as any).vulnerability_name)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
                     <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
                       {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
                     </span>
@@ -349,9 +410,9 @@ const VulnerabilitiesTab = () => {
                   <td className="px-5 py-3.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-5 py-3.5 text-foreground/85 max-w-[320px]">
-                    <span className="line-clamp-2 leading-snug" title={v.description ?? ""}>
-                      {v.description ?? "—"}
+                  <td className="px-5 py-3.5 text-foreground/85">
+                    <span className="leading-snug block" title={v.description ?? ""}>
+                      {getSmartSummary(v.description)}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-foreground text-center font-medium tabular-nums">
@@ -388,7 +449,7 @@ const VulnerabilitiesTab = () => {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={10} className="px-5 py-8 text-center text-sm text-muted-foreground">
                   No vulnerabilities match the current filters.
                 </td>
               </tr>

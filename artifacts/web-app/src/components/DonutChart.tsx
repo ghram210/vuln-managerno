@@ -22,6 +22,7 @@ interface DonutChartProps {
   loading?: boolean;
   emptyHint?: string;
   accentColor?: string;
+  onSegmentClick?: (segment: DonutSegment) => void;
 }
 
 const fmt = (n: number) =>
@@ -81,6 +82,7 @@ const DonutChart = ({
   loading,
   emptyHint = "No scan data yet.",
   accentColor,
+  onSegmentClick,
 }: DonutChartProps) => {
   const [activeIdx, setActiveIdx] = useState<number | undefined>(undefined);
   const reactId = useId();
@@ -168,6 +170,7 @@ const DonutChart = ({
                   activeShape={allZero ? undefined : ActiveShape}
                   onMouseEnter={allZero ? undefined : (_, i) => setActiveIdx(i)}
                   onMouseLeave={allZero ? undefined : () => setActiveIdx(undefined)}
+                  onClick={(data: any) => onSegmentClick?.(data.payload)}
                   isAnimationActive={!allZero}
                   animationDuration={700}
                   animationEasing="ease-out"
