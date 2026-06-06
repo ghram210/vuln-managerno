@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -115,7 +115,7 @@ const getVulnerabilityName = (description: string | null, technicalTitle: string
 
 const VulnerabilitiesTab = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: targetsData } = useScanTargets();
 
   const initialExploit = searchParams.get("exploit") || "all";
@@ -125,6 +125,14 @@ const VulnerabilitiesTab = () => {
   const [filterExploit, setFilterExploit] = useState(initialExploit);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterTarget, setFilterTarget] = useState(initialTarget);
+
+  // Sync state if searchParams change (e.g. user navigates while on the same page)
+  useEffect(() => {
+    const t = searchParams.get("target") || "all";
+    const e = searchParams.get("exploit") || "all";
+    if (t !== filterTarget) setFilterTarget(t);
+    if (e !== filterExploit) setFilterExploit(e);
+  }, [searchParams]);
   const [selectedTags, setSelectedTags] = useState<string[]>(["Open vulnerabilities"]);
   const [showRatingDrop, setShowRatingDrop] = useState(false);
   const [showExploitDrop, setShowExploitDrop] = useState(false);
@@ -291,7 +299,13 @@ const VulnerabilitiesTab = () => {
           options={exploitOptions}
           show={showExploitDrop}
           setShow={setShowExploitDrop}
-          setValue={setFilterExploit}
+          setValue={(v) => {
+            setFilterExploit(v);
+            const newParams = new URLSearchParams(searchParams);
+            if (v === "all") newParams.delete("exploit");
+            else newParams.set("exploit", v);
+            setSearchParams(newParams);
+          }}
         />
         <DropdownFilter
           label="Status"
@@ -307,7 +321,13 @@ const VulnerabilitiesTab = () => {
           options={targetOptions}
           show={showTargetDrop}
           setShow={setShowTargetDrop}
-          setValue={setFilterTarget}
+          setValue={(v) => {
+            setFilterTarget(v);
+            const newParams = new URLSearchParams(searchParams);
+            if (v === "all") newParams.delete("target");
+            else newParams.set("target", v);
+            setSearchParams(newParams);
+          }}
         />
         <span className="ml-auto text-sm text-muted-foreground">{filtered.length.toLocaleString("en-US")} results</span>
       </div>
