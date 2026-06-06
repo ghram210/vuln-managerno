@@ -79,7 +79,7 @@ const ExploitCell = ({ value }: { value: string | null | undefined }) => {
 
 const getSmartSummary = (text: string | null) => {
   if (!text) return "—";
-  const match = text.match(/^.*?\.(?:\s|$)/);
+  const match = text.match(/^[\s\S]*?\.(?:\s|$)/);
   return match ? match[0].trim() : text;
 };
 
@@ -346,9 +346,17 @@ const VulnerabilitiesTab = () => {
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className="text-foreground/80 font-medium block">
-                      {v.vulnerability_name ?? "—"}
-                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      {v.vulnerability_name ? (
+                        v.vulnerability_name.split(', ').map((name: string, i: number) => (
+                          <span key={i} className="text-foreground/80 font-medium block leading-tight">
+                            {name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-foreground/80 font-medium block">—</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3.5">
                     <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
