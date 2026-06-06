@@ -346,7 +346,7 @@ const VulnerabilitiesTab = () => {
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
+                    <span className="text-foreground/80 font-medium block">
                       {v.vulnerability_name ?? "—"}
                     </span>
                   </td>
@@ -361,8 +361,8 @@ const VulnerabilitiesTab = () => {
                   <td className="px-5 py-3.5">
                     <SeverityCell value={v.cvss_severity} />
                   </td>
-                  <td className="px-5 py-3.5 text-foreground/85 max-w-[320px]">
-                    <span className="line-clamp-2 leading-snug" title={v.description ?? ""}>
+                  <td className="px-5 py-3.5 text-foreground/85">
+                    <span className="leading-snug block" title={v.description ?? ""}>
                       {getSmartSummary(v.description)}
                     </span>
                   </td>
