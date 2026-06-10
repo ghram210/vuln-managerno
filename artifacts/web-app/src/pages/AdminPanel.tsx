@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AppSidebar from "@/components/AppSidebar";
 import TopBar from "@/components/TopBar";
-import { Users, Scan, Bug, Activity, UserPlus, Send, FileText, Trash2, Copy, Check, AlertTriangle, Loader2, Wifi, WifiOff } from "lucide-react";
+import { Users, Scan, Bug, Activity, FileText, Trash2, AlertTriangle, Wifi, WifiOff } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -28,13 +28,7 @@ import {
 
 const AdminPanel = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const [showInvite, setShowInvite] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [generatedLink, setGeneratedLink] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string, name: string } | null>(null);
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const { userRole, session } = useAuth();
   const queryClient = useQueryClient();
 
@@ -165,48 +159,6 @@ const AdminPanel = () => {
     { label: "ACTIVE SCANS", value: activeScans, icon: Activity, color: "text-chart-4" },
   ];
 
-  const handleGenerateInvite = async () => {
-    if (!session?.access_token) {
-      toast.error("Not authenticated in UI");
-      return;
-    }
-    setIsGeneratingInvite(true);
-    console.log("Generating invitation link for:", inviteEmail || "anyone");
-    try {
-      const res = await fetch("/api/invitations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ email: inviteEmail || null }),
-      });
-      
-      const data = await res.json();
-      console.log("Invitation API response:", { status: res.status, data });
-
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: Invitation failed`);
-      }
-      
-      const link = `${window.location.origin}/invite/${data.token}`;
-      setGeneratedLink(link);
-      setIsInviteDialogOpen(true);
-      toast.success("Invitation link generated");
-    } catch (err: any) {
-      console.error("handleGenerateInvite caught error:", err);
-      toast.error(`Invitation Error: ${err.message}`);
-    } finally {
-      setIsGeneratingInvite(false);
-    }
-  };
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(generatedLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast.success("Link copied to clipboard");
-  };
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -235,45 +187,7 @@ const AdminPanel = () => {
               </div>
               <p className="text-muted-foreground">System administration and user management</p>
             </div>
-            <button
-              onClick={() => setShowInvite(!showInvite)}
-              className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors"
-            >
-              <UserPlus className="w-4 h-4" />
-              Invite User
-            </button>
           </div>
-
-          {showInvite && (
-            <div className="bg-card border border-border rounded-xl p-5 mb-6">
-              <div className="flex items-end gap-4">
-                <div className="flex-1">
-                  <label className="text-sm text-muted-foreground mb-1 block">Email (optional)</label>
-                  <input
-                    type="email"
-                    placeholder="user@example.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:border-primary"
-                  />
-                </div>
-                <button
-                  onClick={handleGenerateInvite}
-                  disabled={isGeneratingInvite}
-                  className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors whitespace-nowrap disabled:opacity-50"
-                >
-                  {isGeneratingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  Generate Link
-                </button>
-                <button
-                  onClick={() => { setShowInvite(false); setInviteEmail(""); }}
-                  className="px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
 
           <div className="grid grid-cols-4 gap-4 mb-6">
             {stats.map((stat) => {
@@ -392,48 +306,6 @@ const AdminPanel = () => {
         </main>
       </div>
 
-      {/* Invitation Link Dialog */}
-      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <UserPlus className="w-5 h-5 text-primary" />
-              Invitation Link Generated
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Copy this link and send it to the user. It expires in 7 days.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center space-x-2 mt-4">
-            <div className="grid flex-1 gap-2">
-              <div className="bg-muted p-3 rounded-lg font-mono text-sm break-all text-foreground border border-border">
-                {generatedLink}
-              </div>
-            </div>
-            <Button
-              onClick={handleCopyLink}
-              className="shrink-0 flex gap-2"
-            >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
-          </div>
-          <DialogFooter className="sm:justify-start mt-6">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setIsInviteDialogOpen(false);
-                setShowInvite(false);
-                setInviteEmail("");
-                setGeneratedLink("");
-              }}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Remove User Confirmation */}
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
