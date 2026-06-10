@@ -2,12 +2,125 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { FileText, Download, Calendar, Circle, Target, ChevronDown } from "lucide-react";
+import { FileText, Download, Calendar, Circle, Target, ChevronDown, LayoutGrid, BarChart3, TrendingUp, Users, ShieldAlert, Database, Laptop, Network, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+const ExecutiveSummaryView = ({ data }: { data: any }) => {
+  if (!data) return null;
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="grid grid-cols-2 gap-4">
+        {/* 1. Top Critical Vulnerabilities */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <ShieldAlert className="w-4 h-4 text-red-500" />
+            <h3 className="text-sm font-bold text-foreground">Top Critical Vulnerabilities (30d)</h3>
+          </div>
+          <div className="space-y-3">
+            {data.top_critical?.map((v: any, i: number) => (
+              <div key={i} className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground font-medium truncate max-w-[200px]" title={v.title}>{v.title}</span>
+                <span className="text-xs font-bold text-red-400 bg-red-400/10 px-2 py-0.5 rounded">{v.count} hits</span>
+              </div>
+            ))}
+            {(!data.top_critical || data.top_critical.length === 0) && <p className="text-xs text-muted-foreground italic">No critical findings in the last 30 days.</p>}
+          </div>
+        </div>
+
+        {/* 2. Trending Vulnerabilities */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-4 h-4 text-cyan-500" />
+            <h3 className="text-sm font-bold text-foreground">Trending & Frequency</h3>
+          </div>
+          <div className="space-y-3">
+            {data.trending?.map((v: any, i: number) => (
+              <div key={i} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium truncate max-w-[200px]" title={v.title}>{v.title}</span>
+                  <span className="text-[10px] font-bold text-cyan-400">{v.frequency_percent}% frequency</span>
+                </div>
+                <div className="w-full bg-secondary h-1 rounded-full overflow-hidden">
+                  <div className="bg-cyan-500 h-full" style={{ width: `${v.frequency_percent}%` }} />
+                </div>
+              </div>
+            ))}
+            {(!data.trending || data.trending.length === 0) && <p className="text-xs text-muted-foreground italic">No trend data available.</p>}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {/* 3. Top Scanning Users */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-bold text-foreground">Top Scanning Users</h3>
+          </div>
+          <div className="space-y-4">
+            {data.top_users?.map((u: any, i: number) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">{i+1}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-foreground truncate">{u.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{u.scan_count} scans completed</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 4. Asset Health Score (Worst Assets) */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-4 h-4 text-orange-500" />
+            <h3 className="text-sm font-bold text-foreground">At-Risk Assets (Worst 5)</h3>
+          </div>
+          <div className="space-y-3">
+            {data.worst_assets?.map((a: any, i: number) => (
+              <div key={i} className="p-2 rounded bg-secondary/30 border border-border/50">
+                <p className="text-[11px] font-mono font-bold text-foreground truncate mb-1" title={a.target}>{a.target.replace(/^https?:\/\//, '')}</p>
+                <div className="flex gap-2">
+                  <span className="text-[9px] font-bold text-red-400">{a.critical_count} Critical</span>
+                  <span className="text-[9px] font-bold text-orange-400">{a.high_count} High</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 5. Tech Stack Category */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <LayoutGrid className="w-4 h-4 text-emerald-500" />
+            <h3 className="text-sm font-bold text-foreground">Vulnerabilities by Category</h3>
+          </div>
+          <div className="space-y-4">
+            {data.tech_stack?.map((s: any, i: number) => {
+              const Icon = s.category === 'Database' ? Database : s.category === 'Web Application' ? Laptop : Network;
+              const color = s.category === 'Database' ? 'text-amber-400' : s.category === 'Web Application' ? 'text-blue-400' : 'text-emerald-400';
+              return (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon className={`w-3.5 h-3.5 ${color}`} />
+                    <span className="text-xs text-muted-foreground font-medium">{s.category}</span>
+                  </div>
+                  <span className="text-xs font-bold text-foreground">{s.count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ReportsTab = () => {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [selectedScanId, setSelectedScanId] = useState<string>("all");
+  const [reportViewMode, setReportViewMode] = useState<'individual' | 'executive'>('individual');
   const { userRole } = useAuth();
 
   const { data: scans = [] } = useQuery({
@@ -63,6 +176,16 @@ const ReportsTab = () => {
     },
   });
 
+  const { data: executiveStats, isLoading: isLoadingExecutive } = useQuery({
+    queryKey: ["admin_executive_stats"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_admin_executive_stats");
+      if (error) throw error;
+      return data;
+    },
+    enabled: userRole === 'admin' && reportViewMode === 'executive'
+  });
+
   const selectedScan = scans.find(s => s.id === selectedScanId);
 
   // Calculate filtered summary stats using the source of truth (scan_results table)
@@ -102,6 +225,21 @@ const ReportsTab = () => {
         .map(v => ({ id: v.finding_id, label: v.vulnerability_name, sublabel: v.severity_score === 4 ? 'Critical' : v.severity_score === 3 ? 'High' : 'Info' }));
 
   const handleDownload = async (format: string) => {
+    if (reportViewMode === 'executive') {
+      if (format === "PDF") {
+        const dateStr = new Date().toLocaleDateString("en-US", { month: 'long', day: 'numeric', year: 'numeric' });
+
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Executive Security Summary</title><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');body { font-family: 'Plus Jakarta Sans', sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; font-size: 11px; }.header { border-bottom: 1px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }.title { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }.subtitle { font-size: 13px; color: #64748b; }.section { margin-bottom: 30px; }.section-title { font-size: 14px; font-weight: 800; color: #1e40af; background: #f8fafc; padding: 10px 15px; border-left: 4px solid #3b82f6; margin-bottom: 15px; }.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }.metric-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; }.metric-title { font-weight: 700; font-size: 12px; margin-bottom: 10px; color: #475569; }.row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }.row:last-child { border-bottom: none; }.label { color: #64748b; }.value { font-weight: 700; color: #0f172a; }.bar-container { height: 6px; background: #f1f5f9; border-radius: 10px; margin-top: 4px; overflow: hidden; }.bar-fill { height: 100%; background: #3b82f6; }.asset-card { background: #f8fafc; padding: 10px; border-radius: 6px; margin-bottom: 10px; }.asset-name { font-family: monospace; font-weight: 700; font-size: 10px; margin-bottom: 5px; }@media print { .metric-card { page-break-inside: avoid; } }</style></head><body><div class="header"><div><h1 class="title">Executive Security Summary</h1><div class="subtitle">Global vulnerability analysis and team performance</div></div><div style="text-align: right;"><div class="subtitle">Generated: ${dateStr}</div><div class="subtitle">Confidential & Internal</div></div></div><div class="grid"><div class="metric-card"><div class="metric-title">Top Critical Vulnerabilities (30d)</div>${executiveStats?.top_critical?.map((v: any) => `<div class="row"><span class="label">${v.title}</span><span class="value">${v.count} hits</span></div>`).join('') || '<p>No critical data</p>'}</div><div class="metric-card"><div class="metric-title">Trending & Frequency</div>${executiveStats?.trending?.map((v: any) => `<div class="row" style="flex-direction: column;"><div style="display: flex; justify-content: space-between;"><span>${v.title}</span><span class="value">${v.frequency_percent}%</span></div><div class="bar-container"><div class="bar-fill" style="width: ${v.frequency_percent}%"></div></div></div>`).join('') || '<p>No trending data</p>'}</div></div><div class="section" style="margin-top: 30px;"><div class="section-title">Key Performance Indicators</div><div class="grid" style="grid-template-columns: 1fr 1fr 1fr;"><div class="metric-card"><div class="metric-title">Top Scanning Users</div>${executiveStats?.top_users?.map((u: any, i: number) => `<div class="row"><span>${i+1}. ${u.name}</span><span class="value">${u.scan_count} scans</span></div>`).join('')}</div><div class="metric-card"><div class="metric-title">At-Risk Assets</div>${executiveStats?.worst_assets?.map((a: any) => `<div class="asset-card"><div class="asset-name">${a.target.replace(/^https?:\/\//, '')}</div><div style="display: flex; gap: 10px; font-size: 9px;"><span style="color: #ef4444; font-weight: 800;">${a.critical_count} Critical</span><span style="color: #f97316; font-weight: 800;">${a.high_count} High</span></div></div>`).join('')}</div><div class="metric-card"><div class="metric-title">Infrastructure Distribution</div>${executiveStats?.tech_stack?.map((s: any) => `<div class="row"><span class="label">${s.category}</span><span class="value">${s.count}</span></div>`).join('')}</div></div></div><div style="text-align: center; color: #94a3b8; font-size: 9px; margin-top: 50px; border-top: 1px solid #f1f5f9; padding-top: 20px;">CyberSecurity Intelligence System &copy; ${new Date().getFullYear()}</div><script>window.onload = () => { setTimeout(() => { window.print(); window.onafterprint = () => window.close(); }, 800); }</script></body></html>`;
+
+        const reportWindow = window.open('', '_blank');
+        if (reportWindow) {
+          reportWindow.document.write(html);
+          reportWindow.document.close();
+        }
+        return;
+      }
+    }
+
     if (selectedScanId === "all") {
       toast.error("Please select a scan to generate a report");
       return;
@@ -550,26 +688,50 @@ const ReportsTab = () => {
               <h3 className="text-sm font-semibold text-foreground whitespace-nowrap">Reports</h3>
             </div>
             
-            <div className="relative flex-1 max-w-md">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <Target className="h-4 w-4 text-muted-foreground" />
+            {userRole === 'admin' && (
+              <div className="flex bg-secondary/50 p-1 rounded-lg border border-border">
+                <button
+                  onClick={() => setReportViewMode('individual')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${reportViewMode === 'individual' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Individual
+                </button>
+                <button
+                  onClick={() => setReportViewMode('executive')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${reportViewMode === 'executive' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Executive
+                </button>
               </div>
-              <select
-                value={selectedScanId}
-                onChange={(e) => setSelectedScanId(e.target.value)}
-                className="w-full pl-10 pr-10 py-1.5 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
-              >
-                <option value="all">Select Scan Result...</option>
-                {scans.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.target}) - {new Date(s.created_at).toLocaleDateString("en-US")}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+
+            {reportViewMode === 'individual' ? (
+              <div className="relative flex-1 max-w-md">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <select
+                  value={selectedScanId}
+                  onChange={(e) => setSelectedScanId(e.target.value)}
+                  className="w-full pl-10 pr-10 py-1.5 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
+                >
+                  <option value="all">Select Scan Result...</option>
+                  {scans.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.target}) - {new Date(s.created_at).toLocaleDateString("en-US")}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex-1 flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-md border border-primary/20">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <span className="text-xs font-bold text-primary">Global Executive Summary Mode</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 ml-4">
@@ -615,37 +777,48 @@ const ReportsTab = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-card rounded-lg border border-border p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Top 5 vulnerabilities</h3>
-          <div className="space-y-4">
-            {top5.map((v, i) => (
-              <div key={v.id} className="flex items-center gap-3">
-                <span className="text-primary font-bold text-sm">{i + 1}.</span>
-                <span className="text-primary font-mono text-xs truncate max-w-[200px]" title={v.label}>{v.label}</span>
-                <span className="text-muted-foreground text-xs">({v.sublabel})</span>
-              </div>
-            ))}
-            {top5.length === 0 && <p className="text-xs text-muted-foreground">No findings yet.</p>}
+      {reportViewMode === 'executive' ? (
+        isLoadingExecutive ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card border border-border rounded-xl">
+            <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
+            <p className="text-sm text-muted-foreground">Aggregating global executive metrics...</p>
           </div>
-        </div>
+        ) : (
+          <ExecutiveSummaryView data={executiveStats} />
+        )
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-card rounded-lg border border-border p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Top 5 vulnerabilities</h3>
+            <div className="space-y-4">
+              {top5.map((v, i) => (
+                <div key={v.id} className="flex items-center gap-3">
+                  <span className="text-primary font-bold text-sm">{i + 1}.</span>
+                  <span className="text-primary font-mono text-xs truncate max-w-[200px]" title={v.label}>{v.label}</span>
+                  <span className="text-muted-foreground text-xs">({v.sublabel})</span>
+                </div>
+              ))}
+              {top5.length === 0 && <p className="text-xs text-muted-foreground">No findings yet.</p>}
+            </div>
+          </div>
 
-        <div className="bg-card rounded-lg border border-border p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">
-            {selectedScanId === "all" ? "Global Summary" : `Summary for Scan Result`}
-          </h3>
-          <div className="space-y-3">
-            {(selectedScanId === "all" ? globalSummary : filteredSummary).map((s) => (
-              <div key={s.id} className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{s.label}</span>
-                <span className={`text-sm font-bold ${summaryColors[s.label] || "text-foreground"}`}>
-                  {s.value}
-                </span>
-              </div>
-            ))}
+          <div className="bg-card rounded-lg border border-border p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4">
+              {selectedScanId === "all" ? "Global Summary" : `Summary for Scan Result`}
+            </h3>
+            <div className="space-y-3">
+              {(selectedScanId === "all" ? globalSummary : filteredSummary).map((s) => (
+                <div key={s.id} className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{s.label}</span>
+                  <span className={`text-sm font-bold ${summaryColors[s.label] || "text-foreground"}`}>
+                    {s.value}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
