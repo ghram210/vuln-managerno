@@ -11,7 +11,7 @@ import {
   useChartStatus,
   useScanTargets,
   type ScanTarget
-} from "@/hooks/useAssetCharts";
+} from "../hooks/useAssetCharts";
 
 // ─── URL middle-truncation ────────────────────────────────────────────────────
 function midTruncate(raw: string, maxLen = 52): string {
