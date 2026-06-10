@@ -226,7 +226,7 @@ const AttackVector = () => {
       <AppSidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        activePage="dashboard"
+        activePage="attack-vector"
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
@@ -249,10 +249,10 @@ const AttackVector = () => {
           {/* Top Cards */}
           <div className="grid grid-cols-5 gap-4">
             <StatCard label="TOTAL CVES" value={stats.total} color="text-foreground" />
-            <StatCard label="NETWORK" value={stats.network} color="text-[#f43f7a]" /> {/* hsl(335 85% 60%) approx */}
-            <StatCard label="ADJACENT" value={stats.adjacent} color="text-[#f87171]" /> {/* hsl(350 85% 65%) approx */}
-            <StatCard label="LOCAL" value={stats.local} color="text-[#d946ef]" /> {/* hsl(315 80% 65%) approx */}
-            <StatCard label="PHYSICAL" value={stats.physical} color="text-[#a855f7]" /> {/* hsl(290 70% 65%) approx */}
+            <StatCard label="NETWORK" value={stats.network} color="text-[#f43f7a]" />
+            <StatCard label="ADJACENT" value={stats.adjacent} color="text-[#f25973]" />
+            <StatCard label="LOCAL" value={stats.local} color="text-[#ed5edb]" />
+            <StatCard label="PHYSICAL" value={stats.physical} color="text-[#d467e4]" />
           </div>
 
           {/* Filters */}
@@ -375,11 +375,11 @@ const FindingRow = ({ finding: f }: { finding: AttackVectorFinding }) => {
   const navigate = useNavigate();
 
   const scoreColors: any = {
-    critical: "text-rose-500 border-rose-500/20 bg-rose-500/10",
-    high: "text-orange-500 border-orange-500/20 bg-orange-500/10",
-    medium: "text-amber-500 border-amber-500/20 bg-amber-500/10",
-    low: "text-emerald-500 border-emerald-500/20 bg-emerald-500/10",
-    info: "text-cyan-500 border-cyan-500/20 bg-cyan-500/10"
+    critical: "text-[#ed2e2e] border-[#ed2e2e]/20 bg-[#ed2e2e]/10",
+    high: "text-[#f36b1f] border-[#f36b1f]/20 bg-[#f36b1f]/10",
+    medium: "text-[#f9b115] border-[#f9b115]/20 bg-[#f9b115]/10",
+    low: "text-[#2eb85c] border-[#2eb85c]/20 bg-[#2eb85c]/10",
+    info: "text-[#a361e0] border-[#a361e0]/20 bg-[#a361e0]/10"
   };
 
   return (
