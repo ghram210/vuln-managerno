@@ -22,6 +22,8 @@ interface DonutChartProps {
   loading?: boolean;
   emptyHint?: string;
   accentColor?: string;
+  onClick?: () => void;
+  onSegmentClick?: (segment: DonutSegment) => void;
 }
 
 const fmt = (n: number) =>
@@ -102,8 +104,10 @@ const DonutChart = ({
 
   return (
     <div
-      className="group relative bg-card rounded-xl border border-border/70 p-5 overflow-hidden transition-all duration-200
-                 hover:border-[var(--chart-accent,hsl(var(--primary)))/40] hover:shadow-[0_0_32px_-10px_var(--chart-accent,hsl(var(--primary)/0.35))]"
+      onClick={onClick}
+      className={`group relative bg-card rounded-xl border border-border/70 p-5 overflow-hidden transition-all duration-200
+                 hover:border-[var(--chart-accent,hsl(var(--primary)))/40] hover:shadow-[0_0_32px_-10px_var(--chart-accent,hsl(var(--primary)/0.35))]
+                 ${onClick ? "cursor-pointer active:scale-[0.98]" : ""}`}
       style={{ "--chart-accent": primaryColor } as React.CSSProperties}
     >
       <div
@@ -168,6 +172,12 @@ const DonutChart = ({
                   activeShape={allZero ? undefined : ActiveShape}
                   onMouseEnter={allZero ? undefined : (_, i) => setActiveIdx(i)}
                   onMouseLeave={allZero ? undefined : () => setActiveIdx(undefined)}
+                  onClick={(data, i, e) => {
+                    if (onSegmentClick && !allZero && data) {
+                      e.stopPropagation();
+                      onSegmentClick(data as DonutSegment);
+                    }
+                  }}
                   isAnimationActive={!allZero}
                   animationDuration={700}
                   animationEasing="ease-out"
@@ -216,9 +226,15 @@ const DonutChart = ({
               type="button"
               onMouseEnter={() => !allZero && !isZero && setActiveIdx(i)}
               onMouseLeave={() => setActiveIdx(undefined)}
+              onClick={(e) => {
+                if (onSegmentClick && !allZero && !isZero) {
+                  e.stopPropagation();
+                  onSegmentClick(d);
+                }
+              }}
               className={`flex items-center justify-between gap-1.5 rounded-md px-2 py-[5px] text-[11.5px] transition-colors
                 ${isActive ? "bg-secondary/60" : "hover:bg-secondary/35"}
-                ${isZero ? "opacity-45 cursor-default" : "cursor-default"}`}
+                ${isZero ? "opacity-45 cursor-default" : (onSegmentClick ? "cursor-pointer" : "cursor-default")}`}
             >
               <span className="flex items-center gap-1.5 min-w-0">
                 <span

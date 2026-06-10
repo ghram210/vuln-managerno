@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronDown, Globe, Check, ShieldCheck, ShieldAlert } from "lucide-react";
 import DonutChart from "@/components/DonutChart";
 import {
@@ -192,6 +193,7 @@ function TargetFilter({
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 const DashboardDonuts = () => {
+  const navigate = useNavigate();
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
   const [selectedUrls, setSelectedUrls] = useState<string[] | null>(null);
 
@@ -274,6 +276,8 @@ const DashboardDonuts = () => {
           accentColor="hsl(185 95% 40%)"
           data={attackVector.data ?? []}
           loading={attackVector.isLoading}
+          onClick={() => navigate("/attack-vector")}
+          onSegmentClick={(seg) => navigate(`/attack-vector?vector=${encodeURIComponent(seg.name)}`)}
         />
         <DonutChart
           title="Finding Status"
