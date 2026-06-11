@@ -12,6 +12,7 @@ import Vulnerabilities from "./pages/Vulnerabilities.tsx";
 import ScanResults from "./pages/ScanResults.tsx";
 import NewScan from "./pages/NewScan.tsx";
 import VulnDashboard from "./pages/VulnDashboard.tsx";
+import AttackVector from "./pages/AttackVector.tsx";
 import Settings from "./pages/Settings.tsx";
 import AdminPanel from "./pages/AdminPanel.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/vulnerabilities" element={<ProtectedRoute><Vulnerabilities /></ProtectedRoute>} />
             <Route path="/vuln-dashboard" element={<ProtectedRoute><VulnDashboard /></ProtectedRoute>} />
+            <Route path="/attack-vector" element={<ProtectedRoute><AttackVector /></ProtectedRoute>} />
             <Route path="/new-scan" element={<ProtectedRoute><NewScan /></ProtectedRoute>} />
             <Route path="/scan-results" element={<ProtectedRoute><ScanResults /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
