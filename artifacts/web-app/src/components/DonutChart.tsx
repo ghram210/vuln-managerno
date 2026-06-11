@@ -83,6 +83,8 @@ const DonutChart = ({
   loading,
   emptyHint = "No scan data yet.",
   accentColor,
+  onClick,
+  onSegmentClick,
 }: DonutChartProps) => {
   const [activeIdx, setActiveIdx] = useState<number | undefined>(undefined);
   const reactId = useId();
