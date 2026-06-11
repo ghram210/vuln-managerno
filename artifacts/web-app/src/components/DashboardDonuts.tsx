@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronDown, Globe, Check, ShieldCheck, ShieldAlert } from "lucide-react";
 import DonutChart from "@/components/DonutChart";
 import {
@@ -12,16 +13,16 @@ import {
   type ScanTarget
 } from "@/hooks/useAssetCharts";
 
-// ─── URL middle-truncation ────────────────────────────────────────────────────
+// --- URL middle-truncation ----------------------------------------------------
 function midTruncate(raw: string, maxLen = 52): string {
   const s = raw.replace(/^https?:\/\//, "");
   if (s.length <= maxLen) return s;
   const head = Math.round(maxLen * 0.58);
   const tail = Math.round(maxLen * 0.36);
-  return `${s.slice(0, head)}…${s.slice(-tail)}`;
+  return `${s.slice(0, head)}...${s.slice(-tail)}`;
 }
 
-// ─── Target Filter Dropdown ───────────────────────────────────────────────────
+// --- Target Filter Dropdown ---------------------------------------------------
 
 function TargetFilter({
   selected,
@@ -48,7 +49,7 @@ function TargetFilter({
   return (
     <div ref={ref} className="relative w-full max-w-[560px]">
 
-      {/* ── Trigger button ── */}
+      {/* --- Trigger button --- */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -60,12 +61,10 @@ function TargetFilter({
       >
         <Globe className="w-4 h-4 text-cyan-400 shrink-0" />
 
-        {/* Middle-truncated URL — both start and end always visible */}
         <span className="flex-1 text-left text-[13px] font-semibold text-cyan-300 font-mono min-w-0">
-          {isLoading ? "Loading…" : displayLabel}
+          {isLoading ? "Loading..." : displayLabel}
         </span>
 
-        {/* Findings / count badge */}
         {selectedTarget ? (
           <span className="text-[11px] font-medium text-cyan-500/70 tabular-nums shrink-0 ml-1">
             {selectedTarget.totalFindings.toLocaleString()} findings
@@ -83,7 +82,7 @@ function TargetFilter({
         />
       </button>
 
-      {/* ── Dropdown ── */}
+      {/* --- Dropdown --- */}
       {open && (
         <div
           className="absolute left-0 top-[calc(100%+6px)] z-50 w-full min-w-[380px]
@@ -91,7 +90,6 @@ function TargetFilter({
                      shadow-2xl overflow-hidden"
           style={{ boxShadow: "0 8px 40px -8px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,210,255,0.1)" }}
         >
-          {/* "All Targets" row */}
           <button
             type="button"
             onClick={() => { onChange(null); setOpen(false); }}
@@ -110,17 +108,16 @@ function TargetFilter({
                 All Targets
               </div>
               <div className="text-[11px] text-muted-foreground/70">
-                {isLoading ? "…" : `${targets?.length ?? 0} unique targets`}
+                {isLoading ? "..." : `${targets?.length ?? 0} unique targets`}
               </div>
             </div>
             {!selected && <Check className="w-4 h-4 text-cyan-400 shrink-0" />}
           </button>
 
-          {/* Target list */}
           <div className="max-h-72 overflow-y-auto">
             {isLoading ? (
               <div className="px-4 py-6 text-center text-[12px] text-muted-foreground/60">
-                Loading targets…
+                Loading targets...
               </div>
             ) : !targets?.length ? (
               <div className="px-4 py-6 text-center text-[12px] text-muted-foreground/60">
@@ -140,7 +137,6 @@ function TargetFilter({
                                 border-b border-border/20 last:border-0
                                 ${isSelected ? "bg-cyan-500/10" : "hover:bg-secondary/40"}`}
                   >
-                    {/* Protocol indicator */}
                     <div className="flex items-center gap-1 shrink-0">
                       {isHttps ? (
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
@@ -164,13 +160,13 @@ function TargetFilter({
                         </span>
                         {t.totalFindings > 0 && (
                           <>
-                            <span className="text-muted-foreground/30">·</span>
+                            <span className="text-muted-foreground/30">.</span>
                             <span className="text-[10px] text-cyan-500/80 font-medium">
                               {t.totalFindings.toLocaleString()} findings
                             </span>
                           </>
                         )}
-                        <span className="text-muted-foreground/30">·</span>
+                        <span className="text-muted-foreground/30">.</span>
                         <span className="text-[9px] text-muted-foreground/40 tabular-nums">
                           {new Date(t.latestDate).toLocaleDateString()}
                         </span>
@@ -189,9 +185,10 @@ function TargetFilter({
   );
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
+// --- Dashboard ---
 
 const DashboardDonuts = () => {
+  const navigate = useNavigate();
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
   const [selectedUrls, setSelectedUrls] = useState<string[] | null>(null);
 
@@ -207,7 +204,7 @@ const DashboardDonuts = () => {
   return (
     <div className="space-y-4">
 
-      {/* ── Header ── */}
+      {/* --- Header --- */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-foreground">Risk Overview</h2>
@@ -216,7 +213,6 @@ const DashboardDonuts = () => {
           </span>
         </div>
 
-        {/* Filter — always left-anchored, never wraps */}
         <TargetFilter 
           selected={selectedUrl} 
           onChange={(t) => {
@@ -226,7 +222,6 @@ const DashboardDonuts = () => {
         />
       </div>
 
-      {/* ── 6 donut charts (all now respond to the target filter) ── */}
       <div className="grid grid-cols-3 gap-4">
 
         <DonutChart
@@ -274,6 +269,8 @@ const DashboardDonuts = () => {
           accentColor="hsl(185 95% 40%)"
           data={attackVector.data ?? []}
           loading={attackVector.isLoading}
+          onClick={() => navigate("/attack-vector")}
+          onSegmentClick={(seg) => navigate(`/attack-vector?vector=${encodeURIComponent(seg.name)}`)}
         />
         <DonutChart
           title="Finding Status"

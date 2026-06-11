@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { DonutSegment } from "@/components/DonutChart";
 
-// ─── Segment Definitions ─────────────────────────────────────────────────────
+// --- Segment Definitions -----------------------------------------------------
 
 const SEVERITY_SEGS: (DonutSegment & { order: number; key: string })[] = [
   { name: "Critical", color: "hsl(0 84% 55%)",   order: 1, key: "critical", value: 0 },
@@ -49,17 +49,12 @@ const STATUS_SEGS: (DonutSegment & { order: number; keys: string[] })[] = [
   { name: "False Positive", color: "hsl(270 58% 60%)",  order: 4, keys: ["false_positive"],              value: 0 },
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// --- Helpers -----------------------------------------------------------------
 
 function zeroSegs<T extends DonutSegment>(segs: T[]): DonutSegment[] {
   return [...segs]
     .sort((a: any, b: any) => a.order - b.order)
     .map(({ name, color }) => ({ name, color, value: 0 }));
-}
-
-async function getUser() {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
 }
 
 function classifyTarget(target: string): string {
@@ -81,7 +76,7 @@ function classifyVector(vec: string | null): string {
   return "Unknown";
 }
 
-// ─── Scan Targets Dropdown ────────────────────────────────────────────────────
+// --- Scan Targets Dropdown ----------------------------------------------------
 export interface ScanTarget {
   url: string;         // Specific URL for this entry (e.g. http://...)
   displayHost: string; // Canonical host for display
@@ -158,7 +153,7 @@ export function useScanTargets() {
   });
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 type ScanRow = {
   id: string;
@@ -173,16 +168,7 @@ type ScanRow = {
 
 type FindingRow = { id: string; target: string; tool: string | null; scan_id: string; status: string | null; severity: string | null };
 
-type VulnRow = {
-  cve_id: string;
-  cvss_severity: string | null;
-  exploit_status: string | null;
-  status: string | null;
-};
-
-// ─── Core Helper: scan_results deduplicated by (target, tool) ─────────────────
-// For each (target, tool) pair keep only the LATEST scan.
-// This matches the logic in the 'scanned_assets' view used by the table.
+// --- Core Helper: scan_results deduplicated by (target, tool) -----------------
 async function getScanRows(targetFilter: string | string[] | null): Promise<ScanRow[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
@@ -205,7 +191,6 @@ async function getScanRows(targetFilter: string | string[] | null): Promise<Scan
   const { data, error } = await q;
   if (error || !data?.length) return [];
 
-  // Deduplicate: for each (target, tool) keep the latest scan record
   const dedup = new Map<string, ScanRow>();
   for (const r of data as (ScanRow & { created_at: string })[]) {
     const key = `${r.target ?? ""}||${(r.tool ?? "").toLowerCase().trim()}`;
@@ -216,29 +201,6 @@ async function getScanRows(targetFilter: string | string[] | null): Promise<Scan
   return [...dedup.values()];
 }
 
-// ─── Core Helper: unique targets for this user ────────────────────────────────
-async function getUserTargets(targetFilter: string | string[] | null): Promise<string[]> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
-
-  let q = (supabase as any)
-    .from("scan_results")
-    .select("target");
-  
-  if (targetFilter) {
-    if (Array.isArray(targetFilter)) {
-      q = q.in("target", targetFilter);
-    } else {
-      q = q.eq("target", targetFilter);
-    }
-  }
-  const { data } = await q;
-  return [...new Set((data ?? []).map((r: any) => (r as any).target as string).filter(Boolean))] as string[];
-}
-
-// ─── Core Helper: scan_findings for given targets, deduplicated by (target, tool) ──
-// Filters findings by user_id via join with scan_results to ensure data isolation.
-// Uses strict matching to prevent mixing findings between different subdomains.
 async function getScanFindings(scanIds: string[]): Promise<FindingRow[]> {
   if (!scanIds.length) return [];
 
@@ -252,57 +214,7 @@ async function getScanFindings(scanIds: string[]): Promise<FindingRow[]> {
   return data as FindingRow[];
 }
 
-// ─── Core Helper: vulnerabilities for user's targets via scan_findings chain ──
-// Chain: user targets → scan_results → scan_findings (by scan_id) → finding_cves → cve_catalog
-// We query the catalog directly to bypass potentially buggy views and ensure we get all data.
-async function getVulnsForUser(targetFilter: string | string[] | null): Promise<VulnRow[]> {
-  const scanRows = await getScanRows(targetFilter);
-  if (!scanRows.length) return [];
-
-  const scanIds = scanRows.map(r => r.id);
-  const findings = await getScanFindings(scanIds);
-  if (!findings.length) return [];
-
-  const findingIds = findings.map(f => f.id);
-
-  // 1. Get linked CVE IDs
-  const { data: fcData, error: fcErr } = await (supabase as any)
-    .from("finding_cves")
-    .select("cve_id, finding_id")
-    .in("finding_id", findingIds);
-  if (fcErr || !fcData?.length) return [];
-
-  const cveIds = [...new Set((fcData as { cve_id: string }[]).map(r => r.cve_id))];
-
-  // 2. Fetch CVE details and linked exploits
-  const [{ data: catalog }, { data: exploits }] = await Promise.all([
-    (supabase as any).from("cve_catalog").select("cve_id, cvss_v3_severity, cvss_v3_score").in("cve_id", cveIds),
-    (supabase as any).from("exploits").select("cve_id, verified").in("cve_id", cveIds)
-  ]);
-
-  if (!catalog?.length) return [];
-
-  // 3. Map to VulnRow format used by the charts
-  return catalog.map((c: any) => {
-    const relevantExploits = (exploits || []).filter((ex: any) => ex.cve_id === c.cve_id);
-    const anyVerified = relevantExploits.some((ex: any) => ex.verified === true);
-    
-    // Attempt to find the specific finding this CVE belongs to for its status
-    // (In case multiple findings point to same CVE, we'll pick first seen)
-    const fid = (fcData as any[]).find((row: any) => row.cve_id === c.cve_id)?.finding_id;
-    const matchingFinding = findings.find(f => f.id === fid);
-
-    return {
-      cve_id: c.cve_id,
-      cvss_severity: (c.cvss_v3_severity || "info").toLowerCase(),
-      exploit_status: anyVerified ? "weaponized" : (relevantExploits.length > 0 ? "poc" : "none"),
-      status: matchingFinding?.status || "open"
-    };
-  });
-}
-
-// ─── 1. Finding Severity ──────────────────────────────────────────────────────
-// Uses the severity counts directly from the scan_results table to ensure consistency with the asset table.
+// --- 1. Finding Severity ------------------------------------------------------
 export function useChartSeverity(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_severity", target],
@@ -319,9 +231,7 @@ export function useChartSeverity(target: string | string[] | null = null) {
         total    += (r.total_findings ?? 0);
       }
 
-      // Any findings not explicitly bucketed by the gateway are "Info"
       const info = Math.max(0, total - (critical + high + medium + low));
-
       if (total === 0) return zeroSegs(SEVERITY_SEGS);
 
       return SEVERITY_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
@@ -338,9 +248,7 @@ export function useChartSeverity(target: string | string[] | null = null) {
   });
 }
 
-// ─── 2. Findings by Tool ──────────────────────────────────────────────────────
-// Uses total_findings directly from scan_results (populated by gateway)
-// This ensures that non-CVE findings (like Nmap ports) are correctly counted.
+// --- 2. Findings by Tool ------------------------------------------------------
 export function useChartByTool(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_by_tool", target],
@@ -366,8 +274,7 @@ export function useChartByTool(target: string | string[] | null = null) {
   });
 }
 
-// ─── 3. Asset Exposure ────────────────────────────────────────────────────────
-// Unique targets from scan_results classified by type
+// --- 3. Asset Exposure --------------------------------------------------------
 export function useChartExposure(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_exposure", target],
@@ -397,8 +304,7 @@ export function useChartExposure(target: string | string[] | null = null) {
   });
 }
 
-// ─── 4. Exploitability Risk ───────────────────────────────────────────────────
-// Findings classified by exploit availability — filtered by user's scanned targets
+// --- 4. Exploitability Risk ---------------------------------------------------
 export function useChartExploitability(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_exploitability", target],
@@ -411,51 +317,40 @@ export function useChartExploitability(target: string | string[] | null = null) 
       if (!findings.length) return zeroSegs(EXPLOIT_SEGS);
 
       const findingIds = findings.map(f => f.id);
-      
-      // 1. Get linked CVEs for these findings
       const { data: fcData } = await (supabase as any)
         .from("finding_cves")
         .select("finding_id, cve_id")
         .in("finding_id", findingIds);
       
       const counts = { Weaponized: 0, "Public PoC": 0, "Known CVE": 0, Theoretical: 0 };
-
       if (!fcData?.length) {
-        // All findings are theoretical if no CVEs are linked
         counts.Theoretical = findings.length;
       } else {
         const cveIds = [...new Set(fcData.map((r: any) => r.cve_id))];
-        
-        // 2. Fetch CVE details and linked exploits
         const [{ data: catalog }, { data: exploits }] = await Promise.all([
           (supabase as any).from("cve_catalog").select("cve_id, cvss_v3_severity").in("cve_id", cveIds),
           (supabase as any).from("exploits").select("cve_id, verified").in("cve_id", cveIds)
         ]);
 
-        // 3. Score each finding
         for (const f of findings) {
           const linkedCves = fcData.filter((r: any) => r.finding_id === f.id).map((r: any) => r.cve_id);
           if (linkedCves.length === 0) {
             counts.Theoretical++;
             continue;
           }
-
           const relevantCatalog = (catalog || []).filter((c: any) => linkedCves.includes(c.cve_id));
           const relevantExploits = (exploits || []).filter((ex: any) => linkedCves.includes(ex.cve_id));
-
           const anyWeaponized = relevantExploits.some((ex: any) => ex.verified === true);
           const anyPoC = relevantExploits.length > 0;
           const anyHighSev = relevantCatalog.some((c: any) => 
             ['CRITICAL', 'HIGH', 'MEDIUM'].includes((c.cvss_v3_severity || "").toUpperCase())
           );
-
           if (anyWeaponized) counts.Weaponized++;
           else if (anyPoC)   counts["Public PoC"]++;
           else if (anyHighSev) counts["Known CVE"]++;
           else counts.Theoretical++;
         }
       }
-
       return EXPLOIT_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
         name: seg.name,
         color: seg.color,
@@ -466,8 +361,7 @@ export function useChartExploitability(target: string | string[] | null = null) 
   });
 }
 
-// ─── 5. Attack Vector ────────────────────────────────────────────────────────
-// Findings classified by CVSS attack vector — filtered by user's scanned targets
+// --- 5. Attack Vector ---------------------------------------------------------
 export function useChartAttackVector(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_attack_vector", target],
@@ -486,7 +380,6 @@ export function useChartAttackVector(target: string | string[] | null = null) {
         .in("finding_id", findingIds);
       
       const counts: Record<string, number> = {};
-
       if (!fcData?.length) {
         counts["Unknown"] = findings.length;
       } else {
@@ -495,21 +388,17 @@ export function useChartAttackVector(target: string | string[] | null = null) {
           .from("cve_catalog")
           .select("cve_id, cvss_v3_vector")
           .in("cve_id", cveIds);
-
         for (const f of findings) {
           const linkedCves = fcData.filter((r: any) => r.finding_id === f.id).map((r: any) => r.cve_id);
           if (linkedCves.length === 0) {
             counts["Unknown"] = (counts["Unknown"] ?? 0) + 1;
             continue;
           }
-
           const vectors = (cveRows || []).filter((c: any) => linkedCves.includes(c.cve_id)).map((c: any) => c.cvss_v3_vector);
-          // Pick the most common or most severe vector (simplified: pick first)
           const bucket = classifyVector(vectors[0]);
           counts[bucket] = (counts[bucket] ?? 0) + 1;
         }
       }
-
       return VECTOR_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
         name: seg.name,
         color: seg.color,
@@ -520,8 +409,7 @@ export function useChartAttackVector(target: string | string[] | null = null) {
   });
 }
 
-// ─── 6. Finding Status ────────────────────────────────────────────────────────
-// Classified by remediation status from scan_findings — filtered by user's scanned targets
+// --- 6. Finding Status --------------------------------------------------------
 export function useChartStatus(target: string | string[] | null = null) {
   return useQuery<DonutSegment[]>({
     queryKey: ["chart_status", target],
@@ -538,7 +426,6 @@ export function useChartStatus(target: string | string[] | null = null) {
         const k = (f.status ?? "open").toLowerCase().trim();
         counts[k] = (counts[k] ?? 0) + 1;
       }
-
       return STATUS_SEGS.sort((a, b) => a.order - b.order).map(seg => ({
         name: seg.name,
         color: seg.color,
