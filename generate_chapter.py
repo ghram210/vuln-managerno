@@ -92,4 +92,4 @@ for ref in refs:
     p = doc.add_paragraph(ref)
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT # References usually in English/Left-aligned
 
-doc.save('Chapter1_Cybersecurity_Principles.doux')
+doc.save('Chapter1_Cybersecurity_Principles.docx')
