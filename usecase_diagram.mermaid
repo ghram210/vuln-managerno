@@ -57,12 +57,10 @@ graph LR
     A --- UC16
     A --- UC17
 
-    %% Relationships
-    UC8 ..> UC5 : <<include>>
-    UC15 ..> UC14 : <<extend>>
-    UC8 ..> UC9 : <<include>>
+    UC8 -.-> UC5
+    UC15 -.-> UC14
+    UC8 -.-> UC9
 
-    %% Styling
     style U fill:#f9f,stroke:#333,stroke-width:2px
     style A fill:#00d5ff,stroke:#333,stroke-width:2px
     style UC1 fill:#fff,stroke:#333
