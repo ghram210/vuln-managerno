@@ -60,8 +60,12 @@ add_arabic_paragraph(doc, "تشمل التهديدات السيبرانية ال
 
 add_arabic_paragraph(doc, '1.5 مفاهيم أساسية في الأمن السيبراني', is_heading=True, level=1)
 add_arabic_paragraph(doc, "الأمن السيبراني يعتمد على عدة مفاهيم أساسية تشمل السرية، السلامة، والتوافر (CIA Triad) [1] [2]:")
-for bp in ["• السرية: تعني حماية المعلومات من الوصول غير المصرح به.", "• السلامة: تعني الحفاظ على دقة واكتمال المعلومات.", "• التوافر: تعني ضمان أن تكون المعلومات والأنظمة متاحة عند الحاجة إليها."]:
-    add_arabic_paragraph(doc, bp)
+add_arabic_paragraph(doc, '1.5.1 السرية (Confidentiality)', is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعني حماية المعلومات من الوصول غير المصرح به، مما يضمن بقاء البيانات الحساسة متاحة فقط للأفراد المخولين.")
+add_arabic_paragraph(doc, '1.5.2 السلامة (Integrity)', is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعني الحفاظ على دقة واكتمال المعلومات، ومنع أي تعديل غير مصرح به على البيانات أثناء تخزينها أو نقلها.")
+add_arabic_paragraph(doc, '1.5.3 التوافر (Availability)', is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعني ضمان أن تكون المعلومات والأنظمة متاحة وسهلة الوصول عند الحاجة إليها من قبل المستخدمين المخولين.")
 
 doc.add_page_break()
 
