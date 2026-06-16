@@ -1,82 +1,61 @@
 graph LR
-    subgraph Actors
-        U[المستخدم / User]
-        A[المسؤول / Admin]
+    %% Global Styles
+    classDef actorStyle fill:#00d1ff,stroke:#fff,stroke-width:2px,color:#000,font-weight:bold,font-size:20px;
+    classDef usecaseStyle fill:#fff,stroke:#333,stroke-width:2px,color:#000,font-weight:bold,font-size:16px;
+    classDef packageStyle fill:#f9f9f9,stroke:#999,stroke-width:2px,color:#333,font-size:22px;
+
+    subgraph System ["Vulnerability Management System / نظام إدارة الثغرات"]
+        direction TB
+
+        %% Use Cases
+        UC_Login(["<b>تسجيل الدخول</b><br/>Login"])
+        UC_Invite(["<b>توليد روابط الدعوات</b><br/>Generate Invitations"])
+        UC_Roles(["<b>إدارة الأدوار والصلاحيات</b><br/>Manage Roles & Permissions"])
+        UC_Logs(["<b>مراجعة سجلات النظام</b><br/>Review System Logs"])
+
+        UC_AddDomain(["<b>إضافة نطاق جديد</b><br/>Add New Domain"])
+        UC_Verify(["<b>التحقق من الملكية</b><br/>HTTP-01 Verification"])
+        UC_Bypass(["<b>تجاوز التحقق للمواقع الموثوقة</b><br/>Bypass Verification (Whitelist)"])
+
+        UC_StartScan(["<b>بدء فحص أمني جديد</b><br/>Start Security Scan"])
+        UC_RunTools(["<b>تشغيل أدوات الفحص</b><br/>Run Nmap, Nikto, SQLmap, FFuf"])
+
+        UC_ViewResults(["<b>عرض نتائج الفحص</b><br/>View Scan Results"])
+        UC_Vector(["<b>تحليل ناقل الهجوم</b><br/>Attack Vector Analysis"])
+        UC_Remediation(["<b>متابعة حالة المعالجة</b><br/>Track Remediation Status"])
+
+        UC_ExportPDF(["<b>تصدير تقرير PDF</b><br/>Export PDF Report"])
+        UC_ExecReport(["<b>تصدير تقرير تنفيذي</b><br/>Export Executive Report"])
+        UC_CVE_Mgmt(["<b>إدارة بيانات CVEs</b><br/>Manage CVE Intelligence"])
+
+        %% Internal Relationships
+        UC_AddDomain -.->|include| UC_Verify
+        UC_StartScan -.->|include| UC_RunTools
+        UC_ViewResults -.->|include| UC_Vector
+        UC_ViewResults -.->|include| UC_Remediation
+        UC_ExecReport -.->|extend| UC_ExportPDF
     end
 
-    subgraph "نظام إدارة الثغرات / Vulnerability Management System"
-        subgraph "إدارة الحسابات والوصول"
-            UC1(تسجيل الدخول)
-            UC2(قبول الدعوة والتسجيل)
-            UC3(إدارة الأدوار والصلاحيات)
-            UC4(توليد روابط الدعوات)
-        end
+    %% Actors
+    Admin["<b>Admin / المسؤول</b>"]
+    User["<b>User / المستخدم</b>"]
 
-        subgraph "إدارة النطاقات (Domains)"
-            UC5(إضافة نطاق جديد)
-            UC6(تحقق من الملكية HTTP-01)
-            UC7(تجاوز التحقق للنطاقات الموثوقة)
-        end
+    %% Actor Relationships
+    User --- UC_Login
+    User --- UC_AddDomain
+    User --- UC_StartScan
+    User --- UC_ViewResults
+    User --- UC_ExportPDF
 
-        subgraph "عمليات الفحص (Scanning)"
-            UC8(بدء فحص أمني جديد)
-            UC9(استخدام أدوات Nmap, Nikto, SQLmap, FFUF)
-            UC10(عرض نتائج الفحص والتقارير التقنية)
-        end
+    Admin --- User
+    Admin --- UC_Invite
+    Admin --- UC_Roles
+    Admin --- UC_Logs
+    Admin --- UC_Bypass
+    Admin --- UC_CVE_Mgmt
+    Admin --- UC_ExecReport
 
-        subgraph "لوحة التحكم والتحليل"
-            UC11(مشاهدة إحصائيات لوحة التحكم)
-            UC12(تحليل ناقل الهجوم Attack Vector)
-            UC13(متابعة حالة المعالجة Remediation)
-        end
-
-        subgraph "التقارير والإدارة العليا"
-            UC14(تصدير تقرير PDF قياسي)
-            UC15(تصدير تقرير تنفيذي شامل)
-            UC16(مراجعة سجلات النظام System Logs)
-            UC17(إدارة بيانات CVEs والثغرات)
-        end
-    end
-
-    U --- UC1
-    U --- UC2
-    U --- UC5
-    U --- UC6
-    U --- UC8
-    U --- UC10
-    U --- UC11
-    U --- UC12
-    U --- UC13
-    U --- UC14
-
-    A --- U
-    A --- UC3
-    A --- UC4
-    A --- UC7
-    A --- UC15
-    A --- UC16
-    A --- UC17
-
-    UC8 -.-> UC5
-    UC15 -.-> UC14
-    UC8 -.-> UC9
-
-    style U fill:#f9f,stroke:#333,stroke-width:2px
-    style A fill:#00d5ff,stroke:#333,stroke-width:2px
-    style UC1 fill:#fff,stroke:#333
-    style UC2 fill:#fff,stroke:#333
-    style UC3 fill:#fff,stroke:#333
-    style UC4 fill:#fff,stroke:#333
-    style UC5 fill:#fff,stroke:#333
-    style UC6 fill:#fff,stroke:#333
-    style UC7 fill:#fff,stroke:#333
-    style UC8 fill:#fff,stroke:#333
-    style UC9 fill:#fff,stroke:#333
-    style UC10 fill:#fff,stroke:#333
-    style UC11 fill:#fff,stroke:#333
-    style UC12 fill:#fff,stroke:#333
-    style UC13 fill:#fff,stroke:#333
-    style UC14 fill:#fff,stroke:#333
-    style UC15 fill:#fff,stroke:#333
-    style UC16 fill:#fff,stroke:#333
-    style UC17 fill:#fff,stroke:#333
+    %% Apply Classes
+    class Admin,User actorStyle;
+    class UC_Login,UC_Invite,UC_Roles,UC_Logs,UC_AddDomain,UC_Verify,UC_Bypass,UC_StartScan,UC_RunTools,UC_ViewResults,UC_Vector,UC_Remediation,UC_ExportPDF,UC_ExecReport,UC_CVE_Mgmt usecaseStyle;
+    class System packageStyle;
