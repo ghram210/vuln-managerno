@@ -234,7 +234,22 @@ pages = [
 for p in pages:
     add_arabic_paragraph(doc, p)
 
-add_arabic_paragraph(doc, '3.10 المتطلبات الوظيفية وغير الوظيفية للبحث', is_heading=True, level=1)
+add_arabic_paragraph(doc, '3.8 تحليل مخطط حالات الاستخدام (Use Case Diagram)', is_heading=True, level=1)
+add_arabic_paragraph(doc, "يمثل مخطط حالات الاستخدام حجر الزاوية في فهم التفاعلات الوظيفية للنظام، حيث يوضح الأدوار والمسؤوليات المنوطة بكل فئة من المستخدمين داخل بيئة إدارة الثغرات.")
+
+add_arabic_paragraph(doc, "3.8.1 الفواعل (Actors)", is_heading=True, level=2)
+add_arabic_paragraph(doc, "1. المستخدم (User): يمثل المختبر الأمني أو المستخدم العادي الذي يركز على المهام التشغيلية اليومية مثل بدء الفحوصات، متابعة النتائج، وتحليل نواقل الهجوم.")
+add_arabic_paragraph(doc, "2. المسؤول (Admin): يمتلك صلاحيات موسعة، ويلاحظ في المخطط وجود علاقة \"تعميم\" (Generalization) حيث يرث المسؤول كافة صلاحيات المستخدم العادي بالإضافة إلى مهامه الرقابية والإدارية الخاصة.")
+
+add_arabic_paragraph(doc, "3.8.2 الأنظمة الفرعية والعمليات", is_heading=True, level=2)
+add_arabic_paragraph(doc, "ينقسم النظام وظيفياً إلى عدة كتل أساسية:")
+add_arabic_paragraph(doc, "• لوحة التحكم والتحليل: تتيح للمستخدمين مراقبة الإحصائيات وتحليل \"ناقل الهجوم\" (Attack Vector) لفهم كيفية وصول المهاجم للثغرة.")
+add_arabic_paragraph(doc, "• إدارة النطاقات (Domains): تشمل عملية التحقق من الملكية عبر بروتوكول HTTP-01، مع وجود ميزة \"تجاوز التحقق\" للنطاقات الموثوقة كخيار متقدم.")
+add_arabic_paragraph(doc, "• عمليات الفحص (Scanning): هي القلب النابض للنظام، حيث تتضمن وظيفة \"بدء فحص جديد\" علاقة تضمين (Include) لاستخدام الأدوات الأمنية (Nmap, Nikto, etc)، مما يعني أن أي عملية فحص لا تكتمل إلا باستدعاء هذه الأدوات برمجياً.")
+add_arabic_paragraph(doc, "• التقارير والإدارة العليا: تقتصر هذه الكتلة غالباً على المسؤول، حيث تتيح تصدير التقارير التنفيذية الشاملة، ومراجعة سجلات النظام (System Logs) لضمان الشفافية، وإدارة قاعدة بيانات الثغرات (CVEs).")
+add_arabic_paragraph(doc, "• إدارة الحسابات والوصول: تضمن عمليات تسجيل الدخول الآمنة وإدارة الأدوار (Roles) والصلاحيات لضمان عزل البيانات (Data Isolation).")
+
+add_arabic_paragraph(doc, '3.9 المتطلبات الوظيفية وغير الوظيفية للبحث', is_heading=True, level=1)
 
 add_arabic_paragraph(doc, '3.10.1 المتطلبات الوظيفية (Functional Requirements)', is_heading=True, level=2)
 f_reqs = [
