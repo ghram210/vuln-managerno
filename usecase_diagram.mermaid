@@ -1,0 +1,84 @@
+graph LR
+    subgraph Actors
+        U[المستخدم / User]
+        A[المسؤول / Admin]
+    end
+
+    subgraph "نظام إدارة الثغرات / Vulnerability Management System"
+        subgraph "إدارة الحسابات والوصول"
+            UC1(تسجيل الدخول)
+            UC2(قبول الدعوة والتسجيل)
+            UC3(إدارة الأدوار والصلاحيات)
+            UC4(توليد روابط الدعوات)
+        end
+
+        subgraph "إدارة النطاقات (Domains)"
+            UC5(إضافة نطاق جديد)
+            UC6(تحقق من الملكية HTTP-01)
+            UC7(تجاوز التحقق للنطاقات الموثوقة)
+        end
+
+        subgraph "عمليات الفحص (Scanning)"
+            UC8(بدء فحص أمني جديد)
+            UC9(استخدام أدوات Nmap, Nikto, SQLmap, FFUF)
+            UC10(عرض نتائج الفحص والتقارير التقنية)
+        end
+
+        subgraph "لوحة التحكم والتحليل"
+            UC11(مشاهدة إحصائيات لوحة التحكم)
+            UC12(تحليل ناقل الهجوم Attack Vector)
+            UC13(متابعة حالة المعالجة Remediation)
+        end
+
+        subgraph "التقارير والإدارة العليا"
+            UC14(تصدير تقرير PDF قياسي)
+            UC15(تصدير تقرير تنفيذي شامل)
+            UC16(مراجعة سجلات النظام System Logs)
+            UC17(إدارة بيانات CVEs والثغرات)
+        end
+    end
+
+    U --- UC1
+    U --- UC2
+    U --- UC5
+    U --- UC6
+    U --- UC8
+    U --- UC10
+    U --- UC11
+    U --- UC12
+    U --- UC13
+    U --- UC14
+
+    A --- U
+    A --- UC3
+    A --- UC4
+    A --- UC7
+    A --- UC15
+    A --- UC16
+    A --- UC17
+
+    %% Relationships
+    UC8 ..> UC5 : <<include>>
+    UC15 ..> UC14 : <<extend>>
+    UC8 ..> UC9 : <<include>>
+
+    %% Styling
+    style U fill:#f9f,stroke:#333,stroke-width:2px
+    style A fill:#00d5ff,stroke:#333,stroke-width:2px
+    style UC1 fill:#fff,stroke:#333
+    style UC2 fill:#fff,stroke:#333
+    style UC3 fill:#fff,stroke:#333
+    style UC4 fill:#fff,stroke:#333
+    style UC5 fill:#fff,stroke:#333
+    style UC6 fill:#fff,stroke:#333
+    style UC7 fill:#fff,stroke:#333
+    style UC8 fill:#fff,stroke:#333
+    style UC9 fill:#fff,stroke:#333
+    style UC10 fill:#fff,stroke:#333
+    style UC11 fill:#fff,stroke:#333
+    style UC12 fill:#fff,stroke:#333
+    style UC13 fill:#fff,stroke:#333
+    style UC14 fill:#fff,stroke:#333
+    style UC15 fill:#fff,stroke:#333
+    style UC16 fill:#fff,stroke:#333
+    style UC17 fill:#fff,stroke:#333

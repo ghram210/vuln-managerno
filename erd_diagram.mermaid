@@ -1,0 +1,111 @@
+erDiagram
+    USERS ||--|| USER_ROLES : "has"
+    USERS ||--|| ADMIN_USERS : "profile"
+    USERS ||--o{ SCAN_RESULTS : "initiates"
+    USERS ||--o{ USER_DOMAINS : "owns"
+    USERS ||--o{ INVITATION_USAGES : "uses"
+
+    INVITATION_LINKS ||--o{ INVITATION_USAGES : "tracked_by"
+
+    SCAN_RESULTS ||--o{ SCAN_FINDINGS : "contains"
+
+    SCAN_FINDINGS ||--o{ FINDING_CVES : "matches"
+
+    CVE_CATALOG ||--o{ FINDING_CVES : "details"
+    CVE_CATALOG ||--o{ EXPLOITS : "has"
+
+    USERS {
+        uuid id PK
+        string email
+        timestamp created_at
+    }
+
+    ADMIN_USERS {
+        uuid id PK
+        string name
+        string email
+        string role
+        timestamp joined_at
+    }
+
+    USER_ROLES {
+        uuid user_id FK
+        string role "admin | user"
+    }
+
+    USER_DOMAINS {
+        uuid id PK
+        uuid user_id FK
+        string domain
+        string status "pending | verified"
+        string token
+        timestamp created_at
+    }
+
+    INVITATION_LINKS {
+        uuid id PK
+        string token
+        string email
+        string role
+        timestamp expires_at
+    }
+
+    INVITATION_USAGES {
+        uuid id PK
+        uuid link_id FK
+        uuid user_id FK
+        timestamp used_at
+    }
+
+    SCAN_RESULTS {
+        uuid id PK
+        uuid user_id FK
+        string name
+        string target
+        string tool
+        string status
+        int critical_count
+        int total_findings
+        timestamp started_at
+    }
+
+    SCAN_FINDINGS {
+        uuid id PK
+        uuid scan_id FK
+        string target
+        string title
+        string severity
+        string status "open | fixed"
+        text evidence
+    }
+
+    FINDING_CVES {
+        uuid id PK
+        uuid finding_id FK
+        string cve_id FK
+    }
+
+    CVE_CATALOG {
+        string cve_id PK
+        text description
+        float cvss_v3_score
+        string cvss_v3_severity
+        string cvss_v3_vector
+        date published_date
+        jsonb affected_products
+        timestamp imported_at
+    }
+
+    EXPLOITS {
+        uuid id PK
+        string cve_id FK
+        string description
+        boolean verified
+    }
+
+    SYSTEM_LOGS {
+        uuid id PK
+        string message
+        string level
+        timestamp timestamp
+    }
