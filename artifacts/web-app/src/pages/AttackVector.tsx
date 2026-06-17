@@ -480,14 +480,19 @@ const AttackVectorPage = () => {
                                   href={`https://www.exploit-db.com/exploits/${row.exploit_edb_id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-primary/70 hover:text-primary border border-primary/20 hover:bg-primary/10 transition-colors"
+                                  title={`Download: ${row.exploit_file}`}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 transition-colors"
                                 >
-                                  <Eye className="w-3 h-3" />
-                                  View
+                                  <Download className="w-3 h-3" />
+                                  Download
                                 </a>
                               </div>
                             ) : (
-                              <span className="text-[11px] text-muted-foreground/50">Theoretical / PoC Only</span>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold">
+                                <span className="text-green-400">Theoretical</span>
+                                <span className="text-muted-foreground/60">/</span>
+                                <span className="text-yellow-400">PoC Only</span>
+                              </span>
                             )}
                           </td>
 

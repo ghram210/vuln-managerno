@@ -24,10 +24,10 @@ const severityStyles: Record<SeverityKey, { dot: string; text: string; hex: stri
 const fallbackStyle = { dot: "bg-muted-foreground", text: "text-muted-foreground" };
 
 const exploitStyles: Record<string, { dot: string; text: string; bg: string }> = {
-  "Actively used": {
+  "Actively Used": {
     dot: "bg-severity-critical",
     text: "text-severity-critical",
-    bg: "bg-severity-critical/15",
+    bg: "bg-severity-critical/20",
   },
   Available: {
     dot: "bg-severity-high",
