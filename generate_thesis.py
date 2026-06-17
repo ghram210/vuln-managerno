@@ -1,0 +1,341 @@
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+from docx.shared import Pt
+
+def set_rtl(paragraph):
+    p = paragraph._element
+    pPr = p.get_or_add_pPr()
+    bidi = pPr.find(qn('w:bidi'))
+    if bidi is None:
+        bidi = pPr.makeelement(qn('w:bidi'))
+        pPr.append(bidi)
+    bidi.set(qn('w:val'), '1')
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+
+def add_arabic_paragraph(doc, text, is_heading=False, level=1):
+    if is_heading:
+        p = doc.add_heading(text, level=level)
+    else:
+        p = doc.add_paragraph(text)
+    set_rtl(p)
+    return p
+
+def set_table_rtl(table):
+    tbl = table._element
+    tblPr = tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl.insert(0, tblPr)
+    bidiVisual = tblPr.find(qn('w:bidiVisual'))
+    if bidiVisual is None:
+        bidiVisual = OxmlElement('w:bidiVisual')
+        tblPr.append(bidiVisual)
+
+doc = Document()
+
+# Global Style
+style = doc.styles['Normal']
+font = style.font
+font.name = 'Arial'
+font.size = Pt(12)
+
+# ==========================================
+# CHAPTER 1
+# ==========================================
+add_arabic_paragraph(doc, 'الفصل الأول: مبادئ ومفاهيم في الأمن السيبراني', is_heading=True, level=0)
+
+add_arabic_paragraph(doc, '1.1 مقدمة', is_heading=True, level=1)
+add_arabic_paragraph(doc, "في العالم الرقمي الذي يشهد معارك خفية بين المدافعين والمهاجمين، يبرز دور \"صيادي الثغرات\" كخط الدفاع الأول. اكتشاف الثغرات في مواقع الويب هو عملية استباقية تشبه البحث عن مفاتيح خفية قد تفتح الأبواب أمام الاختراقات [1]. مع تحول حياتنا إلى الفضاء الإلكتروني، لم يعد هذا الترف رفاهية، بل أصبح درعًا واقيًا يحفظ خصوصيتنا ويحمي أصولنا الرقمية من الاستغلال.")
+
+add_arabic_paragraph(doc, '1.2 تعريف الأمن السيبراني', is_heading=True, level=1)
+add_arabic_paragraph(doc, "اكتشاف الثغرات الأمنية هو تخصص دقيق ضمن الأمن السيبراني، يُعنى بفحص وتقييم مواقع الويب وتطبيقاتها بحثًا عن نقاط الضعف والهنات البرمجية التي قد تستغل لاختراقها [2]. ومع الاعتماد المتزايد على الخدمات الإلكترونية، أصبح اكتشاف هذه الثغرات ضرورة حتمية لتعزيز حماية المنصات الرقمية، والحد من المخاطر التي تهدد سلامة البيانات وسير العمليات [3].")
+
+add_arabic_paragraph(doc, '1.3 أهمية الأمن السيبراني', is_heading=True, level=1)
+add_arabic_paragraph(doc, "تكمن أهمية أمن المعلومات في اكتشاف ثغرات مواقع الويب في كونه حاجزًا وقائيًا يحول دون اختراق الأنظمة الرقمية. حيث يمثل الاكتشاف المبكر للثغرات خط الدفاع الأول لحماية البيانات من التسرب غير المصرح به، والحفاظ على سلامة (Integrity) البيانات من العبث أو التعديل، وضمان استمرارية عمل الخدمات الإلكترونية دون انقطاع [3]. يؤدي إهمال هذا الجانب الحاسم إلى خروقات أمنية شاملة، تتراوح بين سرقة البيانات الحساسة، تشويه المحتوى، أو تعطيل المنصات الرقمية بالكامل، مما يهدد مصداقية المنظمات واستقرار عملياتها الرقمية.")
+
+add_arabic_paragraph(doc, '1.4 التهديدات السيبرانية الشائعة', is_heading=True, level=1)
+add_arabic_paragraph(doc, "تشمل التهديدات السيبرانية الشائعة لاكتشاف الثغرات في مواقع الويب ثغرات الحقن (Injection) مثل SQL Injection وCross-Site Scripting (XSS)، وثغرات كسر المصادقة وإدارة الجلسات، بالإضافة إلى مشكلات التحكم في الوصول، وتعرّض البيانات الحساسة، وتهديدات تزييف الطلبات عبر المواقع (CSRF) [4]. كل من هذه الثغرات يمكن أن تستغل من قبل المهاجمين للوصول غير المصرح به إلى قواعد البيانات، وسرقة معلومات المستخدمين، والسيطرة على جلسات التسجيل، أو التحكم الكامل في الموقع الإلكتروني.")
+
+add_arabic_paragraph(doc, '1.5 مفاهيم أساسية في الأمن السيبراني', is_heading=True, level=1)
+add_arabic_paragraph(doc, "الأمن السيبراني يعتمد على عدة مفاهيم أساسية تشمل السرية، السلامة، والتوافر (CIA Triad) [1] [2]:")
+add_arabic_paragraph(doc, '1.5.1 السرية (Confidentiality)', is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعني حماية المعلومات من الوصول غير المصرح به، مما يضمن بقاء البيانات الحساسة متاحة فقط للأفراد المخولين.")
+add_arabic_paragraph(doc, '1.5.2 السلامة (Integrity)', is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعني الحفاظ على دقة واكتمال المعلومات، ومنع أي تعديل غير مصرح به على البيانات أثناء تخزينها أو نقلها.")
+add_arabic_paragraph(doc, '1.5.3 التوافر (Availability)', is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعني ضمان أن تكون المعلومات والأنظمة متاحة وسهلة الوصول عند الحاجة إليها من قبل المستخدمين المخولين.")
+
+doc.add_page_break()
+
+# ==========================================
+# CHAPTER 2
+# ==========================================
+add_arabic_paragraph(doc, 'الفصل الثاني: المعلومات الأساسية اللازمة لتوضيح أهمية اكتشاف الثغرات', is_heading=True, level=0)
+
+add_arabic_paragraph(doc, '2.1 المقدمة', is_heading=True, level=1)
+add_arabic_paragraph(doc, "في العصر الرقمي الحديث، أصبحت المواقع الإلكترونية والتطبيقات الويب تمثل الواجهة الأساسية لأنشطة المؤسسات. ومع ذلك، تشهد الهجمات الإلكترونية على هذه التطبيقات ارتفاعًا غير مسبوق، سواء كانت من مهاجمين أفراد أو مجموعات منظمة تستهدف البيانات والبنى التحتية [5].")
+add_arabic_paragraph(doc, "تشير الإحصاءات إلى أن أكثر من 70% من حوادث الاختراق في السنوات الأخيرة كان سببها ثغرات غير اكتشفت في تطبيقات الويب، مثل ثغرات SQL Injection، وCross-Site Scripting (XSS)، وInsecure Direct Object Reference (IDOR)، وثغرات إعداد الخوادم [4].")
+add_arabic_paragraph(doc, "ونظرًا للتنوع الكبير في طبيعة الثغرات واختلاف الأدوات المستخدمة في الكشف عنها، أصبحت المؤسسات بحاجة إلى حلول مؤتمتة وذكية تساعدها في اكتشاف الثغرات بشكل شامل، وتقديم تحليل موحّد ومنسّق للنتائج يسهل قراءته من قبل فرق التطوير والأمن [6].")
+add_arabic_paragraph(doc, "من هنا، جاءت فكرة إنشاء منصة إلكترونية موحدة تجمع بين أدوات فحص متعددة، وتحلل نواتجها باستخدام منهجية معيارية، وتولّد تقارير جاهزة تُمكّن فرق الأمن السيبراني من إدارة المخاطر بفاعلية. هذه المنصة تُعتبر خطوة نحو دمج التحليل الأمني الآلي مع التحليل البشري، وتُمكّن المؤسسات من تحويل الأمن السيبراني من مهمة تفاعلية إلى عملية استباقية وقائية.")
+
+add_arabic_paragraph(doc, '2.2 أهمية البروتوكولات في فحص ثغرات الويب', is_heading=True, level=1)
+add_arabic_paragraph(doc, "البروتوكولات في فحص ثغرات الويب تلعب دوراً أساسياً وحيوياً لأنها تشكل القنوات والوسائل التي يتم من خلالها التواصل بين أداة الفحص ومواقع الويب المستهدفة [7]. بدون بروتوكولات واضحة وموثوقة، يصبح من الصعب جدياً تنفيذ الفحوصات بشكل دقيق أو سريع، لأن الاختبار يعتمد على نقل البيانات بين الماسح (scanner) والخادم الذي يُفحص.")
+
+add_arabic_paragraph(doc, '2.2.1 بروتوكول HTTP/HTTPS', is_heading=True, level=2)
+add_arabic_paragraph(doc, "يوفر طبقة أمان عبر التشفير (في حالة HTTPS)، مما يساعد على الكشف الدقيق عن ثغرات متعلقة بالأمان والبيانات المرسلة [8]. هذا البروتوكول هو الأساس لأي فحص ثغرات في تطبيقات الويب لضمان التقاط كل التفاعلات بين المستخدم والموقع.")
+
+add_arabic_paragraph(doc, '2.2.2 بروتوكول TCP/IP', is_heading=True, level=2)
+add_arabic_paragraph(doc, "يمثل مجموعة بروتوكولات أساسية لنقل البيانات عبر الشبكة، حيث يضمن TCP النقل الموثوق للحزم ويوفر آلية التحكم بتدفق البيانات، ما يؤثر إيجاباً على دقة وسرعة إرسال واستقبال بيانات الفحص للمواقع [7]. IP مسؤول عن توجيه الحزم عبر الشبكات. اعتماد هذه الطبقة يؤمن فحص الشبكة بفعالية.")
+
+add_arabic_paragraph(doc, '2.2.3 بروتوكول DNS', is_heading=True, level=2)
+add_arabic_paragraph(doc, "يحول أسماء النطاق إلى عناوين IP، وبالتالي تمكين أدوات الفحص من الوصول للمواقع المستهدفة بدقة وسرعة [7]. دقة عمل DNS تؤثر على سرعة بداية عملية الفحص.")
+
+add_arabic_paragraph(doc, '2.2.4 بروتوكول ICMP', is_heading=True, level=2)
+add_arabic_paragraph(doc, "يستخدم للكشف عن إتاحة الاتصال عبر إرسال رسائل اختبار مثل (Ping)، ويساعد في قياس زمن الاستجابة ونوعية الاتصال مع السيرفر، ما يوفر مؤشرات أولية عن حالة الهدف قبل الفحص العميق [9].")
+
+# Table 1: Protocols
+table1 = doc.add_table(rows=5, cols=4)
+table1.style = 'Table Grid'
+set_table_rtl(table1)
+headers = ['البروتوكول', 'تأثيره على الدقة', 'تأثيره على السرعة', 'ملاحظات']
+p_data = [
+    ['HTTP/HTTPS', 'عالي جداً لأنه يحتوي على محتوى البيانات والتفاعلات', 'متوسط (التشفير قد يبطئ قليلاً)', 'أساس دقة فحص ثغرات تطبيقات الويب'],
+    ['TCP/IP', 'يوفر نقل بيانات موثوق بدقة عالية', 'عالي (ينظم تدفق البيانات)', 'يدعم كل عمليات نقل البيانات بين العميل والخادم'],
+    ['DNS', 'دقة عالية في توجيه الفحص للموقع الصحيح', 'سرعة عالية في تحويل الأسماء', 'مشكلة في DNS قد تعيق الفحص'],
+    ['ICMP', 'دقة منخفضة في اكتشاف الثغرات', 'سرعة عالية في اختبار وجود السيرفر', 'يستخدم لأغراض التشخيص وانتقاء الأهداف']
+]
+for i, h in enumerate(headers):
+    cell = table1.cell(0, i)
+    cell.text = h
+    set_rtl(cell.paragraphs[0])
+for r, row in enumerate(p_data):
+    for c, val in enumerate(row):
+        cell = table1.cell(r+1, c)
+        cell.text = val
+        set_rtl(cell.paragraphs[0])
+
+add_arabic_paragraph(doc, '2.3 أنظمة التشغيل ودورها في اكتشاف ثغرات الويب', is_heading=True, level=1)
+add_arabic_paragraph(doc, "تلعب أنظمة التشغيل دورًا أساسيًا في مجال أمن المعلومات، لأنها تشكل البيئة التي تُشغَّل عليها أدوات الفحص والتحليل [6]. تختلف قدرات أنظمة التشغيل بحسب دعمها للأدوات الأمنية وإدارة الشبكات. يُفضَّل استخدام أنظمة توفر مرونة عالية مثل Kali Linux التي تأتي مسبقة التثبيت بمئات الأدوات [10].")
+
+# Table 2: OS Comparison
+table2 = doc.add_table(rows=5, cols=4)
+table2.style = 'Table Grid'
+set_table_rtl(table2)
+os_headers = ['المعيار', 'توزيعات لينكس (Kali, Parrot)', 'Windows', 'macOS']
+os_data = [
+    ['الجمهور', 'المحترفون ومختبرو الاختراق', 'المبتدئون ومطورو الويب', 'المطورون ومختبرو الأمن'],
+    ['الأدوات', 'ممتاز (مسبقة التثبيت بالأدوات)', 'جيد (يتطلب تثبيت وتكوين يدوي)', 'جيد إلى ممتاز (عبر Homebrew)'],
+    ['المرونة', 'ممتاز (وصول كامل للجذر)', 'محدود (الواجهة الرسومية أساس)', 'جيد جداً (بيئة Unix)'],
+    ['الأمان والعزل', 'ممتاز (عادة داخل آلة افتراضية)', 'جيد', 'جيد (بنية Unix آمنة)']
+]
+for i, h in enumerate(os_headers):
+    cell = table2.cell(0, i)
+    cell.text = h
+    set_rtl(cell.paragraphs[0])
+for r, row in enumerate(os_data):
+    for c, val in enumerate(row):
+        cell = table2.cell(r+1, c)
+        cell.text = val
+        set_rtl(cell.paragraphs[0])
+
+add_arabic_paragraph(doc, '2.3.1 نظام التشغيل المستخدم في المشروع (Kali Linux)', is_heading=True, level=2)
+add_arabic_paragraph(doc, "في هذا المشروع، تم الاعتماد بشكل حصري على نظام التشغيل Kali Linux كبيئة تقنية متكاملة. يعود هذا الاختيار إلى الطبيعة المتخصصة للنظام الذي يوفر دعماً أصيلاً (Native Support) لكافة أدوات الفحص المستخدمة في المنصة، مما يقلل من تعقيدات التوافقية ويسمح بالوصول المباشر إلى موارد الشبكة اللازمة لإجراء عمليات المسح والتحليل بدقة عالية [10].")
+
+add_arabic_paragraph(doc, '2.4 أتمتة الفحص والتوافقية التشغيلية في بيئة Kali Linux', is_heading=True, level=1)
+add_arabic_paragraph(doc, "تم استغلال نظام Kali Linux كمنصة تشغيلية قوية لإدارة وأتمتة دورة حياة فحص الثغرات بشكل كامل ومستقل (Autonomous Scanning). يعتمد المشروع على القدرات المتقدمة للنظام في التعامل مع سطر الأوامر (CLI) لتشغيل أدوات الفحص المتعددة بشكل متزامن دون الحاجة لتدخل المستخدم في التفاصيل التقنية الدقيقة. يتم استخدام الخادم الخلفي (FastAPI) كـ \"أوركسترا\" تقنية تقوم بإرسال أوامر التنفيذ المباشرة إلى نواة النظام، مما يسمح بتشغيل أدوات مثل Nmap و SQLmap مع ضمان التوافقية البرمجية مع الصلاحيات المتاحة، والتقاط تدفق البيانات الخام (Raw Data Streams) في الوقت الفعلي. تتيح هذه البيئة للنظام إدارة الموارد بكفاءة، حيث يتم التحكم في العمليات الخلفية (Processes)، ومراقبة استهلاك الذاكرة، وضمان استقرار التواصل بين طبقات التطبيق البرمجية والأدوات الأمنية التي تتطلب وصولاً منخفض المستوى (Low-level access) إلى بروتوكولات الشبكة، مما يضمن دقة عالية في استخراج النتائج وتحليلها [10].")
+
+add_arabic_paragraph(doc, '2.5 التكامل الهيكلي: واجهات البرمجة API والتفاعل التنفيذي ABI', is_heading=True, level=1)
+add_arabic_paragraph(doc, "يعتمد النظام في تواصله الداخلي والخارجي على طبقتين من التكامل:")
+add_arabic_paragraph(doc, "1. واجهة برمجة التطبيقات (API): تمثل الطبقة العلوية من التواصل، حيث يتم استخدام بروتوكول REST API لتبادل البيانات بصيغة JSON بين الواجهة الأمامية (React) والخادم الخلفي (FastAPI). تسمح هذه الواجهة بإدارة الجلسات، طلب بدء الفحوصات، وعرض النتائج المستخرجة من قاعدة البيانات بشكل منظم.")
+add_arabic_paragraph(doc, "2. واجهة التفاعل التنفيذي (System-level ABI Integration): تمثل الطبقة العميقة من النظام، حيث يتعامل الخادم الخلفي مباشرة مع واجهة التطبيق الثنائية للنظام (ABI) لاستدعاء أدوات الفحص (مثل Nmap و SQLmap) كعمليات فرعية (Subprocesses). في هذا المستوى، يتم استغلال استقرار نظام Linux في إدارة الذاكرة والصلاحيات لضمان تشغيل الأدوات بأقصى كفاءة، والتقاط مخرجاتها الخام (Stdout/Stderr) لتحويلها لاحقاً إلى بيانات مهيكلة عبر خوارزميات الذكاء الأمني في المنصة [3].")
+
+# ==========================================
+# CHAPTER 3
+# ==========================================
+doc.add_page_break()
+add_arabic_paragraph(doc, 'الفصل الثالث: الإطار النظري والدراسات السابقة والمنهجية التقنية', is_heading=True, level=0)
+
+add_arabic_paragraph(doc, '3.1 الدراسات السابقة والمراجعة النقدية', is_heading=True, level=1)
+add_arabic_paragraph(doc, "3.1.1 تطور منهجية الاكتشاف: من المسح الأحادي إلى استراتيجية الهجوم المتعدد")
+add_arabic_paragraph(doc, "بينما اعتمدت الدراسة المرجعية لزيدان (2018) على أداة مسح آلي واحدة (Vega)، فإن هذا البحث يتبنى استراتيجية منهجية متعددة الأدوات تحاكي سلسلة هجوم حقيقية (Cyber Kill Chain) [11]. لا يقتصر هذا التطور على زيادة عدد الأدوات، بل يتمثل في الانتقال من الفحص النمطي إلى نهج استطلاع وتعداد وتحليل متكامل.")
+
+add_arabic_paragraph(doc, "3.1.2 التفسير والتوسع في نتائج الدراسات السابقة: لماذا تسيطر ثغرات تسريب المعلومات؟")
+add_arabic_paragraph(doc, "تكشف نتائج الدراسة المرجعية أن 54% من الثغرات كانت من نوع تسريب المعلومات (Information Disclosure). يشير تحليلنا إلى أن هذه النسبة المرتفعة هي نتيجة لسهولة اكتشاف هذا النوع بواسطة أدوات التعداد (مثل FFUF) [12]. يمتد هذا البحث ليبين أن هذه الثغرات تشكل الخطوة الأولى في سلسلة هجوم متقدمة.")
+
+add_arabic_paragraph(doc, "3.1.3 تحدي القيود والتوصية بتصنيف أدق للخطورة")
+add_arabic_paragraph(doc, "يتحدى هذا البحث كفاية التصنيف العام (منخفض/عالي) ويقترح دمج تصنيف CVSS المعياري [13]. يسمح هذا النهج بترتيب أولويات للإصلاح يعكس التأثير العملي الحقيقي.")
+
+add_arabic_paragraph(doc, '3.2 المفاهيم الأساسية للثغرات الأمنية', is_heading=True, level=1)
+add_arabic_paragraph(doc, "3.2.1 ماهية الثغرات الأمنية")
+add_arabic_paragraph(doc, "الثغرة الأمنية (Vulnerability) هي نقطة ضعف في النظام يمكن استغلالها لانتهاك سياسات الأمان [14]. تحدث بسبب أخطاء في التصميم (Design Flaws) أو أخطاء في التطوير (Implementation Flaws).")
+
+add_arabic_paragraph(doc, "3.2.2 أهداف استغلال الثغرات")
+add_arabic_paragraph(doc, "يستغل المهاجمون الثغرات لأهداف تشمل: الوصول غير المصرح به، تصعيد الصلاحيات (Privilege Escalation)، وتعطيل الخدمة (DoS).")
+
+add_arabic_paragraph(doc, "3.2.3 أنواع الثغرات")
+add_arabic_paragraph(doc, "أولاً: حسب السياق (تطبيقات ويب، شبكات، أنظمة تشغيل، ثغرات المنطق Logic Flaws). ثانياً: حسب نوع الخطأ (التحقق من الإدخال، التحكم في الوصول، إدارة المصادر).")
+
+add_arabic_paragraph(doc, '3.3 أدوات اكتشاف وتقييم الثغرات', is_heading=True, level=1)
+add_arabic_paragraph(doc, "3.3.1 تعريف أدوات التقييم")
+add_arabic_paragraph(doc, "هي برمجيات آلية مصممة لتحديد وتصنيف نقاط الضعف عبر محاكاة أساليب المهاجمين [6].")
+
+add_arabic_paragraph(doc, "3.3.2 تصنيف الأدوات")
+add_arabic_paragraph(doc, "تشمل: ماسحات المنافذ، ماسحات التطبيقات (DAST)، أدوات التعداد، وأدوات الاستغلال.")
+
+add_arabic_paragraph(doc, "3.3.3 الأدوات المستخدمة في المشروع")
+add_arabic_paragraph(doc, "• Nmap: لاستطلاع الشبكة واكتشاف الخدمات [4]. • SQLmap: لأتمتة كشف حقن SQL [5]. • Nikto: لفحص خوادم الويب [7]. • FFUF: للتعداد السريع واكتشاف المحتوى المخفي [8].")
+
+# Tool Table
+add_arabic_paragraph(doc, 'جدول: مقارنة الأدوات المستخدمة في المنصة', is_heading=False)
+t3 = doc.add_table(rows=5, cols=4)
+t3.style = 'Table Grid'
+set_table_rtl(t3)
+h3 = ['الأداة', 'الثغرات المستهدفة', 'آلية الكشف', 'تقدير الخطورة']
+d3 = [
+    ['Nmap', 'خدمات غير مؤمنة، إصدارات قديمة', 'فحص حزم نشط وسكربتات NSE', 'متوسطة إلى عالية'],
+    ['Sqlmap', 'حقن SQL بأنواعه', 'حقن Payloads ذكية ومراقبة الاستجابة', 'عالية إلى حرجة'],
+    ['Nikto', 'ملفات إدارة مكشوفة، نسخ احتياطي', 'فحص علامات (Signatures) خوادم الويب', 'منخفضة إلى عالية'],
+    ['Ffuf', 'مسارات مخفية، نطاقات فرعية', 'Fuzzing باستخدام قوائم كلمات', 'منخفضة كبداية']
+]
+for i, h in enumerate(h3):
+    cell = t3.cell(0, i)
+    cell.text = h
+    set_rtl(cell.paragraphs[0])
+for r, row in enumerate(d3):
+    for c, val in enumerate(row):
+        cell = t3.cell(r+1, c)
+        cell.text = val
+        set_rtl(cell.paragraphs[0])
+
+add_arabic_paragraph(doc, '3.4 منهجية الفحص والتحليل', is_heading=True, level=1)
+add_arabic_paragraph(doc, "تعتمد المنصة منهجية منظمة تبدأ بجمع المعلومات (Nmap)، ثم تحليل الخادم (Nikto)، واكتشاف نقاط الإدخال (FFUF)، وصولاً للاختبار العميق (SQLmap).")
+
+add_arabic_paragraph(doc, '3.5 تطوير وتحسين عمل أدوات الفحص', is_heading=True, level=1)
+add_arabic_paragraph(doc, "تمت إعادة هندسة منطق عمل الأدوات عبر Wrappers مخصصة لإضافة ميزات: تعزيز الاستدلال (Heuristic) في SQLmap، المعايرة متعددة الأبعاد (Calibration) في FFUF لحل مشكلة Soft-404، والتوحيد القياسي (Normalization) في Nikto لتقليل الضجيج.")
+
+add_arabic_paragraph(doc, '3.5.5 ميزة "التخفي الذكي" وتحسين الأداء', is_heading=True, level=2)
+add_arabic_paragraph(doc, "يقوم النظام برمجياً بضبط معايير التخفي تلقائياً، مثل استخدام توقيتات مهذبة في Nmap، وإضافة تأخيرات عشوائية في SQLmap، وتدوير متصفحات المستخدم (User-Agents) لمحاكاة السلوك البشري.")
+
+add_arabic_paragraph(doc, '3.6 تكامل الاستخبارات والنظام الهندسي', is_heading=True, level=1)
+add_arabic_paragraph(doc, "3.6.1 معالجة المخرجات (Intelligence Pipeline)")
+add_arabic_paragraph(doc, "يعتمد النظام على مطابقة المخرجات مع قواعد بيانات NVD و Exploit-DB المحلية لربط الثغرات المكتشفة بمعرفات CVE وأكواد استغلال حقيقية.")
+
+add_arabic_paragraph(doc, '3.7 هندسة واجهة المستخدم ودليل الصفحات الشامل (UI/UX Guide)', is_heading=True, level=1)
+add_arabic_paragraph(doc, "تم بناء واجهة المستخدم باستخدام إطار العمل React مع لغة TypeScript، مع التركيز على مبدأ \"التفاعل في الوقت الفعلي\" (Real-time Interactivity). تعتمد المنصة على مكتبة Tailwind CSS للتصميم المتجاوب، وTanStack Query لإدارة حالة البيانات والتزامن مع الخادم الخلفي.")
+
+add_arabic_paragraph(doc, "1. واجهة تسجيل الدخول والوصول الآمن (Login & Authentication):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعتبر بوابة العبور للنظام، حيث تعتمد على تقنيات Supabase Auth لإدارة الجلسات باستخدام بروتوكول JWT (JSON Web Tokens). توفر الواجهة نظام دخول ثنائي للمسؤولين والمستخدمين، مع ضمان تشفير البيانات الحساسة أثناء عملية المصادقة.")
+
+add_arabic_paragraph(doc, "2. لوحة المعلومات الرئيسية (Dashboard/Index):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعتبر المركز العصبي للمنصة، حيث تعرض \"نبض الأمان\" (Security Pulse) عبر:")
+add_arabic_paragraph(doc, "• الرسوم البيانية الدائرية (Donut Charts): توضح توزيع المخاطر المكتشفة بناءً على تصنيف ExPRT.")
+add_arabic_paragraph(doc, "• ملخص الأصول الرقمية: جدول يعرض المواقع التي تم فحصها مع تقييم إجمالي لمستوى خطورة كل منها (Asset Criticality).")
+add_arabic_paragraph(doc, "• الربط اللحظي: تسمح للمستخدم بالنقر على أي قسم في الرسم البياني للانتقال مباشرة إلى النتائج المفصلة المفلترة حسب تلك الدرجة من الخطورة.")
+
+add_arabic_paragraph(doc, "3. لوحة تحكم الثغرات المتقدمة (Vulnerability Dashboard):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "واجهة تحليلية معمقة تهدف لتوفير رؤية استراتيجية لمدراء الأمن السيبراني:")
+add_arabic_paragraph(doc, "• منحنى الاكتشاف التراكمي (Cumulative Discovery Trend): رسم بياني خطي يوضح إجمالي الثغرات الفريدة المكتشفة خلال 45 يوماً، مما يساعد في قياس فعالية عمليات الفحص الدورية.")
+add_arabic_paragraph(doc, "• عداد المخاطر (Risk Score Gauge): يقوم بحساب نتيجة رقمية (من 0 إلى 100) تعبر عن حالة الأمان الكلية، بناءً على معادلة رياضية تجمع بين درجة CVSS، توفر استغلال معلن (Exploitability)، وحساسية الأصل المستهدف.")
+add_arabic_paragraph(doc, "• جداول الامتثال (Remediation Compliance): تتبع حالة معالجة الثغرات (Open/Closed) وتقارنها بالأهداف الزمنية (SLA)، حيث يظهر النظام تنبيهات باللون الأحمر للثغرات التي تجاوزت المدة المسموحة للإصلاح.")
+
+add_arabic_paragraph(doc, "4. واجهة الفحص الذكي (New Scan):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "توفر تحكماً دقيقاً في عملية اكتشاف الثغرات عبر:")
+add_arabic_paragraph(doc, "• نظام التحقق اللحظي من الملكية (Domain Verification): باستخدام تقنية Debouncing (600ms)، يقوم النظام تلقائياً بالتأكد من أن النطاق المستهدف مصرح به للمستخدم قبل السماح بالنقر على زر البدء.")
+add_arabic_paragraph(doc, "• مركز اختيار الأدوات (Tool Selection): واجهة تفاعلية تتيح تفعيل أدوات محددة (مثل Nmap, SQLmap, Nikto, FFUF) أو دمجها في فحص شامل، مع إمكانية إضافة أوصاف مخصصة لكل عملية فحص.")
+add_arabic_paragraph(doc, "• إقرارات الأمان الأخلاقي: تفرض على المستخدم الموافقة على سلسلة من التأكيدات القانونية لضمان استخدام المنصة في أغراض دفاعية وبترخيص رسمي.")
+
+add_arabic_paragraph(doc, "5. شاشة مراقبة العمليات الحية (Scan Results):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "واجهة لمتابعة التقدم التقني في الوقت الفعلي:")
+add_arabic_paragraph(doc, "• الإدارة الديناميكية للعمليات: تتيح للمستخدم إيقاف الفحص مؤقتاً (Pause) أو استئنافه (Resume)، حيث يتم إرسال هذه الأوامر مباشرة إلى خادم FastAPI الذي يتحكم في العمليات الخلفية لنظام Kali Linux.")
+add_arabic_paragraph(doc, "• التحديث التلقائي (Auto-Polling): يقوم النظام بتحديث الحالة كل 5 ثوانٍ لجلب آخر النتائج المكتشفة وتدفق المخرجات الخام (Raw Output Streams).")
+add_arabic_paragraph(doc, "• عارض السجلات التقنية: نافذة برمجية تعرض مخرجات سطر الأوامر الفعلية، مما يمنح المختبر الأمني القدرة على رؤية التفاعلات الدقيقة بين الأداة والهدف.")
+
+add_arabic_paragraph(doc, "6. إدارة سجل الثغرات الاستخباراتي (Vulnerabilities Tab):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "قاعدة بيانات مركزية تقوم بمعالجة النتائج الخام وتحويلها إلى معلومات قابلة للتنفيذ:")
+add_arabic_paragraph(doc, "• الربط بمعرفات CVE: يتم ربط كل ثغرة مكتشفة آلياً بقاعدة بيانات CVE و Exploit-DB لإظهار أكواد الاستغلال المتاحة.")
+add_arabic_paragraph(doc, "• التصفية والبحث المتقدم: إمكانية فرز الآلاف من النتائج حسب الموقع، الأداة، درجة الخطورة، أو نوع الثغرة (مثل SQL Injection).")
+add_arabic_paragraph(doc, "• الروابط العميقة (Deep Linking): توفر أيقونة \"العين\" انتقالاً مباشراً لصفحة النتائج لرؤية الدليل التقني (Proof of Concept) المرتبط بالثغرة.")
+
+add_arabic_paragraph(doc, "7. صفحة تحليل ناقل الهجوم (Attack Vector Mapping):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "واجهة تخصصية لتحليل سياق الهجوم:")
+add_arabic_paragraph(doc, "• تحليل مكونات CVSS: توضح كيفية الوصول للثغرة (عبر الشبكة أو محلياً) والمتطلبات التقنية اللازمة (مثل صلاحيات المستخدم).")
+add_arabic_paragraph(doc, "• تأثير الـ CIA: رسم بياني يوضح مدى تأثير الثغرة على السرية (Confidentiality)، السلامة (Integrity)، والتوافر (Availability).")
+
+add_arabic_paragraph(doc, "8. لوحة تحكم المسؤول والتقارير (Admin Panel & Reports):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "واجهة الرقابة الشاملة وإصدار القرارات:")
+add_arabic_paragraph(doc, "• مراقبة سجلات النظام (System Logs): تتبع تحركات المستخدمين وعمليات الفحص لضمان الشفافية.")
+add_arabic_paragraph(doc, "• التقارير التنفيذية (Executive Summary): تتيح تصدير تقارير PDF احترافية تلخص حالة الأمان الإجمالية، وتحدد أهم 5 ثغرات حرجة تتطلب تدخلاً فورياً.")
+add_arabic_paragraph(doc, "• إدارة المستخدمين: التحكم في صلاحيات الوصول وإرسال دعوات التسجيل للمختبرين الجدد.")
+
+add_arabic_paragraph(doc, "9. صفحة الإعدادات وإدارة النطاقات (Settings & Domains):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "تتيح للمستخدم تخصيص تجربته وإدارة أصوله:")
+add_arabic_paragraph(doc, "• إضافة النطاقات وتوثيقها: واجهة لإضافة المواقع المراد فحصها مع إمكانية التحقق من الملكية (Ownership Verification) لضمان شرعية العمليات.")
+add_arabic_paragraph(doc, "• التخصيص البصري: التحكم في سمة الواجهة (Dark/Light Mode) بما يتناسب مع تفضيلات المستخدم.")
+
+add_arabic_paragraph(doc, '3.8 تحليل مخطط حالات الاستخدام (Use Case Diagram)', is_heading=True, level=1)
+add_arabic_paragraph(doc, "يمثل مخطط حالات الاستخدام حجر الزاوية في فهم التفاعلات الوظيفية للنظام، حيث يوضح الأدوار والمسؤوليات المنوطة بكل فئة من المستخدمين داخل بيئة إدارة الثغرات.")
+
+add_arabic_paragraph(doc, "3.8.1 الفواعل (Actors)", is_heading=True, level=2)
+add_arabic_paragraph(doc, "1. المستخدم (User): يمثل المختبر الأمني أو المستخدم العادي الذي يركز على المهام التشغيلية اليومية مثل بدء الفحوصات، متابعة النتائج، وتحليل نواقل الهجوم.")
+add_arabic_paragraph(doc, "2. المسؤول (Admin): يمتلك صلاحيات موسعة، ويلاحظ في المخطط وجود علاقة \"تعميم\" (Generalization) حيث يرث المسؤول كافة صلاحيات المستخدم العادي بالإضافة إلى مهامه الرقابية والإدارية الخاصة.")
+
+add_arabic_paragraph(doc, "3.8.2 الأنظمة الفرعية والعمليات", is_heading=True, level=2)
+add_arabic_paragraph(doc, "ينقسم النظام وظيفياً إلى عدة كتل أساسية:")
+add_arabic_paragraph(doc, "• لوحة التحكم والتحليل: تتيح للمستخدمين مراقبة الإحصائيات وتحليل \"ناقل الهجوم\" (Attack Vector) لفهم كيفية وصول المهاجم للثغرة.")
+add_arabic_paragraph(doc, "• إدارة النطاقات (Domains): تشمل عملية التحقق من الملكية عبر بروتوكول HTTP-01، مع وجود ميزة \"تجاوز التحقق\" للنطاقات الموثوقة كخيار متقدم.")
+add_arabic_paragraph(doc, "• عمليات الفحص (Scanning): هي القلب النابض للنظام، حيث تتضمن وظيفة \"بدء فحص جديد\" علاقة تضمين (Include) لاستخدام الأدوات الأمنية (Nmap, Nikto, etc)، مما يعني أن أي عملية فحص لا تكتمل إلا باستدعاء هذه الأدوات برمجياً.")
+add_arabic_paragraph(doc, "• التقارير والإدارة العليا: تقتصر هذه الكتلة غالباً على المسؤول، حيث تتيح تصدير التقارير التنفيذية الشاملة، ومراجعة سجلات النظام (System Logs) لضمان الشفافية، وإدارة قاعدة بيانات الثغرات (CVEs).")
+add_arabic_paragraph(doc, "• إدارة الحسابات والوصول: تضمن عمليات تسجيل الدخول الآمنة وإدارة الأدوار (Roles) والصلاحيات لضمان عزل البيانات (Data Isolation).")
+
+add_arabic_paragraph(doc, '3.9 المتطلبات الوظيفية وغير الوظيفية للبحث', is_heading=True, level=1)
+
+add_arabic_paragraph(doc, '3.10.1 المتطلبات الوظيفية (Functional Requirements)', is_heading=True, level=2)
+f_reqs = [
+    "• إدارة الأدوار (RBAC): توفير نظام دخول ثنائي (Admin/User) مع صلاحيات وصول معزولة.",
+    "• التحكم في الفحص: الإدارة الكاملة لعمليات المسح (بدء، إيقاف مؤقت، استئناف، إلغاء).",
+    "• الفحص المصادق: ميزة حقن الـ Auth Cookies لفحص المناطق المحمية في المواقع.",
+    "• معالجة الاستخبارات: الربط الآلي بين مخرجات الأدوات وقواعد بيانات CVE و Exploit-DB.",
+    "• نظام التقارير: توليد تقارير PDF تخصصية وملخصات تنفيذية للثغرات المكتشفة.",
+    "• إدارة النظام: واجهة مسؤول لمراقبة صحة الـ API ومراجعة سجلات النظام (Logs)."
+]
+for r in f_reqs:
+    add_arabic_paragraph(doc, r)
+
+add_arabic_paragraph(doc, '3.10.2 المتطلبات غير الوظيفية (Non-Functional Requirements)', is_heading=True, level=2)
+nf_reqs = [
+    "• أمن البيانات: تطبيق سياسات RLS لضمان عزل البيانات على مستوى قاعدة البيانات.",
+    "• الأداء: ضمان زمن استجابة للـ API لا يتجاوز 1.5 ثانية تحت ضغط العمليات.",
+    "• القابلية للتوسع: تصميم بنية برمجية تسمح بإضافة خوادم فحص (Agents) جديدة بسهولة.",
+    "• الموثوقية: قدرة النظام على استعادة حالة الفحوصات المتعثرة تلقائياً عند إعادة التشغيل.",
+    "• تجربة المستخدم: واجهة تفاعلية تدعم الوضع الداكن وتوفر رسوم بيانية توضيحية (Donut Charts)."
+]
+for r in nf_reqs:
+    add_arabic_paragraph(doc, r)
+
+# ==========================================
+# REFERENCES
+# ==========================================
+add_arabic_paragraph(doc, 'المراجع', is_heading=True, level=1)
+refs = [
+    "[1] Stallings, W. (2018). Computer Security: Principles and Practice.",
+    "[2] NIST (2014). SP 800-12 Rev. 1: Introduction to Information Security.",
+    "[3] ISO/IEC 27001:2022. Information security management systems.",
+    "[4] OWASP Top 10:2021. The Ten Most Critical Web Application Security Risks.",
+    "[5] Engebretson, P. (2013). The Basics of Hacking and Penetration Testing.",
+    "[6] Scarfone, K., & Hoffman, P. (2008). NIST SP 800-115: Technical Guide to Information Security Testing.",
+    "[7] Tanenbaum, A. S., & Wetherall, D. J. (2011). Computer Networks.",
+    "[8] Fielding, R., et al. (1999). RFC 2616: HTTP/1.1.",
+    "[9] Postel, J. (1981). RFC 792: ICMP.",
+    "[10] Hertzog, R., et al. (2017). Kali Linux Revealed.",
+    "[11] Lockheed Martin (2015). The Cyber Kill Chain Framework.",
+    "[12] FFUF (2023). Fast Fuzzing Utility documentation.",
+    "[13] FIRST.org (2022). Common Vulnerability Scoring System (CVSS) v3.1 Specification.",
+    "[14] Mitre Corp. (2023). Common Vulnerabilities and Exposures (CVE) Catalog."
+]
+for r in refs:
+    p = doc.add_paragraph(r)
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+doc.save('Graduation_Thesis_Draft.docx')
