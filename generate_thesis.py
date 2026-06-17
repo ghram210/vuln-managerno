@@ -222,17 +222,57 @@ add_arabic_paragraph(doc, '3.6 تكامل الاستخبارات والنظام 
 add_arabic_paragraph(doc, "3.6.1 معالجة المخرجات (Intelligence Pipeline)")
 add_arabic_paragraph(doc, "يعتمد النظام على مطابقة المخرجات مع قواعد بيانات NVD و Exploit-DB المحلية لربط الثغرات المكتشفة بمعرفات CVE وأكواد استغلال حقيقية.")
 
-add_arabic_paragraph(doc, '3.7 هندسة واجهة المستخدم ودليل الصفحات', is_heading=True, level=1)
-pages = [
-    "1. Dashboard: عرض نبض الأمان والرسوم البيانية.",
-    "2. New Scan: واجهة أتمتة عمليات الفحص.",
-    "3. Scan Results: مراقبة حية للمخرجات التقنية.",
-    "4. Vulnerabilities: إدارة الثغرات المربوطة بـ CVE.",
-    "5. Attack Vector Mapping: تحليل متقدم لنواقل الهجوم وتأثير الـ CIA.",
-    "6. Admin Panel: الرقابة الشاملة وإدارة المستخدمين والتقارير التنفيذية."
-]
-for p in pages:
-    add_arabic_paragraph(doc, p)
+add_arabic_paragraph(doc, '3.7 هندسة واجهة المستخدم ودليل الصفحات الشامل (UI/UX Guide)', is_heading=True, level=1)
+add_arabic_paragraph(doc, "تم بناء واجهة المستخدم باستخدام إطار العمل React مع لغة TypeScript، مع التركيز على مبدأ \"التفاعل في الوقت الفعلي\" (Real-time Interactivity). تعتمد المنصة على مكتبة Tailwind CSS للتصميم المتجاوب، وTanStack Query لإدارة حالة البيانات والتزامن مع الخادم الخلفي.")
+
+add_arabic_paragraph(doc, "1. واجهة تسجيل الدخول والوصول الآمن (Login & Authentication):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعتبر بوابة العبور للنظام، حيث تعتمد على تقنيات Supabase Auth لإدارة الجلسات باستخدام بروتوكول JWT (JSON Web Tokens). توفر الواجهة نظام دخول ثنائي للمسؤولين والمستخدمين، مع ضمان تشفير البيانات الحساسة أثناء عملية المصادقة.")
+
+add_arabic_paragraph(doc, "2. لوحة المعلومات الرئيسية (Dashboard/Index):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "تعتبر المركز العصبي للمنصة، حيث تعرض \"نبض الأمان\" (Security Pulse) عبر:")
+add_arabic_paragraph(doc, "• الرسوم البيانية الدائرية (Donut Charts): توضح توزيع المخاطر المكتشفة بناءً على تصنيف ExPRT.")
+add_arabic_paragraph(doc, "• ملخص الأصول الرقمية: جدول يعرض المواقع التي تم فحصها مع تقييم إجمالي لمستوى خطورة كل منها (Asset Criticality).")
+add_arabic_paragraph(doc, "• الربط اللحظي: تسمح للمستخدم بالنقر على أي قسم في الرسم البياني للانتقال مباشرة إلى النتائج المفصلة المفلترة حسب تلك الدرجة من الخطورة.")
+
+add_arabic_paragraph(doc, "3. لوحة تحكم الثغرات المتقدمة (Vulnerability Dashboard):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "واجهة تحليلية معمقة تهدف لتوفير رؤية استراتيجية لمدراء الأمن السيبراني:")
+add_arabic_paragraph(doc, "• منحنى الاكتشاف التراكمي (Cumulative Discovery Trend): رسم بياني خطي يوضح إجمالي الثغرات الفريدة المكتشفة خلال 45 يوماً، مما يساعد في قياس فعالية عمليات الفحص الدورية.")
+add_arabic_paragraph(doc, "• عداد المخاطر (Risk Score Gauge): يقوم بحساب نتيجة رقمية (من 0 إلى 100) تعبر عن حالة الأمان الكلية، بناءً على معادلة رياضية تجمع بين درجة CVSS، توفر استغلال معلن (Exploitability)، وحساسية الأصل المستهدف.")
+add_arabic_paragraph(doc, "• جداول الامتثال (Remediation Compliance): تتبع حالة معالجة الثغرات (Open/Closed) وتقارنها بالأهداف الزمنية (SLA)، حيث يظهر النظام تنبيهات باللون الأحمر للثغرات التي تجاوزت المدة المسموحة للإصلاح.")
+
+add_arabic_paragraph(doc, "4. واجهة الفحص الذكي (New Scan):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "توفر تحكماً دقيقاً في عملية اكتشاف الثغرات عبر:")
+add_arabic_paragraph(doc, "• نظام التحقق اللحظي من الملكية (Domain Verification): باستخدام تقنية Debouncing (600ms)، يقوم النظام تلقائياً بالتأكد من أن النطاق المستهدف مصرح به للمستخدم قبل السماح بالنقر على زر البدء.")
+add_arabic_paragraph(doc, "• مركز اختيار الأدوات (Tool Selection): واجهة تفاعلية تتيح تفعيل أدوات محددة (مثل Nmap, SQLmap, Nikto, FFUF) أو دمجها في فحص شامل، مع إمكانية إضافة أوصاف مخصصة لكل عملية فحص.")
+add_arabic_paragraph(doc, "• إقرارات الأمان الأخلاقي: تفرض على المستخدم الموافقة على سلسلة من التأكيدات القانونية لضمان استخدام المنصة في أغراض دفاعية وبترخيص رسمي.")
+
+add_arabic_paragraph(doc, "5. شاشة مراقبة العمليات الحية (Scan Results):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "واجهة لمتابعة التقدم التقني في الوقت الفعلي:")
+add_arabic_paragraph(doc, "• الإدارة الديناميكية للعمليات: تتيح للمستخدم إيقاف الفحص مؤقتاً (Pause) أو استئنافه (Resume)، حيث يتم إرسال هذه الأوامر مباشرة إلى خادم FastAPI الذي يتحكم في العمليات الخلفية لنظام Kali Linux.")
+add_arabic_paragraph(doc, "• التحديث التلقائي (Auto-Polling): يقوم النظام بتحديث الحالة كل 5 ثوانٍ لجلب آخر النتائج المكتشفة وتدفق المخرجات الخام (Raw Output Streams).")
+add_arabic_paragraph(doc, "• عارض السجلات التقنية: نافذة برمجية تعرض مخرجات سطر الأوامر الفعلية، مما يمنح المختبر الأمني القدرة على رؤية التفاعلات الدقيقة بين الأداة والهدف.")
+
+add_arabic_paragraph(doc, "6. إدارة سجل الثغرات الاستخباراتي (Vulnerabilities Tab):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "قاعدة بيانات مركزية تقوم بمعالجة النتائج الخام وتحويلها إلى معلومات قابلة للتنفيذ:")
+add_arabic_paragraph(doc, "• الربط بمعرفات CVE: يتم ربط كل ثغرة مكتشفة آلياً بقاعدة بيانات CVE و Exploit-DB لإظهار أكواد الاستغلال المتاحة.")
+add_arabic_paragraph(doc, "• التصفية والبحث المتقدم: إمكانية فرز الآلاف من النتائج حسب الموقع، الأداة، درجة الخطورة، أو نوع الثغرة (مثل SQL Injection).")
+add_arabic_paragraph(doc, "• الروابط العميقة (Deep Linking): توفر أيقونة \"العين\" انتقالاً مباشراً لصفحة النتائج لرؤية الدليل التقني (Proof of Concept) المرتبط بالثغرة.")
+
+add_arabic_paragraph(doc, "7. صفحة تحليل ناقل الهجوم (Attack Vector Mapping):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "واجهة تخصصية لتحليل سياق الهجوم:")
+add_arabic_paragraph(doc, "• تحليل مكونات CVSS: توضح كيفية الوصول للثغرة (عبر الشبكة أو محلياً) والمتطلبات التقنية اللازمة (مثل صلاحيات المستخدم).")
+add_arabic_paragraph(doc, "• تأثير الـ CIA: رسم بياني يوضح مدى تأثير الثغرة على السرية (Confidentiality)، السلامة (Integrity)، والتوافر (Availability).")
+
+add_arabic_paragraph(doc, "8. لوحة تحكم المسؤول والتقارير (Admin Panel & Reports):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "واجهة الرقابة الشاملة وإصدار القرارات:")
+add_arabic_paragraph(doc, "• مراقبة سجلات النظام (System Logs): تتبع تحركات المستخدمين وعمليات الفحص لضمان الشفافية.")
+add_arabic_paragraph(doc, "• التقارير التنفيذية (Executive Summary): تتيح تصدير تقارير PDF احترافية تلخص حالة الأمان الإجمالية، وتحدد أهم 5 ثغرات حرجة تتطلب تدخلاً فورياً.")
+add_arabic_paragraph(doc, "• إدارة المستخدمين: التحكم في صلاحيات الوصول وإرسال دعوات التسجيل للمختبرين الجدد.")
+
+add_arabic_paragraph(doc, "9. صفحة الإعدادات وإدارة النطاقات (Settings & Domains):", is_heading=True, level=2)
+add_arabic_paragraph(doc, "تتيح للمستخدم تخصيص تجربته وإدارة أصوله:")
+add_arabic_paragraph(doc, "• إضافة النطاقات وتوثيقها: واجهة لإضافة المواقع المراد فحصها مع إمكانية التحقق من الملكية (Ownership Verification) لضمان شرعية العمليات.")
+add_arabic_paragraph(doc, "• التخصيص البصري: التحكم في سمة الواجهة (Dark/Light Mode) بما يتناسب مع تفضيلات المستخدم.")
 
 add_arabic_paragraph(doc, '3.8 تحليل مخطط حالات الاستخدام (Use Case Diagram)', is_heading=True, level=1)
 add_arabic_paragraph(doc, "يمثل مخطط حالات الاستخدام حجر الزاوية في فهم التفاعلات الوظيفية للنظام، حيث يوضح الأدوار والمسؤوليات المنوطة بكل فئة من المستخدمين داخل بيئة إدارة الثغرات.")
