@@ -1,0 +1,82 @@
+graph LR
+    %% Global Styles (Black & White Professional)
+    classDef actorStyle fill:#fff,stroke:#000,stroke-width:2px,color:#000,font-weight:bold,font-size:16px;
+    classDef usecaseStyle fill:#fff,stroke:#000,stroke-width:1.5px,color:#000,font-size:13px;
+    classDef packageStyle fill:#f9f9f9,stroke:#333,stroke-width:2px,color:#000,font-weight:bold,font-size:15px;
+
+    subgraph System ["نظام إدارة الثغرات الأمني / Security Vulnerability Manager"]
+        direction TB
+
+        subgraph Dashboard ["لوحة التحكم والتحليل / Dashboard & Analysis"]
+            direction TB
+            UC_Stats(["مشاهدة إحصائيات الفحص / View Scan Stats"])
+            UC_Vector(["تحليل ناقل الهجوم / Attack Vector Analysis"])
+            UC_Assets(["إدارة الأصول المخترقة / Manage Scanned Assets"])
+            UC_Risk(["مؤشرات الخطر العام / Global Risk Metrics"])
+        end
+
+        subgraph Access ["الدخول والحسابات / Access & Identity"]
+            direction TB
+            UC_Login(["تسجيل الدخول / Login"])
+            UC_Profile(["إدارة البروفايل / Manage Profile"])
+        end
+
+        subgraph Domains ["إدارة النطاقات / Domain Management"]
+            direction TB
+            UC_AddDomain(["إضافة نطاق (بحد 5) / Add Domain (Max 5)"])
+            UC_Verify(["التحقق من الملكية HTTP-01 / Domain Verification"])
+            UC_Bypass(["تجاوز التحقق للنطاقات الموثوقة / Bypass Verification"])
+        end
+
+        subgraph Scanning ["عمليات الفحص الأمني / Security Scanning"]
+            direction TB
+            UC_StartScan(["بدء فحص (Nmap, Nikto, SQLMap) / Start Multi-Tool Scan"])
+            UC_ViewResults(["عرض نتائج الفحص / View Scan Results"])
+            UC_Evidence(["تحليل الأدلة التقنية / Analyze Tech Evidence"])
+            UC_PDF(["تصدير تقرير فحص PDF / Export PDF Report"])
+        end
+
+        subgraph AdminMgmt ["الإدارة والتقارير التنفيذية / Admin & Executive Reporting"]
+            direction TB
+            UC_ExecReport(["إنشاء تقارير تنفيذية / Executive Reports"])
+            UC_Users(["إدارة المستخدمين وحذفهم / User Management"])
+            UC_Logs(["مراجعة سجلات النظام / View System Logs"])
+            UC_CVE_Sync(["تزامن بيانات CVE و Exploits / Sync Vulnerability Data"])
+        end
+
+        %% Relationships
+        UC_AddDomain -.->|"<<include>>"| UC_Verify
+        UC_StartScan -.->|"<<include>>"| UC_ViewResults
+    end
+
+    %% Actors
+    Admin["المسؤول / Admin"]
+    User["المستخدم / User"]
+
+    %% Actor Relationships
+    Admin --|> User
+
+    %% User Connections
+    User --- UC_Login
+    User --- UC_Profile
+    User --- UC_AddDomain
+    User --- UC_StartScan
+    User --- UC_ViewResults
+    User --- UC_Evidence
+    User --- UC_PDF
+    User --- UC_Stats
+    User --- UC_Vector
+    User --- UC_Assets
+    User --- UC_Risk
+
+    %% Admin Exclusive Connections
+    Admin --- UC_Bypass
+    Admin --- UC_ExecReport
+    Admin --- UC_Users
+    Admin --- UC_Logs
+    Admin --- UC_CVE_Sync
+
+    %% Apply Classes
+    class Admin,User actorStyle;
+    class UC_Login,UC_Profile,UC_AddDomain,UC_Verify,UC_Bypass,UC_StartScan,UC_ViewResults,UC_Evidence,UC_PDF,UC_Stats,UC_Vector,UC_Assets,UC_Risk,UC_ExecReport,UC_Users,UC_Logs,UC_CVE_Sync usecaseStyle;
+    class Dashboard,Access,Domains,Scanning,AdminMgmt packageStyle;

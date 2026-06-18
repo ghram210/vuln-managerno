@@ -1,0 +1,91 @@
+erDiagram
+    %% Global Stylings
+    %% Note: Mermaid ERD doesn't support complex classDef for nodes yet,
+    %% but we can use comments and standard layout.
+
+    AUTH_USERS ||--|| ADMIN_USERS : "البروفايل / Profile"
+    AUTH_USERS ||--o{ USER_ROLES : "الأدوار / Roles"
+    AUTH_USERS ||--o{ USER_DOMAINS : "النطاقات / Domains"
+    AUTH_USERS ||--o{ SCAN_RESULTS : "عمليات الفحص / Scans"
+
+    SCAN_RESULTS ||--o{ SCAN_FINDINGS : "النتائج / Findings"
+    SCAN_FINDINGS ||--o{ FINDING_CVES : "الربط / Link"
+    NVD_CVES ||--o{ FINDING_CVES : "تفاصيل / Details"
+    NVD_CVES ||--o{ EXPLOITS : "الأكواد / Exploits"
+
+    AUTH_USERS {
+        uuid id PK "المعرف الفريد / ID"
+        string email "البريد / Email"
+    }
+
+    ADMIN_USERS {
+        uuid id PK "المعرف / ID"
+        string name "الاسم / Name"
+        string email "البريد / Email"
+        string role "الدور / Role"
+        timestamp joined_at "تاريخ الانضمام / Joined At"
+    }
+
+    USER_ROLES {
+        uuid id PK
+        uuid user_id FK "معرف المستخدم / User ID"
+        string role "الصلاحية / Role (Admin/User)"
+    }
+
+    USER_DOMAINS {
+        uuid id PK
+        uuid user_id FK "المالك / Owner ID"
+        string domain "النطاق / Domain"
+        string status "الحالة / Status (Pending/Verified)"
+        string token "رمز التحقق / Verification Token"
+        timestamp created_at "تاريخ الإضافة / Created At"
+    }
+
+    SCAN_RESULTS {
+        uuid id PK
+        uuid user_id FK "الفاحص / Scanner ID"
+        string name "الاسم / Scan Name"
+        string target "الهدف / Target URL"
+        string tool "الأداة / Tool (Nmap/Nikto/..)"
+        string status "الحالة / Status"
+        int total_findings "المجموع / Total Findings"
+        int critical_count "الثغرات الحرجة / Critical Count"
+        timestamp started_at "وقت البدء / Started At"
+    }
+
+    SCAN_FINDINGS {
+        uuid id PK
+        uuid scan_id FK "المعرف للفحص / Scan ID"
+        string title "العنوان / Title"
+        string severity "الخطورة / Severity"
+        string status "الحالة / Status (Open/Fixed)"
+        text evidence "الأدلة / Evidence Logs"
+    }
+
+    FINDING_CVES {
+        uuid id PK
+        uuid finding_id FK "المعرف للنتيجة / Finding ID"
+        string cve_id FK "معرف الثغرة / CVE ID"
+    }
+
+    NVD_CVES {
+        string cve_id PK "رقم الثغرة / CVE ID"
+        text description "الوصف / Description"
+        float cvss_score "التقييم / CVSS Score"
+        string severity "الخطورة / Severity"
+        date published_date "تاريخ النشر / Published"
+    }
+
+    EXPLOITS {
+        uuid id PK
+        string cve_id FK "رقم الثغرة / CVE ID"
+        string description "الوصف / Description"
+        string file_path "مسار الملف / File Path"
+    }
+
+    SYSTEM_LOGS {
+        uuid id PK
+        string message "الرسالة / Message"
+        string level "المستوى / Level (Info/Error)"
+        timestamp timestamp "الوقت / Time"
+    }
