@@ -74,6 +74,7 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
     "vite": "catalog:",
+    "vitest": "^2.1.8",
     "zod": "catalog:"
   }
 }
