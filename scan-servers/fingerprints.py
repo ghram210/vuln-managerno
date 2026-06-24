@@ -177,20 +177,23 @@ def from_nmap(output: str) -> list[Fingerprint]:
     fps: list[Fingerprint] = []
     for line in output.splitlines():
         if "/tcp" in line and "open" in line:
-            # Always add a generic port discovery finding (Smart Intelligence)
-            port_match = re.search(r"(\d+)/tcp", line)
-            if port_match:
-                port = port_match.group(1)
-                fps.append(Fingerprint(
-                    vendor="Intelligence",
-                    product=f"Port {port}",
-                    version=None,
-                    path=None,
-                    source="nmap",
-                    evidence=line.strip()
-                ))
-            # Also extract specific software fingerprints for NVD matching
-            fps.extend(_pairs_from_line(line, source="nmap"))
+            # Prioritize specific software fingerprints for NVD matching
+            specific = _pairs_from_line(line, source="nmap")
+            if specific:
+                fps.extend(specific)
+            else:
+                # Fallback to generic port discovery discovery if no specific software found
+                port_match = re.search(r"(\d+)/tcp", line)
+                if port_match:
+                    port = port_match.group(1)
+                    fps.append(Fingerprint(
+                        vendor="Intelligence",
+                        product=f"Port {port}",
+                        version=None,
+                        path=None,
+                        source="nmap",
+                        evidence=line.strip()
+                    ))
         elif "http-server-header" in line.lower():
             fps.extend(_pairs_from_line(line, source="nmap"))
     return _dedup(fps)
@@ -219,21 +222,28 @@ def from_nikto(output: str) -> list[Fingerprint]:
         low = line_clean.lower()
         if any(s in low for s in (
             "+ start time", "+ end time", "+ scan terminated",
-            "+ host:", "+ root page", "+ no cgi", "+ target ip",
-            "+ target hostname", "+ target port", "+ site link",
+            "+ host:", "+ target host", "+ root page", "+ no cgi", "+ target ip",
+            "+ target hostname", "+ target port", "+ site link", "+ target ",
         )):
             continue
         
-        # Add as smart finding (Intelligence)
-        fps.append(Fingerprint(
-            vendor="Intelligence",
-            product="Security Discovery",
-            version=None,
-            source="nikto",
-            evidence=line_clean.lstrip("+ ").strip()
-        ))
-        
-        fps.extend(_pairs_from_line(line_clean, source="nikto"))
+        # Prioritize specific software fingerprints
+        specific = _pairs_from_line(line_clean, source="nikto")
+        if specific:
+            # To avoid over-counting findings compared to tool output,
+            # we only take the FIRST software match per line if it's a discovery tool.
+            # This ensures "Apache/2.4.49 PHP/7.4.3" counts as 1 finding in the summary
+            # but still allows NVD matching for the primary product.
+            fps.append(specific[0])
+        else:
+            # Fallback to generic smart finding (Intelligence)
+            fps.append(Fingerprint(
+                vendor="Intelligence",
+                product="Security Discovery",
+                version=None,
+                source="nikto",
+                evidence=line_clean.lstrip("+ ").strip()
+            ))
     return _dedup(fps)
 
 
@@ -245,10 +255,8 @@ def from_sqlmap(output: str) -> list[Fingerprint]:
     fps: list[Fingerprint] = []
     for line in output.splitlines():
         low = line.lower()
-        if "back-end dbms" in low or "web application technology" in low:
-            fps.extend(_pairs_from_line(line, source="sqlmap"))
         
-        # Capture confirmed vulnerabilities as smart findings
+        # Capture confirmed vulnerabilities as smart findings (High Priority)
         if "is vulnerable" in low or "parameter:" in low:
             fps.append(Fingerprint(
                 vendor="Intelligence",
@@ -257,6 +265,11 @@ def from_sqlmap(output: str) -> list[Fingerprint]:
                 source="sqlmap",
                 evidence=line.strip()
             ))
+
+        # Extract software versions (Low Priority fallback or secondary)
+        if "back-end dbms" in low or "web application technology" in low:
+            fps.extend(_pairs_from_line(line, source="sqlmap"))
+
     return _dedup(fps)
 
 
@@ -268,11 +281,16 @@ def from_ffuf(output: str) -> list[Fingerprint]:
     noise_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.css', '.ico', '.woff', '.svg')
     
     for line in output.splitlines():
-        # Capture Server header fingerprints if present
-        if "server:" in line.lower():
-            fps.extend(_pairs_from_line(line, source="ffuf"))
+        # Prioritize specific software fingerprints (e.g. from Server header)
+        specific = _pairs_from_line(line, source="ffuf")
+        if specific:
+            # Only take the first one to keep counts matching tool output (1 line = 1 finding)
+            fps.append(specific[0])
+            # If we found specific product info, we skip the generic path discovery
+            # for this line to prevent double-counting.
+            continue
         
-        # Capture discovered paths (Formatted output looks like "  /path  [HTTP ...]")
+        # Fallback to generic discovered paths (Formatted output looks like "  /path  [HTTP ...]")
         if " [HTTP " in line:
             path_match = re.search(r"^\s*([^\s]+)", line)
             if path_match:
