@@ -47,13 +47,13 @@ const exploitStyles: Record<string, { dot: string; text: string; bg: string }> =
 };
 
 const SeverityCell = ({ value }: { value: string | null | undefined }) => {
-  if (!value) return <span className="text-muted-foreground">—</span>;
+  if (!value) return <span className="text-muted-foreground text-[11px]">—</span>;
   const style = severityStyles[value as SeverityKey] ?? fallbackStyle;
   const color = "hex" in style ? style.hex : undefined;
   return (
     <span className="inline-flex items-center gap-2">
-      <span className={`w-2.5 h-2.5 rounded-full ${style.dot}`} style={color ? { backgroundColor: color } : {}} />
-      <span className={`font-medium ${style.text}`} style={color ? { color } : {}}>{value}</span>
+      <span className={`w-2 h-2 rounded-full ${style.dot}`} style={color ? { backgroundColor: color } : {}} />
+      <span className={`font-medium text-[11px] ${style.text}`} style={color ? { color } : {}}>{value}</span>
     </span>
   );
 };
@@ -69,12 +69,53 @@ const ExploitCell = ({ value }: { value: string | null | undefined }) => {
     };
   return (
     <span
-      className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-semibold ${style.bg} ${style.text}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold ${style.bg} ${style.text}`}
     >
-      <span className={`w-2 h-2 rounded-full ${style.dot}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
       {v}
     </span>
   );
+};
+
+const getSmartSummary = (text: string | null) => {
+  if (!text) return "—";
+  // Matches until the first period that is followed by a space or end of string.
+  // This helps avoid splitting on "v1.2" etc.
+  const match = text.match(/^[\s\S]*?\.(?:\s|$)/);
+  return match ? match[0].trim() : text;
+};
+
+const VULN_TYPES = [
+  "SQL Injection", "Cross-Site Scripting", "XSS", "Server-Side Request Forgery", "SSRF",
+  "Remote Code Execution", "RCE", "Local File Inclusion", "LFI", "Remote File Inclusion", "RFI",
+  "Path Traversal", "Insecure Deserialization", "Broken Authentication", "Broken Access Control",
+  "Security Misconfiguration", "Cross-Site Request Forgery", "CSRF", "Open Redirect",
+  "Clickjacking", "Buffer Overflow", "Command Injection", "Directory Listing",
+  "Exposed Credentials", "Information Disclosure", "Insecure TLS", "Hardcoded Secrets",
+  "Denial of Service", "DoS", "Privilege Escalation", "Cryptographic Failures",
+  "Outdated Component", "Vulnerable Dependency", "Sensitive Data Exposure"
+];
+
+const getVulnerabilityName = (description: string | null, vulnerabilityName: string | null) => {
+  // If we have a meaningful vulnerability_name from the database, use it.
+  // But we still want to filter out technical fingerprints if the DB name is just that.
+
+  if (vulnerabilityName) {
+     const isFingerprint = /^[a-z0-9_-]+ [\d.]+ \([a-z]+\)$/i.test(vulnerabilityName);
+     if (!isFingerprint && vulnerabilityName.length < 50) return vulnerabilityName;
+  }
+
+  if (!description) return vulnerabilityName || "Security Vulnerability";
+
+  // Try to find a standard vulnerability type in the description
+  for (const type of VULN_TYPES) {
+    const regex = new RegExp(`\\b${type.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(description)) return type;
+  }
+
+  // Fallback: Take the first few words of the description
+  const words = description.split(/\s+/).slice(0, 4).join(" ");
+  return words.length > 3 ? words.replace(/[^a-zA-Z\s]/g, "").trim() : (vulnerabilityName || "General Vulnerability");
 };
 
 const VulnerabilitiesTab = () => {
@@ -105,8 +146,6 @@ const VulnerabilitiesTab = () => {
     },
   });
 
-  // Pull CVSS scores + published dates from cve_catalog so we can show
-  // a real numeric column instead of REMEDIATIONS.
   const cveIds = useMemo(
     () =>
       Array.from(
@@ -147,14 +186,8 @@ const VulnerabilitiesTab = () => {
     if (filterRating !== "all" && v.cvss_severity !== filterRating) return false;
     if (filterExploit !== "all" && v.exploit_status !== filterExploit) return false;
     if (filterStatus !== "all" && v.status !== filterStatus) return false;
-
-    // Apply tag filters
     if (selectedTags.includes("Open vulnerabilities") && v.status !== "Open") return false;
-    
-    // Logic for CISA KEV - typically these are critical/high exploits. 
-    // Since we don't have a direct flag, we use 'Actively Used' as a proxy for this academic version.
     if (selectedTags.includes("CISA KEV") && v.exploit_status !== "Actively Used") return false;
-
     return true;
   });
 
@@ -191,7 +224,7 @@ const VulnerabilitiesTab = () => {
             closeAllDrops();
             setShow(!show);
           }}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-secondary border border-border rounded-lg"
+          className="flex items-center gap-2 px-3 py-1 text-xs bg-secondary border border-border rounded-md"
         >
           {value === "all" ? allLabel : value}
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -199,7 +232,7 @@ const VulnerabilitiesTab = () => {
           </svg>
         </button>
         {show && (
-          <div className="absolute z-10 mt-1 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[160px]">
+          <div className="absolute z-10 mt-1 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[140px]">
             {options.map((opt) => {
               const val = opt === allLabel ? "all" : opt;
               const active = value === val;
@@ -211,11 +244,11 @@ const VulnerabilitiesTab = () => {
                     setShow(false);
                   }}
                   className={cn(
-                    "w-full text-left px-3 py-1.5 text-sm hover:bg-accent",
+                    "w-full text-left px-3 py-1 text-xs hover:bg-accent",
                     active ? "bg-primary text-primary-foreground" : ""
                   )}
                 >
-                  {opt} {active && "✓"}
+                  {opt}
                 </button>
               );
             })}
@@ -226,10 +259,10 @@ const VulnerabilitiesTab = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Filter row */}
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-muted-foreground">Filter by:</span>
+      <div className="flex items-center gap-3">
+        <span className="text-[11px] text-muted-foreground">Filter by:</span>
         <DropdownFilter
           label="Ratings"
           value={filterRating}
@@ -254,23 +287,20 @@ const VulnerabilitiesTab = () => {
           setShow={setShowStatusDrop}
           setValue={setFilterStatus}
         />
-        <span className="ml-auto text-sm text-muted-foreground">{filtered.length.toLocaleString("en-US")} results</span>
+        <span className="ml-auto text-[11px] text-muted-foreground">{filtered.length.toLocaleString("en-US")} results</span>
       </div>
 
       {/* Info banner */}
-      <div className="bg-card rounded-lg border border-border p-4">
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-card rounded-lg border border-border p-3">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-severity-high" />
-            <span className="text-sm font-medium text-foreground">
-              {filtered.length.toLocaleString("en-US")} vulnerabilities found on {filtered.length.toLocaleString("en-US")} vulnerability IDs
+            <AlertTriangle className="w-3.5 h-3.5 text-severity-high" />
+            <span className="text-[11px] font-medium text-foreground">
+              {filtered.length.toLocaleString("en-US")} vulnerabilities found
             </span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">⊕ Grouped by Vulnerability ID</span>
-          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-2">
           {filterTags.map((tag, i) => {
             const isActive = selectedTags.includes(tag);
             return (
@@ -278,7 +308,7 @@ const VulnerabilitiesTab = () => {
                 key={i}
                 onClick={() => toggleTag(tag)}
                 className={cn(
-                  "text-xs px-2 py-1 rounded transition-colors",
+                  "text-[10px] px-2 py-0.5 rounded transition-colors",
                   isActive
                     ? "bg-primary/20 text-primary font-medium border border-primary/30"
                     : "text-muted-foreground hover:bg-secondary border border-transparent"
@@ -288,11 +318,9 @@ const VulnerabilitiesTab = () => {
               </button>
             );
           })}
-        </div>
-        <div className="text-right">
           <button
             onClick={() => setSelectedTags([])}
-            className="text-xs text-muted-foreground cursor-pointer hover:text-foreground"
+            className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground ml-auto"
           >
             Clear all
           </button>
@@ -300,101 +328,105 @@ const VulnerabilitiesTab = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-lg border border-border overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-secondary/30">
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVE</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Scan Name</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exprt Rating</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Severity</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Description</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Affected</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Exploit Status</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">CVSS Score</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-primary uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((v) => {
-              const sev = (v.cvss_severity as SeverityKey) ?? "Info";
-              const sevStyle = severityStyles[sev] ?? fallbackStyle;
-              const dot = sevStyle.dot;
-              const color = "hex" in sevStyle ? sevStyle.hex : undefined;
-              const cveInfo = cveMap.get(v.cve_id);
-              const score = cveInfo?.score;
-              const scoreStyle = severityStyles[sev] ?? fallbackStyle;
-              return (
-                <tr
-                  key={v.id}
-                  className="border-t border-border hover:bg-secondary/50 transition-colors cursor-pointer"
-                  onClick={() => navigate("/scan-results")}
-                >
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${dot}`} style={color ? { backgroundColor: color } : {}} />
-                      <span className="text-primary font-mono text-xs font-semibold">
-                        {v.cve_id ?? "—"}
+      <div className="bg-card rounded-lg border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-secondary/30">
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-primary uppercase tracking-wider">CVE</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-primary uppercase tracking-wider">Vulnerability Name</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-primary uppercase tracking-wider">Exprt Rating</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-primary uppercase tracking-wider">Severity</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-primary uppercase tracking-wider">Description</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-primary uppercase tracking-wider">Hits</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-primary uppercase tracking-wider text-center">Exploit</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-primary uppercase tracking-wider text-center">Score</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-primary uppercase tracking-wider text-center w-10">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map((v) => {
+                const sev = (v.cvss_severity as SeverityKey) ?? "Info";
+                const sevStyle = severityStyles[sev] ?? fallbackStyle;
+                const dot = sevStyle.dot;
+                const color = "hex" in sevStyle ? sevStyle.hex : undefined;
+                const cveInfo = cveMap.get(v.cve_id);
+                const score = cveInfo?.score;
+                return (
+                  <tr
+                    key={v.id}
+                    className="hover:bg-secondary/40 transition-colors cursor-pointer h-[40px]"
+                    onClick={() => navigate(`/scan-results?scanId=${v.id}`)}
+                  >
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${dot}`} style={color ? { backgroundColor: color } : {}} />
+                        <span className="text-primary font-mono text-[11px] font-semibold">
+                          {v.cve_id ?? "—"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="text-foreground/90 font-semibold text-[11px] block truncate max-w-[200px]">
+                        {getVulnerabilityName(v.description, v.vulnerability_name)}
                       </span>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <SeverityCell value={v.exprt_rating} />
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <SeverityCell value={v.cvss_severity} />
+                    </td>
+                    <td className="px-3 py-2 text-foreground/80 max-w-[400px]">
+                      <span className="text-[11px] leading-relaxed block truncate" title={v.description ?? ""}>
+                        {getSmartSummary(v.description)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-foreground/90 text-center font-bold text-[11px] tabular-nums">
+                      {(v.vulnerability_count ?? 0).toLocaleString("en-US")}
+                    </td>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      <ExploitCell value={v.exploit_status} />
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {score !== undefined && score !== null ? (
+                        <span
+                          className={`inline-flex items-center justify-center min-w-[36px] px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums bg-secondary border border-border ${severityStyles[sev]?.text}`}
+                          style={color ? { color } : {}}
+                        >
+                          {Number(score).toFixed(1)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-[10px]">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        className="text-muted-foreground hover:text-foreground p-1 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/scan-results?scanId=${v.id}`);
+                        }}
+                      >
+                        <MoreHorizontal className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-3 py-12 text-center text-[11px] text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                      <AlertTriangle className="w-6 h-6 opacity-20" />
+                      No vulnerabilities match the current filters.
                     </div>
                   </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-foreground/80 font-medium truncate max-w-[150px] block">
-                      {v.scan_names ? v.scan_names.split(', ')[0] : "—"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <SeverityCell value={v.exprt_rating} />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <SeverityCell value={v.cvss_severity} />
-                  </td>
-                  <td className="px-5 py-3.5 text-foreground/85 max-w-[320px]">
-                    <span className="line-clamp-2 leading-snug" title={v.description ?? ""}>
-                      {v.description ?? "—"}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5 text-foreground text-center font-medium tabular-nums">
-                    {(v.vulnerability_count ?? 0).toLocaleString("en-US")}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <ExploitCell value={v.exploit_status} />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    {score !== undefined && score !== null ? (
-                      <span
-                        className={`inline-flex items-center justify-center min-w-[44px] px-2 py-1 rounded-md text-xs font-bold tabular-nums bg-secondary border border-border ${scoreStyle.text}`}
-                        style={color ? { color } : {}}
-                      >
-                        {Number(score).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <button
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate("/scan-results");
-                      }}
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
-                  </td>
                 </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-sm text-muted-foreground">
-                  No vulnerabilities match the current filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
